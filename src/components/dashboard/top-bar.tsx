@@ -1,0 +1,274 @@
+"use client"
+
+import { useEffect, useRef, useState, useCallback } from "react"
+import { useRouter } from "next/navigation"
+import { useSession, useLogout } from "@/hooks/use-auth"
+import { supabase } from "@/lib/supabase"
+import { Search, Bell, HelpCircle, Settings, LogOut, User, FileText, BookOpen, GraduationCap, ClipboardList, Loader2 } from "lucide-react"
+
+interface SearchResult {
+  id: string
+  label: string
+  description?: string
+  href: string
+  category: string
+  icon: typeof FileText
+}
+
+interface TopBarProps {
+  searchPlaceholder?: string
+}
+
+export default function TopBar({ searchPlaceholder = "Zoeken in platform..." }: TopBarProps) {
+  const { data: session } = useSession()
+  const logout = useLogout()
+  const router = useRouter()
+  const [dropdownOpen, setDropdownOpen] = useState(false)
+  const dropdownRef = useRef<HTMLDivElement>(null)
+
+  const [search, setSearch] = useState("")
+  const [results, setResults] = useState<SearchResult[]>([])
+  const [searching, setSearching] = useState(false)
+  const [showResults, setShowResults] = useState(false)
+  const searchRef = useRef<HTMLDivElement>(null)
+  const inputRef = useRef<HTMLInputElement>(null)
+  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+
+  const email = session?.user?.email ?? ""
+  const name = session?.user?.user_metadata?.name ?? ""
+  const initials = email
+    .split("@")[0]
+    .slice(0, 2)
+    .toUpperCase()
+
+  useEffect(() => {
+    function handleClickOutside(e: MouseEvent) {
+      if (dropdownRef.current && !dropdownRef.current.contains(e.target as Node)) {
+        setDropdownOpen(false)
+      }
+      if (searchRef.current && !searchRef.current.contains(e.target as Node)) {
+        setShowResults(false)
+      }
+    }
+    document.addEventListener("mousedown", handleClickOutside)
+    return () => document.removeEventListener("mousedown", handleClickOutside)
+  }, [])
+
+  useEffect(() => {
+    function handleKeyDown(e: KeyboardEvent) {
+      if (e.key === "Escape") {
+        setShowResults(false)
+        setDropdownOpen(false)
+      }
+      if ((e.ctrlKey || e.metaKey) && e.key === "k") {
+        e.preventDefault()
+        inputRef.current?.focus()
+      }
+    }
+    document.addEventListener("keydown", handleKeyDown)
+    return () => document.removeEventListener("keydown", handleKeyDown)
+  }, [])
+
+  const doSearch = useCallback(async (term: string) => {
+    if (term.length < 2) {
+      setResults([])
+      setSearching(false)
+      return
+    }
+    setSearching(true)
+    try {
+      const q = `%${term}%`
+      const [
+        { data: students },
+        { data: questions },
+        { data: lessons },
+        { data: courses },
+        { data: exams },
+      ] = await Promise.all([
+        supabase.from("profiles").select("id, name, email").ilike("name", q).limit(5),
+        supabase.from("questions").select("id, question_text, category").ilike("question_text", q).limit(5),
+        supabase.from("lessons").select("id, title").ilike("title", q).limit(5),
+        supabase.from("courses").select("id, title").ilike("title", q).limit(5),
+        supabase.from("exams").select("id, title").ilike("title", q).limit(5),
+      ])
+
+      const items: SearchResult[] = []
+
+      if (students && students.length > 0) {
+        students.forEach((s) => {
+          items.push({ id: s.id, label: s.name ?? s.email, description: s.email, href: "/students", category: "Studenten", icon: User })
+        })
+      }
+
+      if (questions && questions.length > 0) {
+        questions.forEach((q) => {
+          items.push({ id: q.id, label: q.question_text.slice(0, 80), description: q.category, href: "/questions", category: "Vragen", icon: ClipboardList })
+        })
+      }
+
+      if (lessons && lessons.length > 0) {
+        lessons.forEach((l) => {
+          items.push({ id: l.id, label: l.title, href: `/learn/${l.id}`, category: "Lessen", icon: BookOpen })
+        })
+      }
+
+      if (courses && courses.length > 0) {
+        courses.forEach((c) => {
+          items.push({ id: c.id, label: c.title, href: "/lessons", category: "Cursussen", icon: GraduationCap })
+        })
+      }
+
+      if (exams && exams.length > 0) {
+        exams.forEach((e) => {
+          items.push({ id: e.id, label: e.title, href: "/exams", category: "Examens", icon: FileText })
+        })
+      }
+
+      setResults(items)
+    } catch {
+      setResults([])
+    } finally {
+      setSearching(false)
+    }
+  }, [])
+
+  useEffect(() => {
+    if (debounceRef.current) clearTimeout(debounceRef.current)
+    if (search.length >= 2) {
+      setShowResults(true)
+      debounceRef.current = setTimeout(() => doSearch(search), 300)
+    } else {
+      setResults([])
+      setShowResults(false)
+    }
+    return () => { if (debounceRef.current) clearTimeout(debounceRef.current) }
+  }, [search, doSearch])
+
+  const navigate = (href: string) => {
+    setShowResults(false)
+    setSearch("")
+    inputRef.current?.blur()
+    router.push(href)
+  }
+
+  return (
+    <header className="w-full h-16 sticky top-0 z-40 bg-surface shadow-[0px_4px_20px_rgba(26,60,110,0.05)]">
+      <div className="flex justify-between items-center px-4 md:px-6 h-full">
+        <div className="flex items-center gap-4 flex-1 max-w-xl">
+          <div className="relative w-full" ref={searchRef}>
+            <div className="flex items-center bg-surface-container-low rounded-full px-4 py-1.5 gap-2 focus-within:ring-2 focus-within:ring-primary/20 focus-within:border-primary transition-all">
+              <Search size={18} className="text-on-surface-variant shrink-0" />
+              <input
+                ref={inputRef}
+                className="bg-transparent border-none focus:ring-0 focus:outline-none text-body-md w-full placeholder:text-on-surface-variant"
+                placeholder={searchPlaceholder}
+                type="text"
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                onFocus={() => { if (results.length > 0 || searching) setShowResults(true) }}
+              />
+              {searching && <Loader2 size={16} className="animate-spin text-on-surface-variant shrink-0" />}
+            </div>
+
+            {showResults && (
+              <div className="absolute top-12 left-0 right-0 bg-surface shadow-lg rounded-2xl border border-outline-variant/30 overflow-hidden z-50 max-h-96 overflow-y-auto">
+                {results.length === 0 && !searching && (
+                  <div className="px-4 py-6 text-center text-label-sm text-on-surface-variant">
+                    Geen resultaten gevonden voor &ldquo;{search}&rdquo;
+                  </div>
+                )}
+                {results.length > 0 && (
+                  <div className="py-2">
+                    {(() => {
+                      const grouped: Record<string, SearchResult[]> = {}
+                      results.forEach((r) => {
+                        if (!grouped[r.category]) grouped[r.category] = []
+                        grouped[r.category].push(r)
+                      })
+                      return Object.entries(grouped).map(([cat, items]) => (
+                        <div key={cat}>
+                          <div className="px-4 py-1.5 text-label-xs font-bold text-on-surface-variant uppercase tracking-wider">{cat}</div>
+                          {items.map((item) => (
+                            <button
+                              key={`${cat}-${item.id}`}
+                              onClick={() => navigate(item.href)}
+                              className="w-full flex items-center gap-3 px-4 py-2.5 text-label-md text-on-surface hover:bg-surface-container transition-colors"
+                            >
+                              <item.icon size={18} className="text-on-surface-variant shrink-0" />
+                              <div className="min-w-0 text-left">
+                                <p className="truncate">{item.label}</p>
+                                {item.description && (
+                                  <p className="text-label-xs text-on-surface-variant truncate">{item.description}</p>
+                                )}
+                              </div>
+                            </button>
+                          ))}
+                        </div>
+                      ))
+                    })()}
+                  </div>
+                )}
+                <div className="border-t border-outline-variant/20 px-4 py-2 text-label-xs text-on-surface-variant flex items-center justify-between">
+                  <span>{results.length} resultaten</span>
+                  <span>ESC om te sluiten</span>
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+
+        <div className="flex items-center gap-4 shrink-0 ml-4">
+          <button className="hover:bg-surface-container rounded-full p-2 transition-all text-on-surface-variant">
+            <Bell size={20} />
+          </button>
+          <button className="hover:bg-surface-container rounded-full p-2 transition-all text-on-surface-variant">
+            <HelpCircle size={20} />
+          </button>
+
+          <div className="relative" ref={dropdownRef}>
+            <button
+              onClick={() => setDropdownOpen(!dropdownOpen)}
+              className="size-9 rounded-full bg-primary flex items-center justify-center text-on-primary text-label-sm font-bold hover:opacity-90 transition-all active:scale-95 shrink-0"
+            >
+              {initials || "?"}
+            </button>
+
+            {dropdownOpen && (
+              <div className="absolute right-0 top-12 w-64 bg-surface shadow-lg rounded-2xl border border-outline-variant/30 overflow-hidden z-50">
+                <div className="px-4 py-4 border-b border-outline-variant/20">
+                  <p className="text-label-md font-bold text-primary truncate">{name || email}</p>
+                  <p className="text-label-xs text-on-surface-variant truncate mt-0.5">{email}</p>
+                </div>
+                <div className="py-1">
+                  <button
+                    onClick={() => { router.push("/dashboard/settings"); setDropdownOpen(false) }}
+                    className="w-full flex items-center gap-3 px-4 py-3 text-label-md text-on-surface hover:bg-surface-container transition-colors"
+                  >
+                    <User size={18} className="text-on-surface-variant" />
+                    Profiel
+                  </button>
+                  <button
+                    onClick={() => { router.push("/dashboard/settings"); setDropdownOpen(false) }}
+                    className="w-full flex items-center gap-3 px-4 py-3 text-label-md text-on-surface hover:bg-surface-container transition-colors"
+                  >
+                    <Settings size={18} className="text-on-surface-variant" />
+                    Instellingen
+                  </button>
+                </div>
+                <div className="border-t border-outline-variant/20 py-1">
+                  <button
+                    onClick={() => { logout.mutate(); setDropdownOpen(false) }}
+                    className="w-full flex items-center gap-3 px-4 py-3 text-label-md text-error hover:bg-red-50 transition-colors"
+                  >
+                    <LogOut size={18} />
+                    Uitloggen
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+    </header>
+  )
+}

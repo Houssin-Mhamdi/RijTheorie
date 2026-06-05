@@ -1,0 +1,242 @@
+-- Add SECURITY DEFINER helper (bypasses RLS recursion)
+CREATE OR REPLACE FUNCTION public.is_admin()
+RETURNS BOOLEAN
+LANGUAGE sql SECURITY DEFINER
+STABLE
+AS $$
+  SELECT EXISTS (SELECT 1 FROM public.profiles WHERE id = auth.uid() AND role = 'admin')
+$$;
+
+-- Drop recursive policies on lessons
+DROP POLICY IF EXISTS "Admins can read all lessons" ON lessons;
+DROP POLICY IF EXISTS "Admins can insert lessons" ON lessons;
+DROP POLICY IF EXISTS "Admins can update lessons" ON lessons;
+DROP POLICY IF EXISTS "Admins can delete lessons" ON lessons;
+
+-- Recreate using is_admin() helper
+CREATE POLICY "Admins can read all lessons" ON lessons FOR SELECT USING (public.is_admin());
+CREATE POLICY "Admins can insert lessons" ON lessons FOR INSERT WITH CHECK (public.is_admin());
+CREATE POLICY "Admins can update lessons" ON lessons FOR UPDATE USING (public.is_admin());
+CREATE POLICY "Admins can delete lessons" ON lessons FOR DELETE USING (public.is_admin());
+
+-- Drop recursive policy on profiles
+DROP POLICY IF EXISTS "Admins can read all profiles" ON profiles;
+
+-- Recreate using is_admin() helper
+CREATE POLICY "Admins can read all profiles" ON profiles FOR SELECT USING (public.is_admin());
+
+-- Add missing UPDATE policy for exam_questions (needed for drag-reorder upsert)
+DROP POLICY IF EXISTS "Admins can update exam_questions" ON exam_questions;
+CREATE POLICY "Admins can update exam_questions" ON exam_questions FOR UPDATE USING (public.is_admin());
+
+-- Allow admins to read all user_progress (for student overview stats)
+DROP POLICY IF EXISTS "Admins can read all progress" ON user_progress;
+CREATE POLICY "Admins can read all progress" ON user_progress FOR SELECT USING (public.is_admin());
+
+-- Add last_active_at column for tracking student activity
+ALTER TABLE profiles ADD COLUMN IF NOT EXISTS last_active_at TIMESTAMPTZ;
+
+-- Replace public read on questions with admin-only RLS (students use RPCs instead)
+DROP POLICY IF EXISTS "Anyone can read questions" ON questions;
+DROP POLICY IF EXISTS "Admins can read questions" ON questions;
+CREATE POLICY "Admins can read questions" ON questions FOR SELECT USING (public.is_admin());
+
+-- RPC: Get exam questions with answer_options stripped of isCorrect (keeps hotspot x/y)
+CREATE OR REPLACE FUNCTION public.get_exam_questions(p_exam_id UUID)
+RETURNS JSONB
+LANGUAGE plpgsql SECURITY DEFINER
+SET search_path = ''
+AS $$
+DECLARE
+  result JSONB;
+BEGIN
+  SELECT JSONB_AGG(
+    JSONB_BUILD_OBJECT(
+      'id', q.id,
+      'category', q.category,
+      'question_text', q.question_text,
+      'media', q.media,
+      'answer_options', (
+        SELECT JSONB_AGG(ao - 'isCorrect')
+        FROM JSONB_ARRAY_ELEMENTS(q.answer_options) AS ao
+      ),
+      'explanation', NULL
+    )
+    ORDER BY eq.sort_order
+  )
+  FROM public.questions q
+  JOIN public.exam_questions eq ON eq.question_id = q.id
+  WHERE eq.exam_id = p_exam_id
+  INTO result;
+
+  RETURN COALESCE(result, '[]'::JSONB);
+END;
+$$;
+
+-- RPC: Check a multiple-choice / choose-images answer (returns correct_index and explanation)
+CREATE OR REPLACE FUNCTION public.check_answer(
+  p_question_id UUID,
+  p_selected_index INT
+)
+RETURNS JSONB
+LANGUAGE plpgsql SECURITY DEFINER
+SET search_path = ''
+AS $$
+DECLARE
+  q_record RECORD;
+  correct_idx INT := NULL;
+  i INT;
+BEGIN
+  SELECT * INTO q_record FROM public.questions WHERE id = p_question_id;
+  IF NOT FOUND THEN
+    RETURN JSONB_BUILD_OBJECT('error', 'Question not found');
+  END IF;
+
+  FOR i IN 0..JSONB_ARRAY_LENGTH(q_record.answer_options) - 1
+  LOOP
+    IF (q_record.answer_options->i->>'isCorrect')::boolean THEN
+      correct_idx := i;
+      EXIT;
+    END IF;
+  END LOOP;
+
+  RETURN JSONB_BUILD_OBJECT(
+    'correct', (q_record.answer_options->p_selected_index->>'isCorrect')::boolean,
+    'correct_index', correct_idx,
+    'explanation', q_record.explanation
+  );
+END;
+$$;
+
+-- RPC: Check hotspot positions (returns per-circle correctness + distance)
+CREATE OR REPLACE FUNCTION public.check_hotspot(
+  p_question_id UUID,
+  p_positions JSONB
+)
+RETURNS JSONB
+LANGUAGE plpgsql SECURITY DEFINER
+SET search_path = ''
+AS $$
+DECLARE
+  q_record RECORD;
+  results_arr JSONB := '[]'::JSONB;
+  correct_x NUMERIC;
+  correct_y NUMERIC;
+  submitted_x NUMERIC;
+  submitted_y NUMERIC;
+  dist NUMERIC;
+  i INT;
+BEGIN
+  SELECT * INTO q_record FROM public.questions WHERE id = p_question_id;
+  IF NOT FOUND THEN
+    RETURN JSONB_BUILD_OBJECT('error', 'Question not found');
+  END IF;
+
+  FOR i IN 0..JSONB_ARRAY_LENGTH(p_positions) - 1
+  LOOP
+    BEGIN
+      correct_x := NULLIF((q_record.answer_options->i->>'x')::NUMERIC, NULL);
+      correct_y := NULLIF((q_record.answer_options->i->>'y')::NUMERIC, NULL);
+      submitted_x := (p_positions->i->>'x')::NUMERIC;
+      submitted_y := (p_positions->i->>'y')::NUMERIC;
+
+      IF correct_x IS NULL OR correct_y IS NULL THEN
+        results_arr := results_arr || JSONB_BUILD_OBJECT('index', i, 'correct', false, 'distance', NULL);
+      ELSE
+        dist := SQRT((submitted_x - correct_x) * (submitted_x - correct_x) + (submitted_y - correct_y) * (submitted_y - correct_y));
+        results_arr := results_arr || JSONB_BUILD_OBJECT('index', i, 'correct', dist <= 8, 'distance', ROUND(dist));
+      END IF;
+    EXCEPTION WHEN OTHERS THEN
+      results_arr := results_arr || JSONB_BUILD_OBJECT('index', i, 'correct', false, 'distance', NULL);
+    END;
+  END LOOP;
+
+  RETURN JSONB_BUILD_OBJECT(
+    'results', results_arr,
+    'explanation', q_record.explanation
+  );
+END;
+$$;
+
+-- 13. AVATAR & SITE SETTINGS
+
+ALTER TABLE profiles ADD COLUMN IF NOT EXISTS avatar_url text;
+
+CREATE TABLE IF NOT EXISTS public.site_settings (
+  id bigint PRIMARY KEY DEFAULT 1,
+  site_name text NOT NULL DEFAULT 'RijTheorie Pro',
+  site_logo_url text,
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW(),
+  CONSTRAINT single_row CHECK (id = 1)
+);
+
+INSERT INTO public.site_settings (id, site_name)
+VALUES (1, 'RijTheorie Pro')
+ON CONFLICT (id) DO NOTHING;
+
+ALTER TABLE public.site_settings ENABLE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS "Anyone can read site_settings" ON site_settings;
+CREATE POLICY "Anyone can read site_settings"
+  ON public.site_settings FOR SELECT
+  USING (true);
+
+DROP POLICY IF EXISTS "Only admins can update site_settings" ON site_settings;
+CREATE POLICY "Only admins can update site_settings"
+  ON public.site_settings FOR UPDATE
+  USING (public.is_admin());
+
+-- 14. EXAM ATTEMPTS TABLE
+CREATE TABLE IF NOT EXISTS public.exam_attempts (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id UUID REFERENCES public.profiles(id) ON DELETE CASCADE NOT NULL,
+  exam_id UUID REFERENCES public.exams(id) ON DELETE CASCADE NOT NULL,
+  attempt_number INTEGER NOT NULL,
+  started_at TIMESTAMPTZ DEFAULT NOW(),
+  completed_at TIMESTAMPTZ,
+  score INTEGER,
+  total_questions INTEGER,
+  passed BOOLEAN
+);
+
+ALTER TABLE public.exam_attempts ENABLE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS "Users can read own attempts" ON exam_attempts;
+CREATE POLICY "Users can read own attempts"
+  ON public.exam_attempts FOR SELECT
+  USING (auth.uid() = user_id);
+
+DROP POLICY IF EXISTS "Users can insert own attempts" ON exam_attempts;
+CREATE POLICY "Users can insert own attempts"
+  ON public.exam_attempts FOR INSERT
+  WITH CHECK (auth.uid() = user_id);
+
+DROP POLICY IF EXISTS "Users can update own attempts" ON exam_attempts;
+CREATE POLICY "Users can update own attempts"
+  ON public.exam_attempts FOR UPDATE
+  USING (auth.uid() = user_id);
+
+DROP POLICY IF EXISTS "Admins can read all attempts" ON exam_attempts;
+CREATE POLICY "Admins can read all attempts"
+  ON public.exam_attempts FOR SELECT
+  USING (public.is_admin());
+
+-- Run in Supabase SQL editor for avatars bucket:
+-- INSERT INTO storage.buckets (id, name, public) VALUES ('avatars', 'avatars', true);
+--
+-- CREATE POLICY "Anyone can read avatars"
+--   ON storage.objects FOR SELECT
+--   USING (bucket_id = 'avatars');
+--
+-- CREATE POLICY "Authenticated users can upload avatars"
+--   ON storage.objects FOR INSERT
+--   WITH CHECK (bucket_id = 'avatars' AND auth.role() = 'authenticated');
+--
+-- CREATE POLICY "Users can update own avatars"
+--   ON storage.objects FOR UPDATE
+--   USING (bucket_id = 'avatars' AND owner = auth.uid());
+--
+-- CREATE POLICY "Users can delete own avatars"
+--   ON storage.objects FOR DELETE
+--   USING (bucket_id = 'avatars' AND (owner = auth.uid() OR public.is_admin()));
