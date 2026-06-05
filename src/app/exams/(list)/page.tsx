@@ -138,17 +138,17 @@ export default function ExamsPage() {
                 <div className="p-5 md:p-6">
                     <div className="flex items-start justify-between mb-3">
                       <div className="flex-1 min-w-0 mr-3">
-                        <div className="flex items-center gap-2 mb-1.5">
-                          <span className={`px-2.5 py-0.5 rounded-full text-label-xs font-bold ${statusClass}`}>
+                        <div className="flex items-center gap-1.5 md:gap-2 mb-1.5 flex-wrap">
+                          <span className={`px-1.5 py-0.5 md:px-2.5 md:py-0.5 rounded-full text-[10px] md:text-label-xs font-bold ${statusClass}`}>
                             {statusLabel}
                           </span>
                           {hasStarted && (
-                            <span className="px-2.5 py-0.5 rounded-full text-label-xs font-bold bg-primary-container/10 text-primary">
+                            <span className="px-1.5 py-0.5 md:px-2.5 md:py-0.5 rounded-full text-[10px] md:text-label-xs font-bold bg-primary-container/10 text-primary">
                               Poging {att!.count}
                             </span>
                           )}
                           {hasStarted && (
-                            <span className={`px-2.5 py-0.5 rounded-full text-label-xs font-bold ${(att?.passedCount ?? 0) > 0 ? "bg-green-100 text-green-700" : "bg-orange-100 text-orange-700"}`}>
+                            <span className={`px-1.5 py-0.5 md:px-2.5 md:py-0.5 rounded-full text-[10px] md:text-label-xs font-bold ${(att?.passedCount ?? 0) > 0 ? "bg-green-100 text-green-700" : "bg-orange-100 text-orange-700"}`}>
                               {att!.passedCount}/{att!.count} geslaagd
                             </span>
                           )}
