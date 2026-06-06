@@ -188,13 +188,13 @@ export default function DashboardPage() {
         </div>
 
         <div className="rounded-xl border border-outline-variant/20 bg-surface p-6">
-          <div className="flex items-center gap-2 mb-4">
+          <div className="flex items-center gap-2 mb-6">
             <CheckCircle size={20} className="text-green-600" />
             <h2 className="text-headline-sm text-primary">Slagingspercentage</h2>
           </div>
           {totalAttemptCount > 0 ? (
             <div className="flex items-center gap-6">
-              <div className="w-48 h-48">
+              <div className="w-64 h-64 shrink-0">
                 <Doughnut data={passRateData} options={{ responsive: true, maintainAspectRatio: true, plugins: { legend: { position: "bottom" } }, cutout: "60%" }} />
               </div>
               <div className="flex-1 space-y-3">
