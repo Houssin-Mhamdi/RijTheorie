@@ -14,13 +14,18 @@ export default function DashboardPage() {
     async () => { const { data, error } = await supabase.from("lessons").select("*").order("order_index"); return { data, error } },
   )
 
+  const { data: courses } = useSupabaseQuery(
+    ["courses", "all"],
+    async () => { const { data, error } = await supabase.from("courses").select("*"); return { data, error } },
+  )
+
   const { data: allProfiles } = useSupabaseQuery<Profile[]>(
     ["profiles", "all"],
     async () => { const { data, error } = await supabase.from("profiles").select("*"); return { data, error } },
   )
 
-  const totalLessons = lessons?.length ?? 0
-  const publishedLessons = lessons?.filter((l) => l.published).length ?? 0
+  const totalLessons = courses?.length ?? lessons?.length ?? 0
+  const publishedLessons = (courses ?? lessons)?.filter((l) => l.published).length ?? 0
   const totalStudents = allProfiles?.filter((p) => p.role === "student").length ?? 0
 
   const stats = [
