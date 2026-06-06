@@ -42,6 +42,7 @@ export async function POST(req: Request) {
   }
 
   const latest = await latestRes.json()
+  console.log("[finish-attempt] latest:", JSON.stringify(latest))
   if (!latest || !latest.id) {
     return Response.json({ error: "No attempt found" }, { status: 404 })
   }

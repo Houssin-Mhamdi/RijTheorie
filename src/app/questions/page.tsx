@@ -1,6 +1,6 @@
 "use client"
 
-import { Plus, Filter, TrendingUp, Info, Save, Trash2 } from "lucide-react"
+import { Plus, Filter, TrendingUp, Info, Save, Trash2, Search, X, ChevronDown } from "lucide-react"
 import StatsCard from "@/components/dashboard/stats-card"
 import QuestionsTable from "@/components/dashboard/questions-table"
 import Pagination from "@/components/dashboard/pagination"
@@ -14,6 +14,7 @@ import { useSession } from "@/hooks/use-auth"
 import { toast } from "sonner"
 import { Dialog, DialogTrigger, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter, DialogClose } from "@/components/ui/dialog"
 import { Button } from "@/components/ui/button"
+import { cn } from "@/lib/utils"
 
 function mapQuestion(q: Record<string, unknown>) {
   const options = (q.answer_options as Array<{ text: string; isCorrect: boolean }>) || []
@@ -36,27 +37,30 @@ export default function QuestionsPage() {
   const [deleteTarget, setDeleteTarget] = useState<{ id: string } | null>(null)
   const { data: session } = useSession()
   const [isUploading, setIsUploading] = useState(false)
+  const [searchQuery, setSearchQuery] = useState("")
+  const [filterCategory, setFilterCategory] = useState("all")
+  const [filterMedia, setFilterMedia] = useState<"all" | "with" | "without">("all")
+  const [filterAnswers, setFilterAnswers] = useState<"all" | "min3" | "exact4">("all")
+  const [showFilters, setShowFilters] = useState(false)
 
   const { data: questionsData, isLoading } = useSupabaseQuery(
     ["questions"],
     async () => { const { data, error } = await supabase.from("questions").select("*").order("created_at", { ascending: false }); return { data, error } },
   )
 
-  const { data: examAttempts } = useSupabaseQuery(
+  const { data: examAttempts, isLoading: attemptsLoading } = useSupabaseQuery(
     ["exam_attempts", "admin"],
     async () => {
-      const { data, error } = await supabase
-        .from("exam_attempts")
-        .select("score, total_questions")
-        .not("score", "is", null)
-        .not("total_questions", "is", null)
-      return { data, error }
+      const res = await fetch("/api/exam/stats")
+      if (!res.ok) return { data: null, error: null }
+      const json = await res.json()
+      return { data: json.attempts, error: null }
     },
   )
 
   const avgScore = (() => {
     if (!examAttempts || examAttempts.length === 0) return null
-    const total = examAttempts.reduce((sum, a) => {
+    const total = examAttempts.reduce((sum: number, a: Record<string, unknown>) => {
       const s = a as Record<string, unknown>
       const score = s.score as number
       const totalQ = s.total_questions as number
@@ -146,6 +150,25 @@ export default function QuestionsPage() {
 
   const questions = (questionsData as Record<string, unknown>[] | undefined)?.map(mapQuestion) || []
 
+  const categories = [...new Set(questions.map((q) => q.category))].filter(Boolean)
+
+  const filteredQuestions = questions.filter((q) => {
+    if (searchQuery) {
+      const query = searchQuery.toLowerCase()
+      if (!q.text.toLowerCase().includes(query) && !q.category.toLowerCase().includes(query) && !q.correctAnswer.toLowerCase().includes(query)) {
+        return false
+      }
+    }
+    if (filterCategory !== "all" && q.category !== filterCategory) return false
+    if (filterMedia === "with" && !q.thumbnail) return false
+    if (filterMedia === "without" && q.thumbnail) return false
+    if (filterAnswers === "min3" && q.optionCount < 3) return false
+    if (filterAnswers === "exact4" && q.optionCount !== 4) return false
+    return true
+  })
+
+  const activeFilterCount = [filterCategory !== "all", filterMedia !== "all", filterAnswers !== "all", searchQuery.length > 0].filter(Boolean).length
+
   return (
     <section className="px-4 md:px-6 py-8">
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 mb-8">
@@ -181,19 +204,96 @@ export default function QuestionsPage() {
           <div className="flex items-center gap-2">
             <h3 className="text-label-md text-primary">All Questions</h3>
             <span className="px-2 py-0.5 bg-surface-container text-primary text-[11px] font-bold rounded-full">
-              CAR LICENSE
+              {filteredQuestions.length} / {questions.length}
             </span>
           </div>
           <div className="flex items-center gap-2">
-            <button className="px-4 py-2 text-label-md text-on-surface-variant border border-outline-variant rounded-lg hover:bg-surface-container-low flex items-center gap-2 transition-colors">
+            <div className="relative">
+              <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-on-surface-variant" />
+              <input
+                type="text"
+                value={searchQuery}
+                onChange={(e) => { setSearchQuery(e.target.value); setCurrentPage(1) }}
+                placeholder="Search questions..."
+                className="pl-9 pr-4 py-2 w-48 md:w-64 bg-surface-container-low border border-outline-variant rounded-lg text-body-md focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary"
+              />
+              {searchQuery && (
+                <button onClick={() => setSearchQuery("")} className="absolute right-2 top-1/2 -translate-y-1/2 text-on-surface-variant hover:text-on-surface">
+                  <X size={14} />
+                </button>
+              )}
+            </div>
+            <button
+              onClick={() => setShowFilters(!showFilters)}
+              className={cn(
+                "px-4 py-2 text-label-md border rounded-lg flex items-center gap-2 transition-colors",
+                activeFilterCount > 0
+                  ? "bg-primary text-on-primary border-primary"
+                  : "text-on-surface-variant border-outline-variant hover:bg-surface-container-low"
+              )}
+            >
               <Filter size={20} />
               Filter
+              {activeFilterCount > 0 && (
+                <span className="size-5 rounded-full bg-white/30 text-[10px] font-bold flex items-center justify-center">{activeFilterCount}</span>
+              )}
             </button>
           </div>
         </div>
 
+        {showFilters && (
+          <div className="px-6 py-4 border-b border-surface-container bg-surface-container-low flex flex-wrap gap-4">
+            <div className="flex flex-col gap-1">
+              <label className="text-label-xs text-on-surface-variant font-bold uppercase">Categorie</label>
+              <select
+                value={filterCategory}
+                onChange={(e) => { setFilterCategory(e.target.value); setCurrentPage(1) }}
+                className="px-3 py-2 bg-surface border border-outline-variant rounded-lg text-body-md focus:ring-2 focus:ring-primary focus:border-primary"
+              >
+                <option value="all">Alle categorieën</option>
+                {categories.map((cat) => (
+                  <option key={cat} value={cat}>{cat}</option>
+                ))}
+              </select>
+            </div>
+            <div className="flex flex-col gap-1">
+              <label className="text-label-xs text-on-surface-variant font-bold uppercase">Media</label>
+              <select
+                value={filterMedia}
+                onChange={(e) => { setFilterMedia(e.target.value as "all" | "with" | "without"); setCurrentPage(1) }}
+                className="px-3 py-2 bg-surface border border-outline-variant rounded-lg text-body-md focus:ring-2 focus:ring-primary focus:border-primary"
+              >
+                <option value="all">Alles</option>
+                <option value="with">Met media</option>
+                <option value="without">Zonder media</option>
+              </select>
+            </div>
+            <div className="flex flex-col gap-1">
+              <label className="text-label-xs text-on-surface-variant font-bold uppercase">Antwoorden</label>
+              <select
+                value={filterAnswers}
+                onChange={(e) => { setFilterAnswers(e.target.value as "all" | "min3" | "exact4"); setCurrentPage(1) }}
+                className="px-3 py-2 bg-surface border border-outline-variant rounded-lg text-body-md focus:ring-2 focus:ring-primary focus:border-primary"
+              >
+                <option value="all">Alles</option>
+                <option value="min3">Minimaal 3 antwoorden</option>
+                <option value="exact4">Precies 4 antwoorden</option>
+              </select>
+            </div>
+            {activeFilterCount > 0 && (
+              <button
+                onClick={() => { setFilterCategory("all"); setFilterMedia("all"); setFilterAnswers("all"); setSearchQuery(""); setCurrentPage(1) }}
+                className="self-end px-3 py-2 text-label-sm text-destructive hover:bg-destructive/10 rounded-lg transition-colors flex items-center gap-1"
+              >
+                <X size={14} />
+                Wis alles
+              </button>
+            )}
+          </div>
+        )}
+
         <QuestionsTable
-          questions={questions}
+          questions={filteredQuestions}
           isLoading={isLoading}
           onEdit={(q) => handleEdit(q as unknown as Record<string, unknown>)}
           onDelete={(q) => setDeleteTarget({ id: String(q.id) })}
@@ -202,10 +302,10 @@ export default function QuestionsPage() {
         <div className="px-6 py-4 border-t border-surface-container">
           <Pagination
             currentPage={currentPage}
-            totalPages={Math.max(1, Math.ceil(questions.length / 10))}
-            from={1}
-            to={questions.length}
-            total={questions.length}
+            totalPages={Math.max(1, Math.ceil(filteredQuestions.length / 10))}
+            from={filteredQuestions.length > 0 ? 1 : 0}
+            to={Math.min(filteredQuestions.length, 10)}
+            total={filteredQuestions.length}
             onPageChange={setCurrentPage}
           />
         </div>

@@ -203,7 +203,7 @@ export default function ExamDetailPage() {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ exam_id: examId, score: correct, total_questions: total, passed }),
-    })
+    }).then((r) => r.json()).then((d) => console.log("finish-attempt result:", d)).catch((e) => console.error("finish-attempt error:", e))
   }, [questions, answerResults, hotspotResults, examId])
 
   const handleHotspotSubmit = useCallback(async (positions: { x: number; y: number }[]) => {
