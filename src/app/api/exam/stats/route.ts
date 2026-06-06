@@ -21,7 +21,7 @@ export async function GET() {
   if (!session?.access_token) return Response.json({ error: "No session" }, { status: 401 })
 
   const res = await fetch(
-    `${process.env.NEXT_PUBLIC_SUPABASE_URL}/rest/v1/rpc/get_exam_stats`,
+    `${process.env.NEXT_PUBLIC_SUPABASE_URL}/rest/v1/rpc/get_exam_stats_full`,
     {
       method: "POST",
       headers: {
