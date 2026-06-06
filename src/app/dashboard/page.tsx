@@ -4,7 +4,7 @@ import { useProfile } from "@/hooks/use-auth"
 import { supabase } from "@/lib/supabase"
 import { useSupabaseQuery } from "@/lib/supabase-queries"
 import type { Lesson, Profile } from "@/types/database"
-import { BookOpen, Users, FileText, TrendingUp } from "lucide-react"
+import { BookOpen, Users, FileText, TrendingUp, GraduationCap } from "lucide-react"
 
 export default function DashboardPage() {
   const { data: profile } = useProfile()
@@ -19,6 +19,11 @@ export default function DashboardPage() {
     async () => { const { data, error } = await supabase.from("courses").select("*"); return { data, error } },
   )
 
+  const { data: exams } = useSupabaseQuery(
+    ["exams", "all"],
+    async () => { const { data, error } = await supabase.from("exams").select("*"); return { data, error } },
+  )
+
   const { data: allProfiles } = useSupabaseQuery<Profile[]>(
     ["profiles", "all"],
     async () => { const { data, error } = await supabase.from("profiles").select("*"); return { data, error } },
@@ -27,12 +32,13 @@ export default function DashboardPage() {
   const totalLessons = courses?.length ?? lessons?.length ?? 0
   const publishedLessons = (courses ?? lessons)?.filter((l) => l.published).length ?? 0
   const totalStudents = allProfiles?.filter((p) => p.role === "student").length ?? 0
+  const totalExams = exams?.length ?? 0
 
   const stats = [
     { label: "Totaal lessen", value: totalLessons, icon: FileText, color: "text-blue-600 bg-blue-100" },
     { label: "Gepubliceerd", value: publishedLessons, icon: BookOpen, color: "text-green-600 bg-green-100" },
     { label: "Studenten", value: totalStudents, icon: Users, color: "text-purple-600 bg-purple-100" },
-    { label: "Actief", value: "—", icon: TrendingUp, color: "text-orange-600 bg-orange-100" },
+    { label: "Examens", value: totalExams, icon: GraduationCap, color: "text-orange-600 bg-orange-100" },
   ]
 
   return (
