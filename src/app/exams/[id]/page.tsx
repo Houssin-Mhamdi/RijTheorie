@@ -17,6 +17,11 @@ import {
   BarChart3,
   Check,
   X,
+  Eye,
+  RotateCcw,
+  TrendingUp,
+  BookOpen,
+  Lightbulb,
 } from "lucide-react"
 import DOMPurify from "dompurify"
 
@@ -286,6 +291,35 @@ export default function ExamDetailPage() {
   const seconds = timerFinished % 60
 
   if (showResults) {
+    const scorePercent = totalQuestions > 0 ? Math.round((correctCount / totalQuestions) * 100) : 0
+    const isGeslaagd = scorePercent >= 80
+
+    const categoryStats: Record<string, { total: number; correct: number }> = {}
+    questions.forEach((q) => {
+      const cat = q.category || "Overig"
+      if (!categoryStats[cat]) categoryStats[cat] = { total: 0, correct: 0 }
+      categoryStats[cat].total++
+      const r = answerResults[q.id]
+      const hr = hotspotResults[q.id]
+      if (r?.correct || hr?.results.every((res) => res.correct)) categoryStats[cat].correct++
+    })
+
+    const categoryIcons: Record<string, typeof TrendingUp> = {
+      "Hazard Perception": AlertCircle,
+      "Right of Way": TrendingUp,
+      "Choose Images": Eye,
+      "Traffic": BookOpen,
+      "Lighting": Lightbulb,
+    }
+
+    const categoryColors: Record<string, string> = {
+      "Hazard Perception": "bg-red-100 text-red-700",
+      "Right of Way": "bg-green-100 text-green-700",
+      "Choose Images": "bg-blue-100 text-blue-700",
+      "Traffic": "bg-purple-100 text-purple-700",
+      "Lighting": "bg-amber-100 text-amber-700",
+    }
+
     return (
       <div className="min-h-screen bg-surface flex flex-col">
         <header className="bg-surface border-b border-outline-variant/50 px-4 py-3 flex items-center justify-between shrink-0 sticky top-0 z-40">
@@ -303,132 +337,232 @@ export default function ExamDetailPage() {
           </div>
         </header>
 
-        <main className="flex-1 px-4 py-6 max-w-6xl mx-auto w-full pb-8 flex gap-6">
-          <div className="flex-1 min-w-0">
-            <div className="bg-gradient-to-br from-primary to-primary/80 rounded-2xl p-5 md:p-6 text-white mb-6">
-            <div className="flex items-center justify-between mb-4">
-              <div>
-                <p className="text-label-sm opacity-80">Je score</p>
-                <h2 className="text-3xl font-bold mt-1">{correctCount}/{totalQuestions}</h2>
-                <p className="text-label-md opacity-80 mt-1">
-                  Tijd: {minutes}:{seconds.toString().padStart(2, "0")}
-                </p>
-              </div>
-              <div className="size-20 rounded-full bg-white/20 flex items-center justify-center">
-                <span className="text-2xl font-bold">{totalQuestions > 0 ? Math.round((correctCount / totalQuestions) * 100) : 0}%</span>
-              </div>
-            </div>
-            <div className="w-full bg-white/20 rounded-full h-2">
-              <div
-                className="bg-white rounded-full h-2 transition-all"
-                style={{ width: `${totalQuestions > 0 ? (correctCount / totalQuestions) * 100 : 0}%` }}
-              />
-            </div>
-          </div>
-
-          <div className="space-y-4">
-            {questions.map((q, idx) => {
-              const qAnswerResult = answerResults[q.id]
-              const qHotspotResult = hotspotResults[q.id]
-              const qSelectedIndex = answers[q.id]
-              const qCorrectIndex = qAnswerResult?.correct_index ?? -1
-              const qIsCorrect = qAnswerResult?.correct ?? qHotspotResult?.results.every((r) => r.correct) ?? false
-              const qExplanation = qAnswerResult?.explanation ?? qHotspotResult?.explanation ?? null
-              const qIsHotspot = q.media != null && q.answerOptions.some((o) => o.x != null && o.y != null)
-              const qIsChooseImages = q.category === "Choose Images"
-
-              return (
-                <div key={q.id} className="bg-surface-container-lowest border border-outline-variant/30 rounded-2xl overflow-hidden">
-                  <div className={`px-5 py-4 flex items-center gap-3 border-b border-outline-variant/20 ${qIsCorrect ? "bg-green-50/50" : "bg-red-50/50"}`}>
-                    <div className={`size-8 rounded-full flex items-center justify-center shrink-0 ${qIsCorrect ? "bg-green-100 text-green-700" : "bg-red-100 text-red-700"}`}>
-                      {qIsCorrect ? <Check size={18} /> : <X size={18} />}
+        <main className="flex-1 p-4 md:p-8 lg:p-12 overflow-x-hidden">
+          <div className="mb-12">
+            <div className="bg-surface-container-lowest rounded-3xl p-8 md:p-12 shadow-[0px_4px_20px_rgba(26,60,110,0.05)] border border-surface-container-high relative overflow-hidden">
+              <div className="absolute top-0 right-0 w-64 h-64 bg-secondary-container/10 rounded-full -mr-20 -mt-20 blur-3xl" />
+              <div className="flex flex-col md:flex-row items-center justify-between gap-8 relative z-10">
+                <div className="text-center md:text-left">
+                  <span className={`inline-block px-4 py-1.5 rounded-full font-bold text-label-md mb-4 ${isGeslaagd ? "bg-green-100 text-green-700" : "bg-red-100 text-red-700"}`}>
+                    {isGeslaagd ? "Examen Afgerond" : "Niet Geslaagd"}
+                  </span>
+                  <h1 className="text-display-lg text-primary mb-2">{isGeslaagd ? "Gefeliciteerd, je bent Geslaagd!" : "Helaas, je bent niet geslaagd"}</h1>
+                  <p className="text-body-lg text-on-surface-variant max-w-xl">
+                    {isGeslaagd
+                      ? "Je hebt laten zien dat je de Nederlandse verkeersregels uitstekend beheerst."
+                      : "Je hebt het net niet gehaald. Bekijk je fouten en probeer het opnieuw."}
+                  </p>
+                </div>
+                <div className="flex flex-col items-center">
+                  <div className="relative w-48 h-48 flex items-center justify-center">
+                    <svg className="w-full h-full transform -rotate-90">
+                      <circle className="text-surface-container" cx="96" cy="96" fill="transparent" r="88" stroke="currentColor" strokeWidth="12" />
+                      <circle
+                        className={`transition-all duration-1000 ease-out ${isGeslaagd ? "text-green-500" : "text-red-500"}`}
+                        cx="96" cy="96" fill="transparent" r="88" stroke="currentColor" strokeWidth="12"
+                        strokeDasharray={553}
+                        strokeDashoffset={553 - (553 * scorePercent) / 100}
+                      />
+                    </svg>
+                    <div className="absolute inset-0 flex flex-col items-center justify-center">
+                      <span className="text-display-lg text-primary">{scorePercent}%</span>
+                      <span className="text-label-md text-on-surface-variant">Score</span>
                     </div>
-                    <div className="min-w-0">
-                      <p className="text-label-sm font-bold text-primary">Vraag {idx + 1}</p>
-                      {q.category && <p className="text-label-xs text-on-surface-variant">{q.category}</p>}
-                    </div>
-                  </div>
-
-                  <div className="p-5 space-y-4">
-                    <p className="text-body-md font-medium text-primary">{q.questionText}</p>
-
-                    {q.media && !qIsHotspot && !qIsChooseImages && (
-                      <div className="rounded-xl overflow-hidden aspect-video border border-outline-variant/30 bg-surface-container">
-                        {q.mediaMime?.startsWith("video/") ? (
-                          <video src={q.media} controls preload="auto" className="w-full h-full object-cover" />
-                        ) : (
-                          <img src={q.media} alt="" className="w-full h-full object-cover" />
-                        )}
-                      </div>
-                    )}
-
-                    {qIsChooseImages ? (
-                      <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
-                        {q.answerOptions.map((opt, oi) => {
-                          const isSelected = qSelectedIndex === oi
-                          const isCorrectOpt = qCorrectIndex === oi
-                          const borderColor = isCorrectOpt ? "border-green-500" : isSelected && !isCorrectOpt ? "border-red-500" : "border-outline-variant/30"
-                          return (
-                            <div key={oi} className={`relative rounded-xl overflow-hidden border-2 ${borderColor} ${isCorrectOpt ? "bg-green-50" : isSelected ? "bg-red-50" : ""}`}>
-                              {opt.imageUrl && <img src={opt.imageUrl} alt="" className="w-full aspect-square object-cover" />}
-                              {isCorrectOpt && (
-                                <div className="absolute top-2 right-2 bg-green-500 text-white text-label-xs font-bold px-2 py-0.5 rounded">CORRECT</div>
-                              )}
-                              {isSelected && !isCorrectOpt && (
-                                <div className="absolute top-2 right-2 bg-red-500 text-white text-label-xs font-bold px-2 py-0.5 rounded">JOUW KEUZE</div>
-                              )}
-                            </div>
-                          )
-                        })}
-                      </div>
-                    ) : qIsHotspot ? (
-                      <div className="text-label-sm text-on-surface-variant">Hotspot vraag — bekijk de resultaten hierboven</div>
-                    ) : (
-                      <div className="space-y-2">
-                        {q.answerOptions.map((opt, oi) => {
-                          const prefix = String.fromCharCode(65 + oi)
-                          const isSelected = qSelectedIndex === oi
-                          const isCorrectOpt = qCorrectIndex === oi
-                          const borderColor = isCorrectOpt ? "border-green-500" : isSelected && !isCorrectOpt ? "border-red-500" : "border-outline-variant/30"
-                          const bgColor = isCorrectOpt ? "bg-green-50" : isSelected ? "bg-red-50" : "bg-surface"
-                          return (
-                            <div key={oi} className={`flex items-center w-full p-3 border-2 ${borderColor} ${bgColor} rounded-xl`}>
-                              <div className={`size-9 rounded-full flex items-center justify-center mr-3 shrink-0 font-bold text-label-sm ${isCorrectOpt ? "bg-green-100 text-green-700" : isSelected ? "bg-red-100 text-red-700" : "bg-surface-container text-outline"}`}>
-                                {isCorrectOpt ? <Check size={16} /> : isSelected ? <X size={16} /> : prefix}
-                              </div>
-                              <span className="text-body-md flex-1">{opt.text}</span>
-                              {isCorrectOpt && (
-                                <span className="text-label-xs font-bold text-green-700 bg-green-100 px-2 py-0.5 rounded shrink-0 ml-2">CORRECT</span>
-                              )}
-                              {isSelected && !isCorrectOpt && (
-                                <span className="text-label-xs font-bold text-red-700 bg-red-100 px-2 py-0.5 rounded shrink-0 ml-2">JOUW KEUZE</span>
-                              )}
-                            </div>
-                          )
-                        })}
-                      </div>
-                    )}
-
-                    {qExplanation && (
-                      <div className="flex items-start gap-3 bg-surface-container-low rounded-xl p-4">
-                        <Info size={18} className="text-primary shrink-0 mt-0.5" />
-                        <p className="text-body-md text-on-surface-variant" dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(qExplanation ?? "") }} />
-                      </div>
-                    )}
                   </div>
                 </div>
-              )
-            })}
+              </div>
+            </div>
           </div>
 
-          <div className="mt-6 flex justify-center">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-12">
+            <div className="bg-surface-container-lowest p-6 rounded-2xl shadow-[0px_4px_20px_rgba(26,60,110,0.05)] border border-surface-container-high flex flex-col items-center text-center">
+              <div className="w-12 h-12 rounded-xl bg-primary-container flex items-center justify-center mb-4">
+                <CheckCircle size={24} className="text-on-primary-container" />
+              </div>
+              <span className="text-label-md text-on-surface-variant mb-1">Totaal Score</span>
+              <h3 className="text-headline-md text-primary">{correctCount} / {totalQuestions}</h3>
+              <p className="text-label-sm text-on-surface-variant mt-2">{isGeslaagd ? "Geslaagd!" : "Nog 80% nodig"}</p>
+            </div>
+            <div className="bg-surface-container-lowest p-6 rounded-2xl shadow-[0px_4px_20px_rgba(26,60,110,0.05)] border border-surface-container-high flex flex-col items-center text-center">
+              <div className="w-12 h-12 rounded-xl bg-surface-container-high flex items-center justify-center mb-4">
+                <Clock size={24} className="text-primary" />
+              </div>
+              <span className="text-label-md text-on-surface-variant mb-1">Tijd Gebruikt</span>
+              <h3 className="text-headline-md text-primary">{minutes}:{seconds.toString().padStart(2, "0")}</h3>
+              <p className="text-label-sm text-on-surface-variant mt-2">Maximum tijd: 45:00</p>
+            </div>
+            <div className="bg-surface-container-lowest p-6 rounded-2xl shadow-[0px_4px_20px_rgba(26,60,110,0.05)] border border-surface-container-high flex flex-col items-center text-center">
+              <div className="w-12 h-12 rounded-xl bg-surface-container-high flex items-center justify-center mb-4">
+                <TrendingUp size={24} className="text-primary" />
+              </div>
+              <span className="text-label-md text-on-surface-variant mb-1">Sterkste Onderdeel</span>
+              <h3 className="text-headline-md text-primary">
+                {Object.entries(categoryStats).sort((a, b) => (b[1].correct / b[1].total) - (a[1].correct / a[1].total))[0]?.[0] || "—"}
+              </h3>
+              <p className="text-label-sm text-on-surface-variant mt-2">
+                {(() => {
+                  const top = Object.entries(categoryStats).sort((a, b) => (b[1].correct / b[1].total) - (a[1].correct / a[1].total))[0]
+                  return top ? `${Math.round((top[1].correct / top[1].total) * 100)}% correct` : ""
+                })()}
+              </p>
+            </div>
+          </div>
+
+          <div className="flex flex-col sm:flex-row items-center justify-center gap-4 mb-16">
+            <button
+              onClick={() => { setShowResults(false); setCurrentIndex(0); setAnswers({}); setSubmitted({}); setAnswerResults({}); setHotspotResults({}); setTimeLeft(45 * 60) }}
+              className="w-full sm:w-auto px-8 py-4 bg-secondary-container text-on-secondary-container font-bold rounded-xl transition-all active:scale-[0.98] shadow-md hover:shadow-lg flex items-center justify-center gap-2"
+            >
+              <Eye size={20} />
+              Vragen nakijken
+            </button>
+            <button
+              onClick={() => router.push("/exams")}
+              className="w-full sm:w-auto px-8 py-4 border-2 border-primary text-primary font-bold rounded-xl transition-all hover:bg-surface-container-low active:scale-[0.98] flex items-center justify-center gap-2"
+            >
+              <RotateCcw size={20} />
+              Nieuw examen
+            </button>
+          </div>
+
+          <div className="mb-16">
+            <h2 className="text-headline-md text-primary mb-6">Resultaten per categorie</h2>
+            <div className="space-y-4">
+              {Object.entries(categoryStats).map(([cat, stats]) => {
+                const percent = stats.total > 0 ? Math.round((stats.correct / stats.total) * 100) : 0
+                const Icon = categoryIcons[cat] || BookOpen
+                const colorClass = categoryColors[cat] || "bg-surface-container-high text-primary"
+                return (
+                  <div key={cat} className="bg-surface-container-lowest p-5 rounded-xl border border-surface-container-high flex items-center justify-between">
+                    <div className="flex items-center gap-4">
+                      <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${colorClass}`}>
+                        <Icon size={20} />
+                      </div>
+                      <div>
+                        <h4 className="text-label-md text-primary">{cat}</h4>
+                        <p className="text-label-sm text-on-surface-variant">{stats.total} vragen</p>
+                      </div>
+                    </div>
+                    <div className="text-right">
+                      <span className="font-bold text-primary">{stats.correct}/{stats.total}</span>
+                      <div className="w-32 h-2 bg-surface-container rounded-full mt-1">
+                        <div
+                          className={`h-full rounded-full transition-all ${percent >= 80 ? "bg-green-500" : percent >= 50 ? "bg-amber-500" : "bg-red-500"}`}
+                          style={{ width: `${percent}%` }}
+                        />
+                      </div>
+                    </div>
+                  </div>
+                )
+              })}
+            </div>
+          </div>
+
+          <div className="mb-8">
+            <h2 className="text-headline-md text-primary mb-6">Alle vragen</h2>
+            <div className="space-y-4">
+              {questions.map((q, idx) => {
+                const qAnswerResult = answerResults[q.id]
+                const qHotspotResult = hotspotResults[q.id]
+                const qSelectedIndex = answers[q.id]
+                const qCorrectIndex = qAnswerResult?.correct_index ?? -1
+                const qIsCorrect = qAnswerResult?.correct ?? qHotspotResult?.results.every((r) => r.correct) ?? false
+                const qExplanation = qAnswerResult?.explanation ?? qHotspotResult?.explanation ?? null
+                const qIsHotspot = q.media != null && q.answerOptions.some((o) => o.x != null && o.y != null)
+                const qIsChooseImages = q.category === "Choose Images"
+
+                return (
+                  <div key={q.id} className="bg-surface-container-lowest border border-outline-variant/30 rounded-2xl overflow-hidden">
+                    <div className={`px-5 py-4 flex items-center gap-3 border-b border-outline-variant/20 ${qIsCorrect ? "bg-green-50/50" : "bg-red-50/50"}`}>
+                      <div className={`size-8 rounded-full flex items-center justify-center shrink-0 ${qIsCorrect ? "bg-green-100 text-green-700" : "bg-red-100 text-red-700"}`}>
+                        {qIsCorrect ? <Check size={18} /> : <X size={18} />}
+                      </div>
+                      <div className="min-w-0">
+                        <p className="text-label-sm font-bold text-primary">Vraag {idx + 1}</p>
+                        {q.category && <p className="text-label-xs text-on-surface-variant">{q.category}</p>}
+                      </div>
+                    </div>
+
+                    <div className="p-5 space-y-4">
+                      <p className="text-body-md font-medium text-primary">{q.questionText}</p>
+
+                      {q.media && !qIsHotspot && !qIsChooseImages && (
+                        <div className="rounded-xl overflow-hidden aspect-video border border-outline-variant/30 bg-surface-container">
+                          {q.mediaMime?.startsWith("video/") ? (
+                            <video src={q.media} controls preload="auto" className="w-full h-full object-cover" />
+                          ) : (
+                            <img src={q.media} alt="" className="w-full h-full object-cover" />
+                          )}
+                        </div>
+                      )}
+
+                      {qIsChooseImages ? (
+                        <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                          {q.answerOptions.map((opt, oi) => {
+                            const isSelected = qSelectedIndex === oi
+                            const isCorrectOpt = qCorrectIndex === oi
+                            const borderColor = isCorrectOpt ? "border-green-500" : isSelected && !isCorrectOpt ? "border-red-500" : "border-outline-variant/30"
+                            return (
+                              <div key={oi} className={`relative rounded-xl overflow-hidden border-2 ${borderColor} ${isCorrectOpt ? "bg-green-50" : isSelected ? "bg-red-50" : ""}`}>
+                                {opt.imageUrl && <img src={opt.imageUrl} alt="" className="w-full aspect-square object-cover" />}
+                                {isCorrectOpt && (
+                                  <div className="absolute top-2 right-2 bg-green-500 text-white text-label-xs font-bold px-2 py-0.5 rounded">CORRECT</div>
+                                )}
+                                {isSelected && !isCorrectOpt && (
+                                  <div className="absolute top-2 right-2 bg-red-500 text-white text-label-xs font-bold px-2 py-0.5 rounded">JOUW KEUZE</div>
+                                )}
+                              </div>
+                            )
+                          })}
+                        </div>
+                      ) : qIsHotspot ? (
+                        <div className="text-label-sm text-on-surface-variant">Hotspot vraag — bekijk de resultaten hierboven</div>
+                      ) : (
+                        <div className="space-y-2">
+                          {q.answerOptions.map((opt, oi) => {
+                            const prefix = String.fromCharCode(65 + oi)
+                            const isSelected = qSelectedIndex === oi
+                            const isCorrectOpt = qCorrectIndex === oi
+                            const borderColor = isCorrectOpt ? "border-green-500" : isSelected && !isCorrectOpt ? "border-red-500" : "border-outline-variant/30"
+                            const bgColor = isCorrectOpt ? "bg-green-50" : isSelected ? "bg-red-50" : "bg-surface"
+                            return (
+                              <div key={oi} className={`flex items-center w-full p-3 border-2 ${borderColor} ${bgColor} rounded-xl`}>
+                                <div className={`size-9 rounded-full flex items-center justify-center mr-3 shrink-0 font-bold text-label-sm ${isCorrectOpt ? "bg-green-100 text-green-700" : isSelected ? "bg-red-100 text-red-700" : "bg-surface-container text-outline"}`}>
+                                  {isCorrectOpt ? <Check size={16} /> : isSelected ? <X size={16} /> : prefix}
+                                </div>
+                                <span className="text-body-md flex-1">{opt.text}</span>
+                                {isCorrectOpt && (
+                                  <span className="text-label-xs font-bold text-green-700 bg-green-100 px-2 py-0.5 rounded shrink-0 ml-2">CORRECT</span>
+                                )}
+                                {isSelected && !isCorrectOpt && (
+                                  <span className="text-label-xs font-bold text-red-700 bg-red-100 px-2 py-0.5 rounded shrink-0 ml-2">JOUW KEUZE</span>
+                                )}
+                              </div>
+                            )
+                          })}
+                        </div>
+                      )}
+
+                      {qExplanation && (
+                        <div className="flex items-start gap-3 bg-surface-container-low rounded-xl p-4">
+                          <Info size={18} className="text-primary shrink-0 mt-0.5" />
+                          <p className="text-body-md text-on-surface-variant" dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(qExplanation ?? "") }} />
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )
+              })}
+            </div>
+          </div>
+
+          <div className="mt-6 flex justify-center pb-8">
             <button
               onClick={() => router.push("/exams")}
               className="px-8 py-3 bg-primary text-on-primary rounded-xl font-bold text-label-md hover:opacity-90 transition-all active:scale-95"
             >
               Terug naar overzicht
             </button>
-          </div>
           </div>
         </main>
       </div>
