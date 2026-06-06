@@ -61,8 +61,12 @@ export default function ExamsPage() {
         const attempts = json.attempts ?? []
         const data: Record<string, { count: number; passedCount: number; passed: boolean }> = {}
         attempts.forEach((a: { exam_id: string; attempt_number: number; passed: boolean }) => {
-          if (!data[a.exam_id] || a.attempt_number > data[a.exam_id].count) {
-            data[a.exam_id] = { count: a.attempt_number, passedCount: 0, passed: a.passed ?? false }
+          if (!data[a.exam_id]) {
+            data[a.exam_id] = { count: 0, passedCount: 0, passed: false }
+          }
+          if (a.attempt_number > data[a.exam_id].count) {
+            data[a.exam_id].count = a.attempt_number
+            data[a.exam_id].passed = a.passed ?? false
           }
           if (a.passed) data[a.exam_id].passedCount++
         })
