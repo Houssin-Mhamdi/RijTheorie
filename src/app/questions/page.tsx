@@ -42,6 +42,29 @@ export default function QuestionsPage() {
     async () => { const { data, error } = await supabase.from("questions").select("*").order("created_at", { ascending: false }); return { data, error } },
   )
 
+  const { data: examAttempts } = useSupabaseQuery(
+    ["exam_attempts", "admin"],
+    async () => {
+      const { data, error } = await supabase
+        .from("exam_attempts")
+        .select("score, total_questions")
+        .not("score", "is", null)
+        .not("total_questions", "is", null)
+      return { data, error }
+    },
+  )
+
+  const avgScore = (() => {
+    if (!examAttempts || examAttempts.length === 0) return null
+    const total = examAttempts.reduce((sum, a) => {
+      const s = a as Record<string, unknown>
+      const score = s.score as number
+      const totalQ = s.total_questions as number
+      return sum + (totalQ > 0 ? (score / totalQ) * 100 : 0)
+    }, 0)
+    return Math.round(total / examAttempts.length)
+  })()
+
   const createMutation = useSupabaseMutation<QuestionInput, unknown>(async (values) => {
     const { data, error } = await supabase
       .from("questions")
@@ -146,10 +169,9 @@ export default function QuestionsPage() {
         <StatsCard label="Most Tested" value="Right of Way">
           <p className="text-on-surface-variant">{(questionsData as Record<string, unknown>[] | undefined)?.filter((q) => q.category === "Right of Way").length || 0} questions</p>
         </StatsCard>
-        <StatsCard label="Avg Student Score" value="74.2%">
-          <div className="flex items-center gap-1 text-red-600">
-            <Info size={16} />
-            <span>Hazard perception is tough</span>
+        <StatsCard label="Avg Student Score" value={avgScore !== null ? `${avgScore}%` : "—"}>
+          <div className="flex items-center gap-1 text-on-surface-variant">
+            <span>{examAttempts?.length ?? 0} completed exams</span>
           </div>
         </StatsCard>
       </div>
