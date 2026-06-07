@@ -19,7 +19,7 @@ import {
 export default function ExamsPage() {
   const router = useRouter()
   const [authorized, setAuthorized] = useState<boolean | null>(null)
-  const [attemptData, setAttemptData] = useState<Record<string, { count: number; passedCount: number; passed: boolean }>>({})
+  const [attemptData, setAttemptData] = useState<Record<string, { count: number; passedCount: number; passed: boolean | null }>>({})
 
   useEffect(() => {
     const checkAccess = async () => {
