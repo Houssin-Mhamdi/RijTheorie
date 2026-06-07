@@ -56,17 +56,17 @@ export default function ExamsPage() {
     const fetchAttempts = async () => {
       const examIds = exams.map((e: Record<string, unknown>) => e.id as string)
       try {
-        const res = await fetch(`/api/exam/attempts?exam_ids=${examIds.join(",")}`)
-        const json = await res.json()
-        const attempts = json.attempts ?? []
-        const data: Record<string, { count: number; passedCount: number; passed: boolean }> = {}
-        attempts.forEach((a: { exam_id: string; attempt_number: number; passed: boolean }) => {
+        const { data: attempts, error } = await supabase
+          .rpc("get_my_attempts", { p_exam_ids: examIds })
+        if (error) throw error
+        const data: Record<string, { count: number; passedCount: number; passed: boolean | null }> = {}
+        attempts.forEach((a: { exam_id: string; attempt_number: number; passed: boolean | null }) => {
           if (!data[a.exam_id]) {
-            data[a.exam_id] = { count: 0, passedCount: 0, passed: false }
+            data[a.exam_id] = { count: 0, passedCount: 0, passed: null }
           }
           if (a.attempt_number > data[a.exam_id].count) {
             data[a.exam_id].count = a.attempt_number
-            data[a.exam_id].passed = a.passed ?? false
+            data[a.exam_id].passed = a.passed
           }
           if (a.passed) data[a.exam_id].passedCount++
         })
@@ -130,9 +130,10 @@ export default function ExamsPage() {
             const examId = examData.id as string
             const att = attemptData[examId]
             const hasStarted = att && att.count > 0
-            const hasPassed = att?.passed ?? false
-            const statusLabel = hasPassed ? "Geslaagd" : hasStarted ? "Bezig" : "Not started"
-            const statusClass = hasPassed ? "bg-green-100 text-green-700" : hasStarted ? "bg-primary-container/10 text-primary" : "bg-surface-container-low text-on-surface-variant"
+            const hasPassed = att?.passed === true
+            const isComplete = att?.passed !== null
+            const statusLabel = hasPassed ? "Geslaagd" : hasStarted && isComplete ? "Gezakt" : hasStarted ? "Bezig" : "Not started"
+            const statusClass = hasPassed ? "bg-green-100 text-green-700" : hasStarted && isComplete ? "bg-red-100 text-red-700" : hasStarted ? "bg-primary-container/10 text-primary" : "bg-surface-container-low text-on-surface-variant"
 
             return (
               <div

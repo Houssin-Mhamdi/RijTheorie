@@ -17,57 +17,54 @@ export async function POST(req: Request) {
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return Response.json({ error: "Unauthorized" }, { status: 401 })
 
-  const { exam_id, score, total_questions, passed } = await req.json()
-  if (!exam_id) return Response.json({ error: "Missing exam_id" }, { status: 400 })
-
   const { data: { session } } = await supabase.auth.getSession()
   if (!session?.access_token) return Response.json({ error: "No session" }, { status: 401 })
 
+  const { exam_id, score, total_questions, passed } = await req.json()
+  if (!exam_id) return Response.json({ error: "Missing exam_id" }, { status: 400 })
+
   const latestRes = await fetch(
-    `${process.env.NEXT_PUBLIC_SUPABASE_URL}/rest/v1/rpc/get_latest_attempt`,
+    `${process.env.NEXT_PUBLIC_SUPABASE_URL}/rest/v1/exam_attempts?select=id&user_id=eq.${user.id}&exam_id=eq.${exam_id}&completed_at=is.null&order=started_at.desc&limit=1`,
     {
-      method: "POST",
       headers: {
-        "Content-Type": "application/json",
         apikey: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
         Authorization: `Bearer ${session.access_token}`,
       },
-      body: JSON.stringify({ p_user_id: user.id, p_exam_id: exam_id }),
     },
   )
 
   if (!latestRes.ok) {
     const text = await latestRes.text()
-    return Response.json({ error: text, status: latestRes.status }, { status: 500 })
+    return Response.json({ error: `FIND: ${latestRes.status} ${text}` }, { status: 500 })
   }
 
-  const latest = await latestRes.json()
-  console.log("[finish-attempt] latest:", JSON.stringify(latest))
-  if (!latest || !latest.id) {
+  const attempts = await latestRes.json()
+  if (!Array.isArray(attempts) || attempts.length === 0) {
     return Response.json({ error: "No attempt found" }, { status: 404 })
   }
 
-  const finishRes = await fetch(
-    `${process.env.NEXT_PUBLIC_SUPABASE_URL}/rest/v1/rpc/finish_exam_attempt`,
+  const updateRes = await fetch(
+    `${process.env.NEXT_PUBLIC_SUPABASE_URL}/rest/v1/exam_attempts?id=eq.${attempts[0].id}`,
     {
-      method: "POST",
+      method: "PATCH",
       headers: {
         "Content-Type": "application/json",
         apikey: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
         Authorization: `Bearer ${session.access_token}`,
+        Prefer: "return=minimal",
       },
       body: JSON.stringify({
-        p_attempt_id: latest.id,
-        p_score: score,
-        p_total_questions: total_questions,
-        p_passed: passed,
+        score,
+        total_questions,
+        passed,
+        completed_at: new Date().toISOString(),
       }),
     },
   )
 
-  if (!finishRes.ok) {
-    const text = await finishRes.text()
-    return Response.json({ error: text, status: finishRes.status }, { status: 500 })
+  if (!updateRes.ok) {
+    const text = await updateRes.text()
+    return Response.json({ error: `UPDATE: ${updateRes.status} ${text}` }, { status: 500 })
   }
 
   return Response.json({ success: true })

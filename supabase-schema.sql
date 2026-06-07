@@ -450,8 +450,11 @@ CREATE TABLE IF NOT EXISTS public.exam_attempts (
   completed_at TIMESTAMPTZ,
   score INTEGER,
   total_questions INTEGER,
-  passed BOOLEAN
+  passed BOOLEAN,
+  category_scores JSONB
 );
+
+ALTER TABLE public.exam_attempts ADD COLUMN IF NOT EXISTS category_scores jsonb;
 
 ALTER TABLE public.exam_attempts ENABLE ROW LEVEL SECURITY;
 
@@ -470,6 +473,60 @@ CREATE POLICY "Users can update own attempts"
 CREATE POLICY "Admins can read all attempts"
   ON public.exam_attempts FOR SELECT
   USING (public.is_admin());
+
+-- 15. RPC: Finish exam attempt (updates score + category_scores)
+CREATE OR REPLACE FUNCTION public.finish_exam_attempt(
+  p_attempt_id UUID,
+  p_score INTEGER,
+  p_total_questions INTEGER,
+  p_passed BOOLEAN,
+  p_category_scores JSONB DEFAULT NULL
+)
+RETURNS VOID
+LANGUAGE plpgsql SECURITY DEFINER
+SET search_path = ''
+AS $$
+BEGIN
+  UPDATE public.exam_attempts
+  SET
+    score = p_score,
+    total_questions = p_total_questions,
+    passed = p_passed,
+    category_scores = p_category_scores,
+    completed_at = NOW()
+  WHERE id = p_attempt_id;
+END;
+$$;
+
+-- 16. RPC: Get all exam attempts with full data (for stats)
+DROP FUNCTION IF EXISTS public.get_exam_stats_full();
+CREATE OR REPLACE FUNCTION public.get_exam_stats_full()
+RETURNS JSONB
+LANGUAGE plpgsql SECURITY DEFINER
+SET search_path = ''
+AS $$
+DECLARE
+  result JSONB;
+BEGIN
+  SELECT JSONB_AGG(
+    JSONB_BUILD_OBJECT(
+      'id', ea.id,
+      'exam_id', ea.exam_id,
+      'score', ea.score,
+      'total_questions', ea.total_questions,
+      'passed', ea.passed,
+      'started_at', ea.started_at,
+      'completed_at', ea.completed_at,
+      'category_scores', ea.category_scores
+    )
+    ORDER BY ea.started_at DESC
+  )
+  FROM public.exam_attempts ea
+  INTO result;
+
+  RETURN COALESCE(result, '[]'::JSONB);
+END;
+$$;
 
 -- Run this in Supabase SQL editor to create the avatars storage bucket:
 -- INSERT INTO storage.buckets (id, name, public) VALUES ('avatars', 'avatars', true);

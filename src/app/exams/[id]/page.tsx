@@ -122,13 +122,20 @@ export default function ExamDetailPage() {
 
       if (!attemptCreated.current) {
         attemptCreated.current = true
-        const res = await fetch("/api/exam/start-attempt", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ exam_id: examId }),
-        })
-        const attemptResult = await res.json()
-        if (attemptResult.attempt_number) setAttemptNumber(attemptResult.attempt_number)
+        const { data: { user } } = await supabase.auth.getUser()
+        if (user) {
+          const { data: count } = await supabase.rpc("count_user_exam_attempts", {
+            p_user_id: user.id,
+            p_exam_id: examId,
+          })
+          const nextNumber = (typeof count === "number" ? count : 0) + 1
+          await supabase.rpc("insert_exam_attempt", {
+            p_user_id: user.id,
+            p_exam_id: examId,
+            p_attempt_number: nextNumber,
+          })
+          setAttemptNumber(nextNumber)
+        }
       }
 
       setLoading(false)
@@ -204,11 +211,41 @@ export default function ExamDetailPage() {
     }).length
     const total = questions.length
     const passed = total > 0 && correct >= Math.ceil(total * 0.8)
-    fetch("/api/exam/finish-attempt", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ exam_id: examId, score: correct, total_questions: total, passed }),
-    }).then((r) => r.json()).then((d) => console.log("finish-attempt result:", d)).catch((e) => console.error("finish-attempt error:", e))
+    const categoryStats: Record<string, { correct: number; total: number }> = {}
+    questions.forEach((q) => {
+      const cat = q.category || "Overig"
+      if (!categoryStats[cat]) categoryStats[cat] = { correct: 0, total: 0 }
+      categoryStats[cat].total++
+      const r = answerResults[q.id]
+      const hr = hotspotResults[q.id]
+      if (r?.correct || hr?.results.every((res) => res.correct)) categoryStats[cat].correct++
+    })
+    ;(async () => {
+      try {
+        const { data: { user } } = await supabase.auth.getUser()
+        if (!user) { console.log("finish: no user"); return }
+        const { data: latest, error: latestErr } = await supabase.rpc("get_latest_attempt", {
+          p_user_id: user.id,
+          p_exam_id: examId,
+        })
+        if (latestErr) { console.log("finish: get_latest_attempt error", latestErr); return }
+        console.log("finish: latest attempt", latest)
+        if (latest && latest.length > 0) {
+          const { error: finishErr } = await supabase.rpc("finish_exam_attempt", {
+            p_attempt_id: latest[0].id,
+            p_score: correct,
+            p_total_questions: total,
+            p_passed: passed,
+          })
+          if (finishErr) console.log("finish: finish_exam_attempt error", finishErr)
+          else console.log("finish: success", { correct, total, passed })
+        } else {
+          console.log("finish: no attempt found")
+        }
+      } catch (e) {
+        console.log("finish: unexpected error", e)
+      }
+    })()
   }, [questions, answerResults, hotspotResults, examId])
 
   const handleHotspotSubmit = useCallback(async (positions: { x: number; y: number }[]) => {

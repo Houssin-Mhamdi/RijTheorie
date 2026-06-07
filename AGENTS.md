@@ -45,6 +45,7 @@
 - `supabase-fix-rls.sql` now includes: `UPDATE` policy for `exam_questions`, `SELECT` policy for admin on `user_progress`, `last_active_at` migration, admin-only questions policy, and all 3 RPC functions.
 - SQL uses `public.questions`/`public.exam_questions` fully qualified names (required by `SET search_path = ''`); `^` operator replaced with multiplication for PostgreSQL compatibility.
 - **"Toon resultaat" button + results review page**: on the last exam question, when answered, shows a green "Toon resultaat" button instead of disabled "Volgende". Results page shows score card (correct/total, percentage bar, time), plus scrollable list of all questions with correct/incorrect indicators, CORRECT/JOUW KEUZE badges, and explanations. "Terug naar overzicht" button navigates back to exam list.
+- **Simplified category scores**: `exam_attempts` has a `category_scores JSONB` column instead of a separate `exam_category_scores` table. Category stats are computed client-side and stored inline on the attempt record via `finish_exam_attempt` RPC. No separate table, RPC, or API route needed.
 
 ### In Progress
 - (none)
@@ -94,6 +95,7 @@
 - Exam question reorder: `upsert` payload must include `question_id` and `exam_id` to avoid NOT NULL constraint violation on `exam_questions.question_id`.
 - Proxy now allows admin role (`role !== "student" && role !== "admin"`) to access student routes — previously only student role was allowed.
 - `supabase-fix-rls.sql` must be fully re-run on a fresh DB — contains the `is_admin()` function and all policy fixes.
+- `exam_attempts` has a `category_scores JSONB` column — stores per-category results inline. No separate `exam_category_scores` table.
 - Results view uses `correctCount` computed from `answerResults` + `hotspotResults` state; `currentQuestion` is guaranteed non-null by the `if (!currentQuestion && !showResults) return null` guard.
 
 ## Relevant Files
@@ -110,3 +112,4 @@
 - `supabase-fix-rls.sql`: All policies + `last_active_at` migration + 3 RPC functions — run this fully.
 - `supabase-schema.sql`: Schema including `last_active_at` column, admin-only questions RLS, 3 RPC functions.
 - `src/types/database.ts`: `last_active_at: string | null` added to Profile.
+- `src/app/exams/(list)/statistics/page.tsx`: Student statistics page — Radar chart per category, stats cards, recent exams list; fetches from `/api/exam/stats`.

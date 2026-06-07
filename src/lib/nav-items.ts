@@ -1,4 +1,4 @@
-import { LayoutDashboard, ClipboardList, BookOpen, Users, FileText, Settings } from "lucide-react"
+import { LayoutDashboard, ClipboardList, BookOpen, Users, FileText, Settings, BarChart3 } from "lucide-react"
 import type { NavItem } from "@/components/dashboard/sidebar"
 
 export const dashboardNavItems: NavItem[] = [
@@ -10,6 +10,7 @@ export const dashboardNavItems: NavItem[] = [
 
 export const studentNavItems: NavItem[] = [
   { href: "/exams", label: "Exams", icon: FileText },
+  { href: "/exams/statistics", label: "Statistieken", icon: BarChart3 },
 ]
 
 export const settingsItem = { href: "/dashboard/settings", label: "Settings", icon: Settings }
@@ -22,4 +23,5 @@ export const mobileNavItems = [
 
 export const studentMobileNavItems = [
   { href: "/exams", label: "Exams", icon: FileText },
+  { href: "/exams/statistics", label: "Statistieken", icon: BarChart3 },
 ]
