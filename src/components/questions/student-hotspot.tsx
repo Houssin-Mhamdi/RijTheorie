@@ -19,24 +19,25 @@ interface StudentHotspotProps {
   initialPositions?: { x: number; y: number }[]
   initialSubmitted?: boolean
   validationResults?: { index: number; correct: boolean; distance: number | null }[]
+  pauseAt?: number
+  optionLabels?: string[]
 }
 
 const TOLERANCE = 8
 const SNAP_DIST = 6
-const VIDEO_PAUSE_AT = 3
 
 function isWithin(a: number, b: number, tol: number) {
   return Math.abs(a - b) <= tol
 }
 
-export default function StudentHotspot({ media, mediaMime, correctOptions, onComplete, initialPositions, initialSubmitted, validationResults }: StudentHotspotProps) {
+export default function StudentHotspot({ media, mediaMime, correctOptions, onComplete, initialPositions, initialSubmitted, validationResults, pauseAt = 3, optionLabels }: StudentHotspotProps) {
   const containerRef = useRef<HTMLDivElement>(null)
   const videoRef = useRef<HTMLVideoElement>(null)
   const dragging = useRef<{ index: number } | null>(null)
   const positionsRef = useRef(initialPositions ?? correctOptions.map((_, i) => ({ x: 15 + i * 22, y: 88 })))
 
   const isVideo = mediaMime?.startsWith("video/")
-  const poster = useVideoPoster(isVideo ? media : null, VIDEO_PAUSE_AT)
+  const poster = useVideoPoster(isVideo ? media : null, pauseAt)
 
   const [playing, setPlaying] = useState(false)
   const [paused, setPaused] = useState(false)
@@ -51,7 +52,7 @@ export default function StudentHotspot({ media, mediaMime, correctOptions, onCom
     if (!isVideo || !videoRef.current) return
     const video = videoRef.current
     function onTimeUpdate() {
-      if (video.currentTime >= VIDEO_PAUSE_AT) {
+      if (video.currentTime >= pauseAt) {
         video.pause()
         setPlaying(false)
         setPaused(true)
@@ -69,7 +70,7 @@ export default function StudentHotspot({ media, mediaMime, correctOptions, onCom
   function handlePlay() {
     const video = videoRef.current
     if (!video) return
-    if (video.currentTime >= VIDEO_PAUSE_AT) video.currentTime = 0
+    if (video.currentTime >= pauseAt) video.currentTime = 0
     setShowOverlay(false)
     setPaused(false)
     setPlaying(true)
@@ -301,7 +302,7 @@ export default function StudentHotspot({ media, mediaMime, correctOptions, onCom
                     i + 1
                   )}
                 </div>
-                <span className="flex-1 text-body-md text-on-surface">{opt.text}</span>
+                <span className="flex-1 text-body-md text-on-surface">{optionLabels?.[i] ?? opt.text}</span>
                 {state === "wrong" && (
                   <span className="text-label-sm text-red-600">Afstand: {dist}%</span>
                 )}

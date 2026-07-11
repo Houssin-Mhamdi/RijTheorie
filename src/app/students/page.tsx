@@ -2,13 +2,13 @@
 
 import { useState, useMemo } from "react"
 import { useQuery } from "@tanstack/react-query"
-import { Users, Clock, BadgeCheck, TrendingUp, ChevronLeft, ChevronRight, MoreHorizontal, FileText } from "lucide-react"
+import { useRouter } from "next/navigation"
+import { Users, BadgeCheck, TrendingUp, ChevronLeft, ChevronRight, MoreHorizontal, FileText } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import DataTable from "@/components/ui/data-table"
 import type { Column } from "@/components/ui/data-table"
-import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from "@/components/ui/select"
 import { supabase } from "@/lib/supabase"
-import type { Profile, UserProgress } from "@/types/database"
+import type { Profile } from "@/types/database"
 
 const ITEMS_PER_PAGE = 5
 
@@ -103,6 +103,7 @@ function timeAgo(dateStr: string | null): string {
 }
 
 export default function StudentsPage() {
+  const router = useRouter()
   const [currentPage, setCurrentPage] = useState(1)
 
   const { data: students = [], isLoading: studentsLoading } = useQuery({
@@ -118,18 +119,6 @@ export default function StudentsPage() {
     },
   })
 
-  const { data: totalLessons = 0 } = useQuery({
-    queryKey: ["lessons-count"],
-    queryFn: async () => {
-      const { count, error } = await supabase
-        .from("lessons")
-        .select("*", { count: "exact", head: true })
-        .eq("published", true)
-      if (error) throw error
-      return count ?? 0
-    },
-  })
-
   const { data: totalExams = 0 } = useQuery({
     queryKey: ["exams-count"],
     queryFn: async () => {
@@ -141,41 +130,31 @@ export default function StudentsPage() {
     },
   })
 
-  const { data: allProgress = [] } = useQuery({
-    queryKey: ["all-progress"],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from("user_progress")
-        .select("user_id, completed")
-        .eq("completed", true)
-      if (error) throw error
-      return data as Pick<UserProgress, "user_id" | "completed">[]
-    },
-  })
-
   const { data: allExamAttempts = [] } = useQuery({
     queryKey: ["all-exam-attempts"],
     queryFn: async () => {
       const { data, error } = await supabase
         .from("exam_attempts")
-        .select("user_id, passed, completed_at")
+        .select("user_id, exam_id, passed, completed_at")
         .not("completed_at", "is", null)
       if (error) throw error
-      return data as { user_id: string; passed: boolean; completed_at: string }[]
+      return data as { user_id: string; exam_id: string; passed: boolean; completed_at: string }[]
     },
   })
 
   const studentsWithProgress: StudentWithProgress[] = useMemo(() => {
-    if (totalLessons === 0) return students.map((s) => ({ ...s, progress: 0 }))
-    const completedCount: Record<string, number> = {}
-    for (const p of allProgress) {
-      completedCount[p.user_id] = (completedCount[p.user_id] || 0) + 1
+    if (totalExams === 0) return students.map((s) => ({ ...s, progress: 0 }))
+    const passedExams: Record<string, Set<string>> = {}
+    for (const a of allExamAttempts) {
+      if (!a.passed) continue
+      if (!passedExams[a.user_id]) passedExams[a.user_id] = new Set()
+      passedExams[a.user_id].add(a.exam_id)
     }
     return students.map((s) => ({
       ...s,
-      progress: Math.min(100, Math.round(((completedCount[s.id] || 0) / totalLessons) * 100)),
+      progress: Math.min(100, Math.round(((passedExams[s.id]?.size ?? 0) / totalExams) * 100)),
     }))
-  }, [students, allProgress, totalLessons])
+  }, [students, allExamAttempts, totalExams])
 
   const examStats = useMemo(() => {
     const stats: Record<string, { total: number; passed: number }> = {}
@@ -194,9 +173,7 @@ export default function StudentsPage() {
   const avgProgress = totalStudents > 0
     ? Math.round(studentsWithProgress.reduce((sum, s) => sum + s.progress, 0) / totalStudents)
     : 0
-  const passedCount = studentsWithProgress.filter((s) => s.progress >= 80).length
-  const passRate = totalStudents > 0 ? Math.round((passedCount / totalStudents) * 100) : 0
-  const completedLessons = allProgress.length
+  const fullyPassed = studentsWithProgress.filter((s) => s.progress >= 100).length
 
   const isLoading = studentsLoading
 
@@ -212,10 +189,10 @@ export default function StudentsPage() {
       header: "Name",
       accessor: "name",
       render: (_, row) => (
-        <div className="flex items-center gap-3">
+        <button onClick={() => router.push(`/students/${row.id}`)} className="flex items-center gap-3 hover:opacity-80 transition-opacity text-left">
           <Avatar initials={getInitials(row.name || row.email)} />
           <span className="text-body-md font-semibold text-primary">{row.name || row.email}</span>
-        </div>
+        </button>
       ),
     },
     {

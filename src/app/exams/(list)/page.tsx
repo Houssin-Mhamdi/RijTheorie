@@ -20,6 +20,27 @@ export default function ExamsPage() {
   const router = useRouter()
   const [authorized, setAuthorized] = useState<boolean | null>(null)
   const [attemptData, setAttemptData] = useState<Record<string, { count: number; passedCount: number; passed: boolean | null }>>({})
+  const [availableLangs, setAvailableLangs] = useState<string[]>(["nl"])
+  const [studentLang, setStudentLang] = useState("nl")
+
+  const langLabels: Record<string, string> = {
+    nl: "Nederlands", en: "English", ar: "العربية", fr: "Français",
+    de: "Deutsch", tr: "Türkçe", pl: "Polski", es: "Español", it: "Italiano",
+  }
+
+  useEffect(() => {
+    supabase.from("site_settings").select("languages").eq("id", 1).single().then(({ data, error }) => {
+      if (error && error.code === "PGRST205") return
+      if (data) setAvailableLangs(data.languages as string[] || ["nl"])
+    })
+    supabase.auth.getUser().then(({ data: { user } }) => {
+      if (user) {
+        supabase.from("profiles").select("language").eq("id", user.id).single().then(({ data }) => {
+          if (data?.language) setStudentLang(data.language)
+        })
+      }
+    })
+  }, [])
 
   useEffect(() => {
     const checkAccess = async () => {
@@ -88,9 +109,34 @@ export default function ExamsPage() {
 
   if (authorized === false) return null
 
+  const handleLangChange = async (code: string) => {
+    setStudentLang(code)
+    const { data: { user } } = await supabase.auth.getUser()
+    if (user) {
+      await supabase.from("profiles").update({ language: code }).eq("id", user.id)
+    }
+  }
+
   return (
     <div className="flex flex-col min-h-full bg-surface">
       <div className="px-4 sm:px-6 pt-6 pb-2">
+        {availableLangs.length > 0 && (
+          <div className="flex items-center gap-2 mb-4 flex-wrap">
+            {availableLangs.map((code) => (
+              <button
+                key={code}
+                onClick={() => handleLangChange(code)}
+                className={`px-3 py-1.5 rounded-full text-label-sm font-bold transition-all active:scale-95 ${
+                  studentLang === code
+                    ? "bg-primary text-on-primary shadow-sm"
+                    : "bg-surface-container-high text-on-surface-variant hover:bg-surface-container"
+                }`}
+              >
+                {langLabels[code] || code.toUpperCase()}
+              </button>
+            ))}
+          </div>
+        )}
         <div className="flex items-center justify-between mb-1">
           <div>
             <h1 className="text-2xl md:text-3xl font-bold text-primary tracking-tight">Exams</h1>

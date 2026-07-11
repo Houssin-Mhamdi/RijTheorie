@@ -75,9 +75,21 @@ export default function QuestionsPage() {
       .insert({
         category: values.category,
         question_text: values.questionText,
+        pause_at: values.pauseAt ?? 3,
         media: values.media || null,
         answer_options: values.answerOptions as unknown as Record<string, unknown>,
         explanation: values.explanation || null,
+        ...(values.translations?.length ? {
+          translations: values.translations.reduce((acc, t) => ({
+            ...acc,
+            [t.lang]: {
+              question_text: t.questionText,
+              answer_options: t.answerOptions?.map(o => ({ text: o.text })) || undefined,
+              explanation: t.explanation || undefined,
+              active: t.active ?? true,
+            },
+          }), {} as Record<string, unknown>),
+        } : {}),
         created_by: session?.user?.id,
       })
       .select()
@@ -91,9 +103,21 @@ export default function QuestionsPage() {
       .update({
         category: values.category,
         question_text: values.questionText,
+        pause_at: values.pauseAt ?? 3,
         media: values.media || null,
         answer_options: values.answerOptions as unknown as Record<string, unknown>,
         explanation: values.explanation || null,
+        ...(values.translations?.length ? {
+          translations: values.translations.reduce((acc, t) => ({
+            ...acc,
+            [t.lang]: {
+              question_text: t.questionText,
+              answer_options: t.answerOptions?.map(o => ({ text: o.text })) || undefined,
+              explanation: t.explanation || undefined,
+              active: t.active ?? true,
+            },
+          }), {} as Record<string, unknown>),
+        } : {}),
       })
       .eq("id", id)
       .select()
@@ -143,8 +167,16 @@ export default function QuestionsPage() {
         category: editQuestion.category as string,
         questionText: editQuestion.question_text as string,
         media: (editQuestion.media as string) || undefined,
+        pauseAt: (editQuestion.pause_at as number) ?? 3,
         answerOptions: (editQuestion.answer_options as Array<{ text: string; isCorrect: boolean; x?: number; y?: number }>) || [],
         explanation: (editQuestion.explanation as string) || undefined,
+        translations: Object.entries((editQuestion.translations as Record<string, { question_text: string; answer_options?: { text: string }[]; explanation?: string; active?: boolean }>) || {}).map(([lang, t]) => ({
+          lang,
+          questionText: t.question_text,
+          answerOptions: t.answer_options?.map(o => ({ text: o.text })),
+          explanation: t.explanation || undefined,
+          active: t.active ?? true,
+        })),
       }
     : undefined
 

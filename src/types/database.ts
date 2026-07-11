@@ -6,6 +6,7 @@ export type Profile = {
   created_at: string
   last_active_at: string | null
   avatar_url: string | null
+  language: string
 }
 
 export type Lesson = {
@@ -41,6 +42,7 @@ export type SiteSettings = {
   id: number
   site_name: string
   site_logo_url: string | null
+  languages: string[]
   created_at: string
   updated_at: string
 }

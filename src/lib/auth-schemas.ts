@@ -24,10 +24,19 @@ export const lessonSchema = z.object({
   published: z.boolean(),
 })
 
+const translationEntrySchema = z.object({
+  lang: z.string().min(2),
+  questionText: z.string().optional(),
+  answerOptions: z.array(z.object({ text: z.string().optional() })).optional(),
+  explanation: z.string().optional(),
+  active: z.boolean().optional().default(true),
+})
+
 export const questionSchema = z.object({
   category: z.string().min(1, "Category is required"),
   questionText: z.string().min(1, "Question text is required"),
   media: z.string().optional(),
+  pauseAt: z.number().min(0.5).default(3),
   answerOptions: z
     .array(z.object({ text: z.string().min(1, "Option text is required"), isCorrect: z.boolean(), x: z.number().min(0).max(100).optional(), y: z.number().min(0).max(100).optional(), imageUrl: z.string().optional() }))
     .min(1, "At least one answer option is required")
@@ -35,6 +44,7 @@ export const questionSchema = z.object({
       message: "At least one option must be marked as correct",
     }),
   explanation: z.string().optional(),
+  translations: z.array(translationEntrySchema).optional(),
 })
 
 export type LoginInput = { email: string; password: string }
@@ -54,6 +64,10 @@ export const examSchema = z.object({
   title: z.string().min(1, "Title is required"),
   description: z.string().optional(),
   is_free: z.boolean(),
+  duration_minutes: z.number().min(1, "Duration must be at least 1 minute"),
+  pass_type: z.enum(["percentage", "count"]),
+  pass_threshold: z.number().min(1).max(100, "Threshold must be between 1 and 100"),
+  pass_count: z.number().min(1, "Minimum correct answers must be at least 1"),
 })
 
 export type ExamInput = z.infer<typeof examSchema>

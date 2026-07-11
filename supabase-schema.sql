@@ -18,7 +18,8 @@ CREATE TABLE profiles (
   name TEXT,
   role TEXT NOT NULL DEFAULT 'student' CHECK (role IN ('admin', 'student')),
   created_at TIMESTAMPTZ DEFAULT NOW(),
-  last_active_at TIMESTAMPTZ
+  last_active_at TIMESTAMPTZ,
+  language TEXT DEFAULT 'nl'
 );
 
 ALTER TABLE profiles ENABLE ROW LEVEL SECURITY;
@@ -108,9 +109,11 @@ CREATE TABLE questions (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   category TEXT NOT NULL,
   question_text TEXT NOT NULL,
+  pause_at FLOAT DEFAULT 3.0,
   media TEXT,
   answer_options JSONB NOT NULL DEFAULT '[]'::jsonb,
   explanation TEXT,
+  translations JSONB DEFAULT '{}'::jsonb,
   created_by UUID REFERENCES profiles(id),
   created_at TIMESTAMPTZ DEFAULT NOW(),
   updated_at TIMESTAMPTZ DEFAULT NOW()
@@ -200,6 +203,10 @@ CREATE TABLE exams (
   description TEXT,
   question_count INTEGER DEFAULT 0,
   is_free BOOLEAN DEFAULT false,
+  duration_minutes INTEGER DEFAULT 45,
+  pass_threshold INTEGER DEFAULT 80,
+  pass_type TEXT DEFAULT 'percentage',
+  pass_count INTEGER DEFAULT 0,
   created_at TIMESTAMPTZ DEFAULT NOW(),
   updated_at TIMESTAMPTZ DEFAULT NOW()
 );
@@ -314,7 +321,9 @@ BEGIN
         SELECT JSONB_AGG(ao - 'isCorrect')
         FROM JSONB_ARRAY_ELEMENTS(q.answer_options) AS ao
       ),
-      'explanation', NULL
+      'explanation', NULL,
+      'translations', q.translations,
+      'pause_at', q.pause_at
     )
     ORDER BY eq.sort_order
   )
@@ -420,6 +429,7 @@ CREATE TABLE IF NOT EXISTS public.site_settings (
   id bigint PRIMARY KEY DEFAULT 1,
   site_name text NOT NULL DEFAULT 'RijTheorie Pro',
   site_logo_url text,
+  languages JSONB DEFAULT '["nl"]'::jsonb,
   created_at TIMESTAMPTZ DEFAULT NOW(),
   updated_at TIMESTAMPTZ DEFAULT NOW(),
   CONSTRAINT single_row CHECK (id = 1)

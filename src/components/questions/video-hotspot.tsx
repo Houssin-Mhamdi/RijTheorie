@@ -18,9 +18,10 @@ interface VideoHotspotProps {
   onTextChange: (index: number, text: string) => void
   onDelete?: (index: number) => void
   pauseAt?: number
+  onPauseChange?: (pauseAt: number) => void
 }
 
-export default function VideoHotspot({ videoUrl, options, onChange, onTextChange, onDelete, pauseAt = 3 }: VideoHotspotProps) {
+export default function VideoHotspot({ videoUrl, options, onChange, onTextChange, onDelete, pauseAt = 3, onPauseChange }: VideoHotspotProps) {
   const videoRef = useRef<HTMLVideoElement>(null)
   const containerRef = useRef<HTMLDivElement>(null)
   const dragging = useRef<{ index: number } | null>(null)
@@ -100,7 +101,9 @@ export default function VideoHotspot({ videoUrl, options, onChange, onTextChange
   }, [])
 
   function adjustTime(delta: number) {
-    setPauseTime((t) => Math.max(0.5, Math.round((t + delta) * 10) / 10))
+    const next = Math.max(0.5, Math.round((pauseTime + delta) * 10) / 10)
+    setPauseTime(next)
+    onPauseChange?.(next)
   }
 
   return (

@@ -4,8 +4,9 @@ import { useRef, useState, useEffect } from "react"
 import { useForm, useFieldArray } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { questionSchema, type QuestionInput } from "@/lib/auth-schemas"
+import { type Resolver } from "react-hook-form"
 import { Form, FormField, FormItem, FormLabel, FormControl, FormMessage } from "@/components/ui/form"
-import { Upload, Plus, Trash2, ChevronDown, X, FileVideo, FileImage, Loader2 } from "lucide-react"
+import { Upload, Plus, Trash2, ChevronDown, X, FileVideo, FileImage, Loader2, Languages } from "lucide-react"
 import { cn } from "@/lib/utils"
 import TipTapEditor from "@/components/ui/tip-tap-editor"
 import ImageHotspot from "@/components/questions/image-hotspot"
@@ -23,7 +24,7 @@ interface QuestionFormProps {
 
 export default function QuestionForm({ onSubmit, isPending, initialData, userId, onUploadingChange }: QuestionFormProps) {
   const form = useForm<QuestionInput>({
-    resolver: zodResolver(questionSchema),
+    resolver: zodResolver(questionSchema) as Resolver<QuestionInput>,
     defaultValues: {
       category: "",
       questionText: "",
@@ -35,10 +36,13 @@ export default function QuestionForm({ onSubmit, isPending, initialData, userId,
         { text: "4th - Bicycle", isCorrect: true },
       ],
       explanation: "",
+      translations: [],
+      pauseAt: 3,
     },
   })
 
   const { fields, append, remove, update } = useFieldArray({ control: form.control, name: "answerOptions" })
+  const { fields: translationFields, append: appendTranslation, replace: replaceTranslation } = useFieldArray({ control: form.control, name: "translations" })
 
   const [mediaPreview, setMediaPreview] = useState<string | null>(null)
   const [mediaMime, setMediaMime] = useState<string>("")
@@ -61,6 +65,9 @@ export default function QuestionForm({ onSubmit, isPending, initialData, userId,
   useEffect(() => {
     if (initialData) {
       form.reset(initialData)
+      if (initialData.translations?.length) {
+        replaceTranslation(initialData.translations)
+      }
       if (initialData.media) {
         setMediaPreview(initialData.media)
         setStoredMediaUrl(initialData.media)
@@ -73,6 +80,8 @@ export default function QuestionForm({ onSubmit, isPending, initialData, userId,
       setStoredMediaUrl("")
     }
   }, [initialData])
+
+
 
   async function uploadFile(file: File): Promise<string | null> {
     if (!userId) {
@@ -147,6 +156,42 @@ export default function QuestionForm({ onSubmit, isPending, initialData, userId,
 
   const [showTextOptions, setShowTextOptions] = useState(false)
   const isHotspot = isInteractive && !showTextOptions
+
+  const [supportedLanguages, setSupportedLanguages] = useState<string[]>(["nl"])
+  const formReady = useRef(false)
+
+  const langLabels: Record<string, string> = {
+    nl: "Nederlands", en: "English", ar: "العربية", fr: "Français",
+    de: "Deutsch", tr: "Türkçe", pl: "Polski", es: "Español", it: "Italiano",
+  }
+
+  useEffect(() => {
+    supabase.from("site_settings").select("languages").eq("id", 1).single().then(({ data, error }) => {
+      if (error && error.code === "PGRST205") return
+      if (data) setSupportedLanguages(data.languages as string[] || ["nl"])
+    })
+  }, [])
+
+  useEffect(() => {
+    formReady.current = true
+  }, [initialData])
+
+  useEffect(() => {
+    if (!formReady.current || !supportedLanguages.length) return
+    const existingLangs = translationFields.map((t) => t.lang)
+    supportedLanguages.forEach((code) => {
+      if (code === "nl") return
+      if (!existingLangs.includes(code)) {
+        appendTranslation({
+          lang: code,
+          questionText: "",
+          answerOptions: fields.map(() => ({ text: "" })),
+          explanation: "",
+          active: true,
+        })
+      }
+    })
+  }, [supportedLanguages, initialData])
 
   useEffect(() => {
     if (isHotspot || category === "Right of Way") {
@@ -297,6 +342,8 @@ export default function QuestionForm({ onSubmit, isPending, initialData, userId,
               <VideoHotspot
                 videoUrl={mediaPreview!}
                 options={fields}
+                pauseAt={form.watch("pauseAt") ?? 3}
+                onPauseChange={(val) => form.setValue("pauseAt", val, { shouldDirty: true })}
                 onChange={handleHotspotChange}
                 onTextChange={(index, text) => update(index, { ...fields[index], text })}
                 onDelete={(index) => remove(index)}
@@ -471,6 +518,81 @@ export default function QuestionForm({ onSubmit, isPending, initialData, userId,
             <FormMessage />
           </FormItem>
         )} />
+
+        <div className="border-t border-outline-variant pt-6 mt-6">
+          <div className="flex items-center gap-2 mb-4">
+            <Languages size={20} className="text-primary" />
+            <span className="text-body-md font-medium">Translations</span>
+            <span className="text-label-sm text-outline">(vul in voor elke ondersteunde taal)</span>
+          </div>
+          {translationFields.length === 0 ? (
+            <p className="text-label-sm text-outline">Geen extra talen ingesteld in de instellingen.</p>
+          ) : (
+            <div className="space-y-4">
+              {translationFields.map((tf, tIndex) => (
+                <div key={tf.id} className="border border-outline-variant rounded-xl p-4 bg-surface-container-low">
+                  <div className="flex items-center justify-between mb-3">
+                    <div className="flex items-center gap-3">
+                      <span className="text-label-sm font-bold text-primary uppercase">{langLabels[tf.lang] || tf.lang.toUpperCase()}</span>
+                      <label className="flex items-center gap-1.5 cursor-pointer select-none">
+                        <input
+                          type="checkbox"
+                          defaultChecked={!!form.watch(`translations.${tIndex}.active`)}
+                          onChange={(e) => form.setValue(`translations.${tIndex}.active`, e.target.checked, { shouldDirty: true })}
+                          className="size-4 rounded border-outline-variant text-primary focus:ring-primary"
+                        />
+                        <span className="text-[11px] text-on-surface-variant">Toon in examen</span>
+                      </label>
+                    </div>
+                  </div>
+                  <div className="space-y-3">
+                    <div>
+                      <label className="text-label-sm text-on-surface-variant mb-1 block">Question Text</label>
+                      <textarea
+                        {...form.register(`translations.${tIndex}.questionText`)}
+                        rows={3}
+                        className="w-full bg-white border border-outline-variant rounded-xl px-4 py-3 focus:ring-2 focus:ring-primary focus:border-primary text-body-md resize-y min-h-[80px]"
+                        placeholder={`Translated question text (${tf.lang.toUpperCase()})`}
+                      />
+                    </div>
+                    {fields.length > 0 && (
+                      <div>
+                        <label className="text-label-sm text-on-surface-variant mb-1 block">Answer Options</label>
+                        <div className="space-y-2">
+                          {fields.map((_, aIndex) => {
+                            const fieldPath = `translations.${tIndex}.answerOptions.${aIndex}.text` as const
+                            return (
+                              <div key={aIndex} className="flex items-center gap-2">
+                                <div className="size-7 rounded-full bg-primary/20 flex items-center justify-center text-primary font-bold text-xs shrink-0">
+                                  {aIndex + 1}
+                                </div>
+                                <input
+                                  value={form.watch(fieldPath) ?? ""}
+                                  onChange={(e) => form.setValue(fieldPath, e.target.value, { shouldDirty: true })}
+                                  placeholder={`Option ${aIndex + 1}`}
+                                  className="flex-1 h-10 bg-white border border-outline-variant rounded-lg px-3 focus:ring-2 focus:ring-primary focus:border-primary text-body-md"
+                                />
+                              </div>
+                            )
+                          })}
+                        </div>
+                      </div>
+                    )}
+                    <div>
+                      <label className="text-label-sm text-on-surface-variant mb-1 block">Explanation</label>
+                      <textarea
+                        {...form.register(`translations.${tIndex}.explanation`)}
+                        rows={2}
+                        className="w-full bg-white border border-outline-variant rounded-xl px-4 py-3 focus:ring-2 focus:ring-primary focus:border-primary text-body-md resize-y"
+                        placeholder={`Translated explanation (${tf.lang.toUpperCase()})`}
+                      />
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
 
         <button type="submit" className="hidden" />
       </form>

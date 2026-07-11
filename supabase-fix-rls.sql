@@ -60,7 +60,9 @@ BEGIN
         SELECT JSONB_AGG(ao - 'isCorrect')
         FROM JSONB_ARRAY_ELEMENTS(q.answer_options) AS ao
       ),
-      'explanation', NULL
+      'explanation', NULL,
+      'translations', q.translations,
+      'pause_at', q.pause_at
     )
     ORDER BY eq.sort_order
   )
@@ -166,6 +168,7 @@ CREATE TABLE IF NOT EXISTS public.site_settings (
   id bigint PRIMARY KEY DEFAULT 1,
   site_name text NOT NULL DEFAULT 'RijTheorie Pro',
   site_logo_url text,
+  languages JSONB DEFAULT '["nl"]'::jsonb,
   created_at TIMESTAMPTZ DEFAULT NOW(),
   updated_at TIMESTAMPTZ DEFAULT NOW(),
   CONSTRAINT single_row CHECK (id = 1)
@@ -297,3 +300,13 @@ $$;
 -- CREATE POLICY "Users can delete own avatars"
 --   ON storage.objects FOR DELETE
 --   USING (bucket_id = 'avatars' AND (owner = auth.uid() OR public.is_admin()));
+
+-- Add columns to questions table
+ALTER TABLE questions ADD COLUMN IF NOT EXISTS translations JSONB DEFAULT '{}'::jsonb;
+ALTER TABLE questions ADD COLUMN IF NOT EXISTS pause_at FLOAT DEFAULT 3.0;
+
+-- Add language column to profiles
+ALTER TABLE profiles ADD COLUMN IF NOT EXISTS language TEXT DEFAULT 'nl';
+
+-- Add languages column to site_settings
+ALTER TABLE site_settings ADD COLUMN IF NOT EXISTS languages JSONB DEFAULT '["nl"]'::jsonb;

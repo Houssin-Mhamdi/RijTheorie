@@ -22,6 +22,8 @@ import {
   TrendingUp,
   BookOpen,
   Lightbulb,
+  Globe,
+  ChevronDown,
 } from "lucide-react"
 import DOMPurify from "dompurify"
 
@@ -36,16 +38,29 @@ type Exam = {
   id: string
   title: string
   description?: string | null
+  duration_minutes?: number
+  pass_threshold?: number
+  pass_type?: string
+  pass_count?: number
+}
+
+type Translation = {
+  question_text: string
+  answer_options?: { text: string }[]
+  explanation?: string
+  active?: boolean
 }
 
 type Question = {
   id: string
   category: string
   questionText: string
+  pauseAt?: number
   media: string | null
   mediaMime: string | null
   answerOptions: AnswerOption[]
   explanation: string | null
+  translations?: Record<string, Translation>
 }
 
 export default function ExamDetailPage() {
@@ -68,6 +83,9 @@ export default function ExamDetailPage() {
   const [showError, setShowError] = useState(false)
   const [showResults, setShowResults] = useState(false)
   const [attemptNumber, setAttemptNumber] = useState(1)
+  const [studentLang, setStudentLang] = useState<string>("")
+  const [selectedLang, setSelectedLang] = useState<string>("nl")
+  const [showLangMenu, setShowLangMenu] = useState(false)
   const attemptCreated = useRef(false)
 
   const currentQuestion = questions[currentIndex]
@@ -93,6 +111,7 @@ export default function ExamDetailPage() {
       }
 
       setExam(examData)
+      setTimeLeft((examData.duration_minutes ?? 45) * 60)
 
       const { data: rpcData, error: rpcErr } = await supabase
         .rpc("get_exam_questions", { p_exam_id: examId })
@@ -107,34 +126,61 @@ export default function ExamDetailPage() {
         const media = (q.media as string) || null
         const ext = media?.split(".").pop()?.toLowerCase() ?? ""
         const mime = /^(mp4|webm|ogg|mov)$/i.test(ext) ? `video/${ext}` : media ? "image/unknown" : null
+        const rawTranslations = (q as Record<string, unknown>).translations as Record<string, unknown> | null | undefined
+        const translations: Record<string, Translation> | undefined = rawTranslations && typeof rawTranslations === "object" && !Array.isArray(rawTranslations) && Object.keys(rawTranslations).length > 0
+          ? Object.keys(rawTranslations).reduce((acc, lang) => ({ ...acc, [lang]: rawTranslations[lang] as Translation }), {} as Record<string, Translation>)
+          : undefined
         return {
           id: q.id as string,
           category: q.category as string,
           questionText: q.question_text as string,
+          pauseAt: (q as Record<string, unknown>).pause_at as number ?? 3,
           media,
           mediaMime: mime,
           answerOptions: (q.answer_options as AnswerOption[]) ?? [],
           explanation: null,
+          translations,
         }
       })
 
       setQuestions(mappedQuestions)
 
+      const { data: { user } } = await supabase.auth.getUser()
+      if (user) {
+        const { data: prof } = await supabase.from("profiles").select("language").eq("id", user.id).single()
+        if (prof?.language) { setStudentLang(prof.language); setSelectedLang(prof.language) }
+      }
+
       if (!attemptCreated.current) {
         attemptCreated.current = true
         const { data: { user } } = await supabase.auth.getUser()
         if (user) {
-          const { data: count } = await supabase.rpc("count_user_exam_attempts", {
-            p_user_id: user.id,
-            p_exam_id: examId,
-          })
-          const nextNumber = (typeof count === "number" ? count : 0) + 1
-          await supabase.rpc("insert_exam_attempt", {
-            p_user_id: user.id,
-            p_exam_id: examId,
-            p_attempt_number: nextNumber,
-          })
-          setAttemptNumber(nextNumber)
+          const { data: existing } = await supabase
+            .from("exam_attempts")
+            .select("id, attempt_number, completed_at")
+            .eq("user_id", user.id)
+            .eq("exam_id", examId)
+            .order("started_at", { ascending: false })
+            .limit(1)
+          if (existing && existing.length > 0) {
+            if (existing[0].completed_at) {
+              router.push("/exams")
+              return
+            }
+            setAttemptNumber(existing[0].attempt_number)
+          } else {
+            const { data: count } = await supabase.rpc("count_user_exam_attempts", {
+              p_user_id: user.id,
+              p_exam_id: examId,
+            })
+            const nextNumber = (typeof count === "number" ? count : 0) + 1
+            await supabase.rpc("insert_exam_attempt", {
+              p_user_id: user.id,
+              p_exam_id: examId,
+              p_attempt_number: nextNumber,
+            })
+            setAttemptNumber(nextNumber)
+          }
         }
       }
 
@@ -210,7 +256,10 @@ export default function ExamDetailPage() {
       return false
     }).length
     const total = questions.length
-    const passed = total > 0 && correct >= Math.ceil(total * 0.8)
+    const passType = exam?.pass_type ?? "percentage"
+    const passed = total > 0 && (passType === "count"
+      ? correct >= (exam?.pass_count ?? total)
+      : correct >= Math.ceil(total * ((exam?.pass_threshold ?? 80) / 100)))
     const categoryStats: Record<string, { correct: number; total: number }> = {}
     questions.forEach((q) => {
       const cat = q.category || "Overig"
@@ -236,6 +285,7 @@ export default function ExamDetailPage() {
             p_score: correct,
             p_total_questions: total,
             p_passed: passed,
+            p_category_scores: Object.keys(categoryStats).length > 0 ? categoryStats : null,
           })
           if (finishErr) console.log("finish: finish_exam_attempt error", finishErr)
           else console.log("finish: success", { correct, total, passed })
@@ -246,7 +296,7 @@ export default function ExamDetailPage() {
         console.log("finish: unexpected error", e)
       }
     })()
-  }, [questions, answerResults, hotspotResults, examId])
+  }, [questions, answerResults, hotspotResults, examId, exam])
 
   const handleHotspotSubmit = useCallback(async (positions: { x: number; y: number }[]) => {
     if (!currentQuestion?.id) return
@@ -323,13 +373,26 @@ export default function ExamDetailPage() {
     return false
   }).length
 
-  const timerFinished = 45 * 60 - timeLeft
+  const availableLangs = currentQuestion?.translations
+    ? Object.entries(currentQuestion.translations).filter(([, t]) => t.active !== false).map(([lang]) => lang)
+    : []
+  const translation: Translation | undefined = selectedLang ? currentQuestion.translations?.[selectedLang] : undefined
+
+  const getQuestionText = () => translation?.question_text || currentQuestion.questionText
+  const getOptionText = (idx: number) => translation?.answer_options?.[idx]?.text || currentQuestion.answerOptions[idx]?.text || ""
+  const getExplanationText = () => translation?.explanation || explanationText || ""
+
+  const examDuration = exam?.duration_minutes ?? 45
+  const timerFinished = examDuration * 60 - timeLeft
   const minutes = Math.floor(timerFinished / 60)
   const seconds = timerFinished % 60
 
   if (showResults) {
     const scorePercent = totalQuestions > 0 ? Math.round((correctCount / totalQuestions) * 100) : 0
-    const isGeslaagd = scorePercent >= 80
+    const passType = exam?.pass_type ?? "percentage"
+    const isGeslaagd = totalQuestions > 0 && (passType === "count"
+      ? correctCount >= (exam?.pass_count ?? totalQuestions)
+      : scorePercent >= (exam?.pass_threshold ?? 80))
 
     const categoryStats: Record<string, { total: number; correct: number }> = {}
     questions.forEach((q) => {
@@ -447,7 +510,7 @@ export default function ExamDetailPage() {
 
           <div className="flex flex-col sm:flex-row items-center justify-center gap-4 mb-16">
             <button
-              onClick={() => { setShowResults(false); setCurrentIndex(0); setAnswers({}); setSubmitted({}); setAnswerResults({}); setHotspotResults({}); setTimeLeft(45 * 60) }}
+              onClick={() => { setShowResults(false); setCurrentIndex(0); setAnswers({}); setSubmitted({}); setAnswerResults({}); setHotspotResults({}); setTimeLeft(examDuration * 60) }}
               className="w-full sm:w-auto px-8 py-4 bg-secondary-container text-on-secondary-container font-bold rounded-xl transition-all active:scale-[0.98] shadow-md hover:shadow-lg flex items-center justify-center gap-2"
             >
               <Eye size={20} />
@@ -606,9 +669,17 @@ export default function ExamDetailPage() {
     )
   }
 
+  const qText = getQuestionText()
+  const progressPct = totalQuestions > 0 ? ((currentIndex + 1) / totalQuestions) * 100 : 0
+
+  const langLabels: Record<string, string> = {
+    nl: "Nederlands", en: "English", ar: "العربية", fr: "Français",
+    de: "Deutsch", tr: "Türkçe", pl: "Polski", es: "Español", it: "Italiano",
+  }
+
   return (
     <div className="min-h-screen bg-surface flex flex-col">
-      <header className="bg-surface border-b border-outline-variant/50 px-4 py-3 flex items-center justify-between shrink-0 sticky top-0 z-40">
+      <header className="bg-surface border-b border-outline-variant/50 px-4 py-3 md:px-6 flex items-center justify-between shrink-0 sticky top-0 z-40">
         <div className="flex items-center gap-3 min-w-0">
           <button
             onClick={() => router.push("/exams")}
@@ -617,314 +688,285 @@ export default function ExamDetailPage() {
             <ChevronLeft size={20} className="text-primary" />
           </button>
           <div className="min-w-0">
-            <h1 className="text-label-sm font-bold text-primary truncate">{exam?.title}</h1>
-            <p className="text-label-xs text-on-surface-variant">
-              Poging {attemptNumber} &middot; {answeredCount}/{totalQuestions} beantwoord
-            </p>
+            <span className="text-label-md font-bold text-primary truncate block">{exam?.title}</span>
+            <span className="text-body-md text-on-surface-variant">Question {currentIndex + 1} of {totalQuestions}</span>
           </div>
         </div>
-        <div className="flex items-center gap-2 shrink-0">
-          <div className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl ${timeLeft < 300 ? "bg-red-50" : "bg-surface-container"}`}>
-            <Clock size={16} className={timeLeft < 300 ? "text-red-500" : "text-primary"} />
-            <span
-              className={`text-label-sm font-bold tabular-nums ${timeLeft < 300 ? "text-red-500" : "text-primary"}`}
-            >
+        <div className="hidden md:flex flex-1 mx-8 max-w-2xl bg-surface-container rounded-full h-3 overflow-hidden">
+          <div className="bg-secondary-container h-full transition-all" style={{ width: `${progressPct}%` }} />
+        </div>
+        <div className="flex items-center gap-3 shrink-0">
+          {availableLangs.length > 0 && (
+            <div className="relative">
+              <button
+                type="button"
+                onClick={() => setShowLangMenu(!showLangMenu)}
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-surface-container-high hover:bg-surface-container transition-colors"
+              >
+                <Globe size={16} className="text-primary" />
+                <span className="text-label-sm font-bold text-primary uppercase">{langLabels[selectedLang] || selectedLang.toUpperCase()}</span>
+                <ChevronDown size={14} className="text-outline" />
+              </button>
+              {showLangMenu && (
+                <div className="absolute right-0 top-10 bg-white border border-outline-variant rounded-xl shadow-lg z-50 py-2 min-w-[160px]">
+                  {[["nl", "Nederlands"] as const, ...availableLangs.map((code) => [code, langLabels[code] || code.toUpperCase()] as const)].map(([code, label]) => (
+                    <button
+                      key={code}
+                      type="button"
+                      className={`w-full text-left px-4 py-2 text-body-md hover:bg-surface-container-high transition-colors ${selectedLang === code ? "font-bold text-primary" : "text-on-surface"}`}
+                      onClick={() => { setSelectedLang(code); setShowLangMenu(false) }}
+                    >
+                      {label}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+          <div className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full ${timeLeft < 300 ? "bg-red-50" : "bg-surface-container-high"}`}>
+            <span className="material-symbols-outlined text-primary" style={{ fontVariationSettings: "'FILL' 1", fontSize: "18px", lineHeight: 1 }}>timer</span>
+            <span className={`text-label-md font-bold tabular-nums ${timeLeft < 300 ? "text-red-500" : "text-primary"}`}>
               {formatTime(timeLeft)}
             </span>
           </div>
         </div>
       </header>
 
-      <div className="flex flex-1 max-w-6xl mx-auto w-full">
-        <main className="flex-1 px-4 py-5 pb-36 min-w-0">
-          <section key={currentQuestion.id} className="space-y-5">
-            {currentQuestion.category && (
-              <span className="inline-block px-3 py-1 bg-surface-container text-on-surface-variant rounded-full text-label-xs font-bold">
-                {currentQuestion.category}
-              </span>
+      <div className="md:hidden w-full bg-surface-container h-1">
+        <div className="bg-secondary-container h-full transition-all" style={{ width: `${progressPct}%` }} />
+      </div>
+
+      <main className="flex-1 w-full max-w-6xl mx-auto px-4 py-5 md:px-8 md:py-12">
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+          <div className="lg:col-span-7 flex flex-col gap-6">
+            <section key={currentQuestion.id}>
+              <div className="bg-surface-container-lowest rounded-2xl overflow-hidden border border-outline-variant/10 p-6 md:p-8" style={{ boxShadow: "0px 4px 20px rgba(26,60,110,0.05)" }}>
+                <div className="flex flex-col gap-6">
+                  <h1 className="text-headline-md md:text-headline-xl text-on-surface leading-tight">{qText}</h1>
+
+                  {currentQuestion.media && !isHotspot && !isChooseImages && (
+                    <div className="relative rounded-xl overflow-hidden aspect-video bg-surface-container">
+                      {currentQuestion.mediaMime?.startsWith("video/") ? (
+                        <video src={currentQuestion.media} controls preload="auto" className="w-full h-full object-cover" />
+                      ) : (
+                        <img src={currentQuestion.media} alt="Traffic situation" className="w-full h-full object-cover" />
+                      )}
+                    </div>
+                  )}
+
+                  {isHotspot && (
+                    <StudentHotspot
+                      key={currentQuestion.id}
+                      media={currentQuestion.media!}
+                      mediaMime={currentQuestion.mediaMime}
+                      correctOptions={currentQuestion.answerOptions}
+                      onComplete={handleHotspotSubmit}
+                      initialPositions={hotspotAnswers[currentQuestion.id]?.positions}
+                      initialSubmitted={submitted[currentQuestion.id] ?? undefined}
+                      validationResults={hotspotResult?.results}
+                      pauseAt={currentQuestion.pauseAt ?? 3}
+                      optionLabels={currentQuestion.answerOptions.map((_, i) => getOptionText(i))}
+                    />
+                  )}
+                </div>
+              </div>
+            </section>
+
+            {showError && (
+              <div className="flex items-center gap-3 bg-red-50 border border-red-200 rounded-xl p-4">
+                <AlertCircle size={20} className="text-red-500 shrink-0" />
+                <span className="text-body-md text-red-700">Selecteer eerst een antwoord voordat je verder gaat.</span>
+              </div>
             )}
-            <h1 className="text-headline-md md:text-headline-xl text-primary leading-tight">{currentQuestion.questionText}</h1>
 
-          {currentQuestion.media && !isHotspot && !isChooseImages && (
-            <div className="rounded-2xl overflow-hidden aspect-video border border-outline-variant/30 bg-surface-container">
-              {currentQuestion.mediaMime?.startsWith("video/") ? (
-                <video
-                  src={currentQuestion.media}
-                  controls
-                  preload="auto"
-                  className="w-full h-full object-cover"
-                />
-              ) : (
-                <img
-                  src={currentQuestion.media}
-                  alt="Traffic situation"
-                  className="w-full h-full object-cover"
-                />
-              )}
-            </div>
-          )}
-
-          {isHotspot ? (
-            <div>
-              <StudentHotspot
-                key={currentQuestion.id}
-                media={currentQuestion.media!}
-                mediaMime={currentQuestion.mediaMime}
-                correctOptions={currentQuestion.answerOptions}
-                onComplete={handleHotspotSubmit}
-                initialPositions={hotspotAnswers[currentQuestion.id]?.positions}
-                initialSubmitted={submitted[currentQuestion.id] ?? undefined}
-                validationResults={hotspotResult?.results}
-              />
-            </div>
-          ) : isChooseImages ? (
-            <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-              {currentQuestion.answerOptions.map((option, idx) => {
-                const state = getOptionState(idx)
-
-                if (state === "idle") {
-                  return (
-                    <button
-                      key={idx}
-                      type="button"
-                      onClick={() => handleSelect(idx)}
-                      className="relative rounded-xl overflow-hidden border-2 border-outline-variant/50 transition-all active:scale-[0.97] hover:border-primary hover:shadow-sm cursor-pointer bg-surface"
-                    >
-                      {option.imageUrl && (
-                        <img src={option.imageUrl} alt={`Option ${idx + 1}`} className="w-full aspect-square object-cover" />
-                      )}
-                      {option.text && (
-                        <div className="p-3 text-center text-label-sm font-medium text-on-surface">{option.text}</div>
-                      )}
-                    </button>
-                  )
-                }
-
-                if (state === "correct-selected" || state === "correct-unselected") {
-                  return (
-                    <div
-                      key={idx}
-                      className="relative rounded-xl overflow-hidden border-2 border-green-500 bg-green-50"
-                    >
-                      {option.imageUrl && (
-                        <img src={option.imageUrl} alt={`Option ${idx + 1}`} className="w-full aspect-square object-cover" />
-                      )}
-                      <div className="absolute top-2 right-2 bg-green-500 text-white text-label-xs font-bold px-2 py-1 rounded-md">
-                        CORRECT
-                      </div>
-                    </div>
-                  )
-                }
-
-                if (state === "wrong-selected") {
-                  return (
-                    <div
-                      key={idx}
-                      className="relative rounded-xl overflow-hidden border-2 border-red-500 bg-red-50"
-                    >
-                      {option.imageUrl && (
-                        <img src={option.imageUrl} alt={`Option ${idx + 1}`} className="w-full aspect-square object-cover" />
-                      )}
-                      <div className="absolute top-2 right-2 bg-red-500 text-white text-label-xs font-bold px-2 py-1 rounded-md">
-                        JOUW KEUZE
-                      </div>
-                    </div>
-                  )
-                }
-
-                return (
-                  <div
-                    key={idx}
-                    className="relative rounded-xl overflow-hidden border-2 border-outline-variant opacity-40 bg-surface-container-lowest"
-                  >
-                    {option.imageUrl && (
-                      <img src={option.imageUrl} alt={`Option ${idx + 1}`} className="w-full aspect-square object-cover" />
-                    )}
-                  </div>
-                )
-              })}
-            </div>
-          ) : (
-            <div className="space-y-3">
-              {currentQuestion.answerOptions.map((option, idx) => {
-                const state = getOptionState(idx)
-                const prefix = String.fromCharCode(65 + idx)
-
-                if (state === "idle") {
-                  return (
-                    <button
-                      key={idx}
-                      type="button"
-                      onClick={() => handleSelect(idx)}
-                      className="flex items-center w-full p-4 border-2 border-outline-variant/50 rounded-xl transition-all active:scale-[0.99] hover:border-primary hover:shadow-sm text-left cursor-pointer bg-surface"
-                    >
-                      <div className="size-10 rounded-full bg-surface-container flex items-center justify-center mr-4 text-outline shrink-0">
-                        <span className="font-bold text-label-md">{prefix}</span>
-                      </div>
-                      <span className="text-body-md md:text-body-lg text-on-surface flex-1">{option.text}</span>
-                    </button>
-                  )
-                }
-
-                if (state === "correct-selected") {
-                  return (
-                    <div
-                      key={idx}
-                      className="flex items-center w-full p-4 border-2 border-green-500 rounded-xl bg-green-50"
-                    >
-                      <div className="size-10 rounded-full bg-green-100 flex items-center justify-center mr-4 text-green-700 shrink-0">
-                        <CheckCircle size={20} className="fill-green-500 text-white" />
-                      </div>
-                      <span className="text-body-md font-medium text-green-900 flex-1">{option.text}</span>
-                      <span className="text-label-xs font-bold text-green-700 bg-green-100 px-2 py-1 rounded-md shrink-0 ml-2">
-                        CORRECT
-                      </span>
-                    </div>
-                  )
-                }
-
-                if (state === "wrong-selected") {
-                  return (
-                    <div
-                      key={idx}
-                      className="flex items-center w-full p-4 border-2 border-red-500 rounded-xl bg-red-50"
-                    >
-                      <div className="size-10 rounded-full bg-red-100 flex items-center justify-center mr-4 text-red-700 shrink-0">
-                        <XCircle size={20} className="fill-red-500 text-white" />
-                      </div>
-                      <span className="text-body-md font-medium text-red-900 flex-1">{option.text}</span>
-                      <span className="text-label-xs font-bold text-red-700 bg-red-100 px-2 py-1 rounded-md shrink-0 ml-2">
-                        JOUW KEUZE
-                      </span>
-                    </div>
-                  )
-                }
-
-                if (state === "correct-unselected") {
-                  return (
-                    <div
-                      key={idx}
-                      className="flex items-center w-full p-4 border-2 border-green-500 rounded-xl bg-green-50"
-                    >
-                      <div className="size-10 rounded-full bg-green-100 flex items-center justify-center mr-4 text-green-700 shrink-0">
-                        <CheckCircle size={20} className="fill-green-500 text-white" />
-                      </div>
-                      <span className="text-body-md font-medium text-green-900 flex-1">{option.text}</span>
-                      <span className="text-label-xs font-bold text-green-700 bg-green-100 px-2 py-1 rounded-md shrink-0 ml-2">
-                        CORRECT
-                      </span>
-                    </div>
-                  )
-                }
-
-                return (
-                  <div
-                    key={idx}
-                    className="opacity-40 pointer-events-none flex items-center w-full p-4 border-2 border-outline-variant rounded-xl bg-surface-container-lowest"
-                  >
-                    <div className="size-10 rounded-full bg-surface-container flex items-center justify-center mr-4 text-outline shrink-0">
-                      <span className="font-bold text-label-md">{prefix}</span>
-                    </div>
-                    <span className="text-body-md text-on-surface-variant">{option.text}</span>
-                  </div>
-                )
-              })}
-            </div>
-          )}
-        </section>
-
-        {showError && (
-          <div className="flex items-center gap-3 bg-red-50 border border-red-200 rounded-xl p-4 mt-5">
-            <AlertCircle size={20} className="text-red-500 shrink-0" />
-            <span className="text-body-md text-red-700">Selecteer eerst een antwoord voordat je verder gaat.</span>
-          </div>
-        )}
-
-        {hasAnswered && explanationText && (
-          <div className="bg-surface-container-lowest border border-outline-variant/30 rounded-2xl p-5 mt-5">
-            <div className="flex items-start gap-3">
-              <div className="size-9 rounded-full bg-primary-container/20 flex items-center justify-center text-primary shrink-0">
-                <Info size={18} />
+            {hasAnswered && getExplanationText() && (
+              <div className="bg-surface-container-low border border-surface-container-high rounded-xl p-4 flex items-start gap-4">
+                <Info size={20} className="text-primary-container shrink-0 mt-0.5" />
+                <div>
+                  <p className="text-label-md text-on-surface font-bold mb-1">Uitleg</p>
+                  <p className="text-body-md text-on-surface-variant leading-relaxed" dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(getExplanationText()!) }} />
+                </div>
               </div>
-              <div className="min-w-0">
-                <h3 className="text-label-md font-bold text-primary mb-1.5">Uitleg</h3>
-                <p className="text-body-md text-on-surface-variant leading-relaxed" dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(explanationText) }} />
-              </div>
-            </div>
+            )}
           </div>
-        )}
-      </main>
 
-      <aside className="hidden md:flex flex-col w-64 shrink-0 border-l border-outline-variant/30 bg-surface-container-lowest p-4 sticky top-0 h-screen overflow-y-auto">
-        <h3 className="text-label-sm font-bold text-primary mb-4">Vragen</h3>
-        <div className="grid grid-cols-5 gap-2">
-          {questions.map((_, idx) => {
-            const questionId = questions[idx].id
-            const isAnswered = submitted[questionId]
-            const isCurrent = idx === currentIndex
-            return (
+          <div className="lg:col-span-5 flex flex-col gap-6">
+            {isChooseImages ? (
+              <div className="grid grid-cols-2 gap-3">
+                {currentQuestion.answerOptions.map((option, idx) => {
+                  const state = getOptionState(idx)
+                  if (state === "idle") {
+                    return (
+                      <button key={idx} type="button" onClick={() => handleSelect(idx)}
+                        className="relative rounded-xl overflow-hidden border-2 border-outline-variant/50 transition-all active:scale-[0.97] hover:border-primary hover:shadow-sm cursor-pointer bg-surface"
+                      >
+                        {option.imageUrl && <img src={option.imageUrl} alt="" className="w-full aspect-square object-cover" />}
+                      </button>
+                    )
+                  }
+                  if (state === "correct-selected" || state === "correct-unselected") {
+                    return (
+                      <div key={idx} className="relative rounded-xl overflow-hidden border-2 border-green-500 bg-green-50">
+                        {option.imageUrl && <img src={option.imageUrl} alt="" className="w-full aspect-square object-cover" />}
+                        <div className="absolute top-2 right-2 bg-green-500 text-white text-label-xs font-bold px-2 py-1 rounded-md">CORRECT</div>
+                      </div>
+                    )
+                  }
+                  if (state === "wrong-selected") {
+                    return (
+                      <div key={idx} className="relative rounded-xl overflow-hidden border-2 border-red-500 bg-red-50">
+                        {option.imageUrl && <img src={option.imageUrl} alt="" className="w-full aspect-square object-cover" />}
+                        <div className="absolute top-2 right-2 bg-red-500 text-white text-label-xs font-bold px-2 py-1 rounded-md">JOUW KEUZE</div>
+                      </div>
+                    )
+                  }
+                  return (
+                    <div key={idx} className="relative rounded-xl overflow-hidden border-2 border-outline-variant opacity-40 bg-surface-container-lowest">
+                      {option.imageUrl && <img src={option.imageUrl} alt="" className="w-full aspect-square object-cover" />}
+                    </div>
+                  )
+                })}
+              </div>
+            ) : !isHotspot ? (
+              <div className="flex flex-col gap-4" id="options-container">
+                {currentQuestion.answerOptions.map((option, idx) => {
+                  const state = getOptionState(idx)
+                  const prefix = String.fromCharCode(65 + idx)
+                  const optionText = getOptionText(idx)
+
+                  if (state === "idle") {
+                    return (
+                      <button
+                        key={idx}
+                        type="button"
+                        onClick={() => handleSelect(idx)}
+                        className="group relative flex items-center w-full bg-surface-container-lowest p-6 rounded-2xl border-2 border-transparent hover:border-secondary transition-all text-left outline-none active:scale-[0.98]"
+                        style={{ boxShadow: "0px 4px 20px rgba(26,60,110,0.05)" }}
+                      >
+                        <div className="flex-shrink-0 w-12 h-12 flex items-center justify-center rounded-full bg-surface-container text-primary group-hover:bg-secondary-fixed group-hover:text-on-secondary-fixed transition-colors font-bold text-headline-md mr-4">
+                          {prefix}
+                        </div>
+                        <span className="text-body-lg text-on-surface flex-grow">{optionText}</span>
+                      </button>
+                    )
+                  }
+
+                  if (state === "correct-selected") {
+                    return (
+                      <div key={idx} className="flex items-center w-full bg-surface-container-lowest p-6 rounded-2xl border-2 border-green-500 bg-green-50" style={{ boxShadow: "0px 4px 20px rgba(26,60,110,0.05)" }}>
+                        <div className="flex-shrink-0 w-12 h-12 flex items-center justify-center rounded-full bg-green-100 text-green-700 font-bold text-headline-md mr-4">
+                          <CheckCircle size={24} className="fill-green-500 text-white" />
+                        </div>
+                        <span className="text-body-lg font-medium text-green-900 flex-grow">{optionText}</span>
+                        <span className="text-label-xs font-bold text-green-700 bg-green-100 px-2 py-1 rounded-md shrink-0 ml-2">CORRECT</span>
+                      </div>
+                    )
+                  }
+
+                  if (state === "wrong-selected") {
+                    return (
+                      <div key={idx} className="flex items-center w-full bg-surface-container-lowest p-6 rounded-2xl border-2 border-red-500 bg-red-50" style={{ boxShadow: "0px 4px 20px rgba(26,60,110,0.05)" }}>
+                        <div className="flex-shrink-0 w-12 h-12 flex items-center justify-center rounded-full bg-red-100 text-red-700 font-bold text-headline-md mr-4">
+                          <XCircle size={24} className="fill-red-500 text-white" />
+                        </div>
+                        <span className="text-body-lg font-medium text-red-900 flex-grow">{optionText}</span>
+                        <span className="text-label-xs font-bold text-red-700 bg-red-100 px-2 py-1 rounded-md shrink-0 ml-2">JOUW KEUZE</span>
+                      </div>
+                    )
+                  }
+
+                  if (state === "correct-unselected") {
+                    return (
+                      <div key={idx} className="flex items-center w-full bg-surface-container-lowest p-6 rounded-2xl border-2 border-green-500 bg-green-50" style={{ boxShadow: "0px 4px 20px rgba(26,60,110,0.05)" }}>
+                        <div className="flex-shrink-0 w-12 h-12 flex items-center justify-center rounded-full bg-green-100 text-green-700 font-bold text-headline-md mr-4">
+                          <CheckCircle size={24} className="fill-green-500 text-white" />
+                        </div>
+                        <span className="text-body-lg font-medium text-green-900 flex-grow">{optionText}</span>
+                        <span className="text-label-xs font-bold text-green-700 bg-green-100 px-2 py-1 rounded-md shrink-0 ml-2">CORRECT</span>
+                      </div>
+                    )
+                  }
+
+                  return (
+                    <div key={idx} className="opacity-40 pointer-events-none flex items-center w-full bg-surface-container-lowest p-6 rounded-2xl border-2 border-outline-variant" style={{ boxShadow: "0px 4px 20px rgba(26,60,110,0.05)" }}>
+                      <div className="flex-shrink-0 w-12 h-12 flex items-center justify-center rounded-full bg-surface-container text-outline font-bold text-headline-md mr-4">
+                        {prefix}
+                      </div>
+                      <span className="text-body-lg text-on-surface-variant flex-grow">{optionText}</span>
+                    </div>
+                  )
+                })}
+              </div>
+            ) : null}
+
+            <div className="mt-4 flex items-center justify-between gap-4">
               <button
-                key={questionId}
-                onClick={() => goToQuestion(idx)}
-                className={`size-9 rounded-lg flex items-center justify-center text-label-sm font-bold transition-all active:scale-95 ${
-                  isCurrent
-                    ? "bg-primary text-on-primary ring-2 ring-primary/30"
-                    : isAnswered
-                    ? "bg-green-100 text-green-700"
-                    : "bg-surface-container text-on-surface-variant hover:bg-surface-container-high"
+                disabled={currentIndex === 0}
+                onClick={() => goToQuestion(currentIndex - 1)}
+                className={`flex items-center gap-2 px-6 py-4 rounded-full font-label-md text-label-md transition-all active:scale-[0.98] ${
+                  currentIndex === 0
+                    ? "border border-outline-variant text-outline-variant bg-transparent"
+                    : "border border-outline-variant text-on-surface-variant hover:bg-surface-container"
                 }`}
               >
-                {isAnswered ? <Check size={14} /> : idx + 1}
+                <ChevronLeft size={18} />
+                <span className="hidden sm:inline">Vorige</span>
               </button>
-            )
-          })}
-        </div>
-      </aside>
-    </div>
 
-      <footer className="fixed bottom-0 left-0 right-0 bg-surface border-t border-outline-variant/50 px-4 py-3 z-50">
-        <div className="max-w-6xl mx-auto flex justify-between items-center">
+              {isLastQuestion && hasAnswered ? (
+                <button
+                  onClick={handleFinish}
+                  className="flex-1 sm:flex-none flex items-center justify-center gap-2 bg-secondary-container text-on-secondary-container px-8 py-4 rounded-full font-label-md text-label-md shadow-md hover:opacity-90 transition-all active:scale-[0.98]"
+                >
+                  <BarChart3 size={18} />
+                  Toon resultaat
+                </button>
+              ) : (
+                <button
+                  onClick={goNext}
+                  disabled={isLastQuestion}
+                  className={`flex-1 sm:flex-none flex items-center justify-center gap-2 px-8 py-4 rounded-full font-label-md text-label-md shadow-md transition-all active:scale-[0.98] ${
+                    isLastQuestion
+                      ? "bg-outline-variant text-outline"
+                      : "bg-secondary-container text-on-secondary-container hover:opacity-90"
+                  }`}
+                >
+                  Volgende
+                  <ChevronRight size={18} />
+                </button>
+              )}
+            </div>
+          </div>
+        </div>
+      </main>
+
+      <div className="md:hidden fixed bottom-0 left-0 right-0 p-4 bg-surface-container-lowest border-t border-outline-variant/50 flex gap-4 z-40">
+        {currentIndex > 0 && (
           <button
-            disabled={currentIndex === 0}
             onClick={() => goToQuestion(currentIndex - 1)}
-            className={`flex items-center gap-1.5 px-5 py-3 rounded-xl font-bold text-label-md transition-all active:scale-95 ${
-              currentIndex === 0
-                ? "text-outline-variant bg-transparent"
-                : "text-primary bg-surface-container hover:bg-surface-container-high"
-            }`}
+            className="flex items-center justify-center gap-2 px-6 py-4 rounded-xl border border-outline-variant text-on-surface-variant font-label-md text-label-md active:scale-[0.98] bg-surface"
           >
             <ChevronLeft size={18} />
-            <span>Vorige</span>
+            Vorige
           </button>
-
-          <span className="text-label-sm text-on-surface-variant tabular-nums font-medium">
-            {currentIndex + 1} / {totalQuestions}
-          </span>
-
-          {isLastQuestion && hasAnswered ? (
-            <button
-              onClick={handleFinish}
-              className="flex items-center gap-1.5 px-6 py-3 rounded-xl font-bold text-label-md transition-all active:scale-95 bg-green-600 text-white shadow-sm hover:bg-green-700"
-            >
-              <BarChart3 size={18} />
-              <span>Toon resultaat</span>
-            </button>
-          ) : (
-            <button
-              onClick={goNext}
-              disabled={isLastQuestion}
-              className={`flex items-center gap-1.5 px-6 py-3 rounded-xl font-bold text-label-md transition-all active:scale-95 ${
-                isLastQuestion
-                  ? "text-outline-variant bg-transparent"
-                  : "bg-primary text-on-primary shadow-sm hover:opacity-90"
-              }`}
-            >
-              <span>Volgende</span>
-              <ChevronRight size={18} />
-            </button>
-          )}
-        </div>
-      </footer>
+        )}
+        {isLastQuestion && hasAnswered ? (
+          <button
+            onClick={handleFinish}
+            className="flex-1 bg-secondary-container text-on-secondary-container py-4 rounded-xl font-label-md text-label-md shadow-md active:scale-[0.98] flex items-center justify-center gap-2"
+          >
+            <BarChart3 size={18} />
+            Toon resultaat
+          </button>
+        ) : (
+          <button
+            onClick={goNext}
+            className="flex-1 bg-secondary-container text-on-secondary-container py-4 rounded-xl font-label-md text-label-md shadow-md active:scale-[0.98]"
+          >
+            Volgende Vraag
+          </button>
+        )}
+      </div>
     </div>
   )
 }

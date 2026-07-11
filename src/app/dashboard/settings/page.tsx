@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation"
 import { useSession, useProfile } from "@/hooks/use-auth"
 import { supabase } from "@/lib/supabase"
 import { Button } from "@/components/ui/button"
-import { Loader2, User, Key, Globe, Camera, Save, CheckCircle2, AlertCircle } from "lucide-react"
+import { Loader2, User, Key, Globe, Camera, Save, CheckCircle2, AlertCircle, Plus, X, Languages } from "lucide-react"
 
 export default function SettingsPage() {
   const { data: session, isLoading: sessionLoading } = useSession()
@@ -29,12 +29,37 @@ export default function SettingsPage() {
   const [savingSite, setSavingSite] = useState(false)
   const [siteMessage, setSiteMessage] = useState<string | null>(null)
 
+  const [siteLanguages, setSiteLanguages] = useState<string[]>(["nl"])
+  const [newLang, setNewLang] = useState("")
+  const [savingLangs, setSavingLangs] = useState(false)
+  const [langMessage, setLangMessage] = useState<string | null>(null)
+
+  const [studentLang, setStudentLang] = useState("nl")
+  const [savingStudentLang, setSavingStudentLang] = useState(false)
+  const [studentLangMessage, setStudentLangMessage] = useState<string | null>(null)
+
+  const langOptions: Record<string, string> = {
+    nl: "Nederlands", en: "English", ar: "العربية", fr: "Français",
+    de: "Deutsch", tr: "Türkçe", pl: "Polski", es: "Español", it: "Italiano",
+  }
+
   useEffect(() => {
     if (profile) {
       setName(profile.name || "")
+      setStudentLang(profile.language || "nl")
       setSiteName("RijTheorie Pro")
     }
   }, [profile])
+
+  useEffect(() => {
+    supabase.from("site_settings").select("site_name, languages").eq("id", 1).single().then(({ data, error }) => {
+      if (error && error.code === "PGRST205") return
+      if (data) {
+        setSiteName(data.site_name || "RijTheorie Pro")
+        setSiteLanguages(data.languages as string[] || ["nl"])
+      }
+    })
+  }, [])
 
   useEffect(() => {
     if (!sessionLoading && !session) {
@@ -129,6 +154,70 @@ export default function SettingsPage() {
     }
   }
 
+  const saveStudentLang = async () => {
+    setSavingStudentLang(true)
+    setStudentLangMessage(null)
+    try {
+      const { error } = await supabase.from("profiles").update({ language: studentLang }).eq("id", session!.user!.id)
+      if (error) throw error
+      setStudentLangMessage("Taalvoorkeur opgeslagen!")
+      refetchProfile()
+    } catch (e) {
+      setStudentLangMessage("Fout bij opslaan")
+    } finally {
+      setSavingStudentLang(false)
+    }
+  }
+
+  const addLanguage = () => {
+    const code = newLang.trim().toLowerCase()
+    if (!code || siteLanguages.includes(code)) return
+    setSiteLanguages([...siteLanguages, code])
+    setNewLang("")
+  }
+
+  const removeLanguage = (code: string) => {
+    if (code === "nl") return
+    setSiteLanguages(siteLanguages.filter((l) => l !== code))
+  }
+
+  const saveLanguages = async () => {
+    setSavingLangs(true)
+    setLangMessage(null)
+    try {
+      const { error } = await supabase.from("site_settings").upsert({ id: 1, languages: siteLanguages, updated_at: new Date().toISOString() })
+      if (error) throw error
+      setLangMessage("Talen opgeslagen!")
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : "Fout bij opslaan"
+      if (msg.includes("site_settings") || msg.includes("PGRST205")) {
+        setLangMessage("Tabel 'site_settings' bestaat niet. Voer het SQL script uit in de Supabase SQL Editor.")
+      } else {
+        setLangMessage(msg)
+      }
+    } finally {
+      setSavingLangs(false)
+    }
+  }
+
+  const runMigration = async () => {
+    setLangMessage(null)
+    setSavingLangs(true)
+    try {
+      const res = await fetch("/api/migrate", { method: "POST" })
+      const body = await res.json()
+      if (res.ok) {
+        setLangMessage("Tabel succesvol aangemaakt! Herlaad de pagina.")
+      } else {
+        setLangMessage(body.error || "Migratie mislukt. Voer SQL handmatig uit in Supabase dashboard.")
+      }
+    } catch {
+      setLangMessage("Netwerkfout. Voer SQL handmatig uit in Supabase dashboard.")
+    } finally {
+      setSavingLangs(false)
+    }
+  }
+
   if (sessionLoading) {
     return (
       <div className="flex h-64 items-center justify-center">
@@ -207,6 +296,43 @@ export default function SettingsPage() {
 
         <Button onClick={saveProfile} disabled={savingProfile} className="w-full sm:w-auto">
           {savingProfile ? "Bezig..." : "Profiel opslaan"}
+          <Save size={16} />
+        </Button>
+      </div>
+
+      {/* Language Section */}
+      <div className="bg-surface rounded-2xl border border-outline-variant/20 p-6 mb-6">
+        <div className="flex items-center gap-3 mb-6">
+          <div className="size-10 rounded-xl bg-primary-container/20 flex items-center justify-center">
+            <Languages size={22} className="text-primary" />
+          </div>
+          <div>
+            <h2 className="text-headline-md font-bold text-primary">Taal</h2>
+            <p className="text-label-sm text-on-surface-variant">Kies je leertaal</p>
+          </div>
+        </div>
+        <div className="space-y-4 mb-6">
+          <div>
+            <label className="block text-label-sm font-bold text-primary mb-1.5">Leertaal</label>
+            <select
+              value={studentLang}
+              onChange={(e) => setStudentLang(e.target.value)}
+              className="w-full px-4 py-2.5 rounded-xl border border-outline-variant/50 bg-surface text-body-md text-on-surface focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all"
+            >
+              {Object.entries(langOptions).map(([code, label]) => (
+                <option key={code} value={code}>{label}</option>
+              ))}
+            </select>
+          </div>
+        </div>
+        {studentLangMessage && (
+          <div className="flex items-center gap-2 text-label-sm text-green-700 bg-green-50 rounded-xl px-4 py-3 mb-4">
+            <CheckCircle2 size={16} />
+            {studentLangMessage}
+          </div>
+        )}
+        <Button onClick={saveStudentLang} disabled={savingStudentLang} className="w-full sm:w-auto">
+          {savingStudentLang ? "Bezig..." : "Taal opslaan"}
           <Save size={16} />
         </Button>
       </div>
@@ -302,6 +428,71 @@ export default function SettingsPage() {
           <Save size={16} />
         </Button>
       </div>
+
+      {profile?.role === "admin" && (
+        <div className="bg-surface rounded-2xl border border-outline-variant/20 p-6 mt-6">
+          <div className="flex items-center gap-3 mb-6">
+            <div className="size-10 rounded-xl bg-primary-container/20 flex items-center justify-center">
+              <Globe size={22} className="text-primary" />
+            </div>
+            <div>
+              <h2 className="text-headline-md font-bold text-primary">Platform Talen</h2>
+              <p className="text-label-sm text-on-surface-variant">Beheer de beschikbare talen voor studenten</p>
+            </div>
+          </div>
+          <div className="flex flex-wrap gap-2 mb-4">
+            {siteLanguages.map((code) => (
+              <div key={code} className="flex items-center gap-1.5 bg-primary-container/30 text-on-primary-container px-3 py-1.5 rounded-full text-label-sm font-medium">
+                <span>{langOptions[code] || code.toUpperCase()}</span>
+                {code !== "nl" && (
+                  <button type="button" onClick={() => removeLanguage(code)} className="hover:text-destructive transition-colors">
+                    <X size={14} />
+                  </button>
+                )}
+                {code === "nl" && <span className="text-[10px] text-outline">(standaard)</span>}
+              </div>
+            ))}
+          </div>
+          <div className="flex gap-2 mb-4">
+            <select
+              value={newLang}
+              onChange={(e) => setNewLang(e.target.value)}
+              className="flex-1 px-4 py-2 rounded-xl border border-outline-variant/50 bg-surface text-body-md focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all"
+            >
+              <option value="">Selecteer een taal</option>
+              {Object.entries(langOptions)
+                .filter(([code]) => !siteLanguages.includes(code))
+                .map(([code, label]) => (
+                  <option key={code} value={code}>{label}</option>
+                ))}
+            </select>
+            <button
+              type="button"
+              onClick={addLanguage}
+              disabled={!newLang}
+              className="px-4 py-2 rounded-xl bg-primary text-on-primary font-bold text-label-sm hover:opacity-90 transition-all disabled:opacity-30 flex items-center gap-1"
+            >
+              <Plus size={16} />
+              Toevoegen
+            </button>
+          </div>
+          {langMessage && (
+            <div className={`flex items-center gap-2 text-label-sm rounded-xl px-4 py-3 mb-4 ${langMessage.includes("SQL") ? "bg-amber-50 text-amber-800" : "bg-green-50 text-green-700"}`}>
+              {langMessage.includes("SQL") ? <AlertCircle size={16} /> : <CheckCircle2 size={16} />}
+              <span>{langMessage}</span>
+              {langMessage.includes("bestaat niet") && (
+                <button type="button" onClick={runMigration} disabled={savingLangs} className="ml-auto text-label-sm font-bold text-primary hover:underline shrink-0">
+                  {savingLangs ? "Bezig..." : "Probeer aan te maken"}
+                </button>
+              )}
+            </div>
+          )}
+          <Button onClick={saveLanguages} disabled={savingLangs} className="w-full sm:w-auto">
+            {savingLangs ? "Bezig..." : "Talen opslaan"}
+            <Save size={16} />
+          </Button>
+        </div>
+      )}
     </div>
   )
 }

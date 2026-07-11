@@ -46,6 +46,7 @@
 - SQL uses `public.questions`/`public.exam_questions` fully qualified names (required by `SET search_path = ''`); `^` operator replaced with multiplication for PostgreSQL compatibility.
 - **"Toon resultaat" button + results review page**: on the last exam question, when answered, shows a green "Toon resultaat" button instead of disabled "Volgende". Results page shows score card (correct/total, percentage bar, time), plus scrollable list of all questions with correct/incorrect indicators, CORRECT/JOUW KEUZE badges, and explanations. "Terug naar overzicht" button navigates back to exam list.
 - **Simplified category scores**: `exam_attempts` has a `category_scores JSONB` column instead of a separate `exam_category_scores` table. Category stats are computed client-side and stored inline on the attempt record via `finish_exam_attempt` RPC. No separate table, RPC, or API route needed.
+- **Global multi‑language system**: Admin defines supported languages in Settings (`site_settings.languages` JSONB). Student picks language in profile (`profiles.language`). QuestionForm auto‑renders translation fields for all global languages (no per‑question picker, no "Show in exam" checkbox). Exam page auto‑selects translation from profile language (no language picker in header). `translationEntrySchema` `active` field removed.
 
 ### In Progress
 - (none)
@@ -77,6 +78,19 @@
 - Add sound effects for correct/incorrect answers.
 - Build actual theory lesson content in Supabase lessons table.
 - Address remaining React Doctor issues: `prefer-useReducer` (questions/page.tsx, question-form.tsx), accessibility (`text-sx` → `text-xs`), maintainability (`flex-col` on `CardContent`).
+- Clean up unused `Globe` import from exam page after language picker removal.
+
+## In Progress
+- (none)
+
+## Blocked
+- (none)
+
+## In Progress
+- (none)
+
+## Blocked
+- (none)
 
 ## Critical Context
 - `@supabase/ssr` does not export `createMiddlewareClient` — use `createServerClient` in proxy with manual cookie `getAll()`/`setAll()`.
@@ -97,6 +111,9 @@
 - `supabase-fix-rls.sql` must be fully re-run on a fresh DB — contains the `is_admin()` function and all policy fixes.
 - `exam_attempts` has a `category_scores JSONB` column — stores per-category results inline. No separate `exam_category_scores` table.
 - Results view uses `correctCount` computed from `answerResults` + `hotspotResults` state; `currentQuestion` is guaranteed non-null by the `if (!currentQuestion && !showResults) return null` guard.
+- **Global multi‑language**: Admin defines supported languages in Settings (`site_settings.languages` JSONB). Student picks language in profile (`profiles.language`). QuestionForm auto‑renders translation fields for all global languages (no per‑question picker, no "Show in exam" checkbox). Exam page auto‑selects translation from profile language (no language picker in header).
+- `translationEntrySchema` has no `active` field.
+- `Translations` type on exam page has no `active` field.
 
 ## Relevant Files
 - `src/app/exams/[id]/page.tsx`: Exam-taking page — timer, RPC-based question fetch, multiple choice + hotspot + Choose Images with server-side validation, explanations from RPC, Vorige/Volgende, `key={currentQuestion.id}` fix, `hotspotAnswers`/`answerResults`/`hotspotResults` state, `showResults` toggle, "Toon resultaat" button on last answered question, full results review view with score card + question list + explanations.
