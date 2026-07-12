@@ -3,7 +3,7 @@
 import { usePathname } from "next/navigation"
 import Link from "next/link"
 import { cn } from "@/lib/utils"
-import { Menu, LogOut, type LucideIcon } from "lucide-react"
+import { Menu, LogOut, X, type LucideIcon } from "lucide-react"
 import { useState } from "react"
 import { supabase } from "@/lib/supabase"
 import { useRouter } from "next/navigation"
@@ -19,6 +19,7 @@ export default function MobileBottomNav({ items = dashboardNavItems }: MobileBot
   const pathname = usePathname()
   const router = useRouter()
   const [drawerOpen, setDrawerOpen] = useState(false)
+  const [logoutOpen, setLogoutOpen] = useState(false)
 
   const quickLinks = items.slice(0, 3).map((item) => ({
     href: item.href,
@@ -88,10 +89,7 @@ export default function MobileBottomNav({ items = dashboardNavItems }: MobileBot
               <span className="text-label-md">{settingsItem.label}</span>
             </Link>
             <button
-              onClick={async () => {
-                await supabase.auth.signOut()
-                router.push("/")
-              }}
+              onClick={() => { setDrawerOpen(false); setLogoutOpen(true) }}
               className="flex items-center gap-3 p-3 rounded-lg text-on-surface-variant hover:bg-surface-container-low transition-colors w-full text-left"
             >
               <LogOut size={20} />
@@ -100,6 +98,31 @@ export default function MobileBottomNav({ items = dashboardNavItems }: MobileBot
           </div>
         </div>
       </Drawer>
+
+      {logoutOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center">
+          <div className="fixed inset-0 bg-black/30 backdrop-blur-xs" onClick={() => setLogoutOpen(false)} />
+          <div className="relative bg-white rounded-2xl shadow-xl w-full max-w-sm mx-4 p-6">
+            <button onClick={() => setLogoutOpen(false)} className="absolute top-4 right-4 text-on-surface-variant hover:text-on-surface">
+              <X size={20} />
+            </button>
+            <h3 className="text-headline-md text-primary mb-2">Uitloggen</h3>
+            <p className="text-body-md text-on-surface-variant mb-6">Weet je zeker dat je wilt uitloggen?</p>
+            <div className="flex gap-3 justify-end">
+              <button onClick={() => setLogoutOpen(false)} className="px-5 py-2.5 rounded-xl border border-outline-variant text-label-md font-bold text-on-surface-variant hover:bg-surface-container transition-all">
+                Annuleren
+              </button>
+              <button
+                onClick={async () => { await supabase.auth.signOut(); router.push("/") }}
+                className="px-5 py-2.5 rounded-xl bg-error text-on-error text-label-md font-bold hover:opacity-90 transition-all flex items-center gap-2"
+              >
+                <LogOut size={16} />
+                Uitloggen
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </>
   )
 }

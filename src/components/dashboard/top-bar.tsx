@@ -4,7 +4,7 @@ import { useEffect, useRef, useState, useCallback } from "react"
 import { useRouter } from "next/navigation"
 import { useSession, useLogout } from "@/hooks/use-auth"
 import { supabase } from "@/lib/supabase"
-import { Search, Bell, HelpCircle, Settings, LogOut, User, FileText, BookOpen, GraduationCap, ClipboardList, Loader2 } from "lucide-react"
+import { Search, Bell, HelpCircle, Settings, LogOut, User, FileText, BookOpen, GraduationCap, ClipboardList, Loader2, X } from "lucide-react"
 
 interface SearchResult {
   id: string
@@ -24,6 +24,7 @@ export default function TopBar({ searchPlaceholder = "Zoeken in platform..." }: 
   const logout = useLogout()
   const router = useRouter()
   const [dropdownOpen, setDropdownOpen] = useState(false)
+  const [logoutOpen, setLogoutOpen] = useState(false)
   const dropdownRef = useRef<HTMLDivElement>(null)
 
   const [search, setSearch] = useState("")
@@ -152,6 +153,7 @@ export default function TopBar({ searchPlaceholder = "Zoeken in platform..." }: 
   }
 
   return (
+    <>
     <header className="w-full h-16 sticky top-0 z-40 bg-surface shadow-[0px_4px_20px_rgba(26,60,110,0.05)]">
       <div className="flex justify-between items-center px-4 md:px-6 h-full">
         <div className="flex items-center gap-4 flex-1 max-w-xl">
@@ -257,7 +259,7 @@ export default function TopBar({ searchPlaceholder = "Zoeken in platform..." }: 
                 </div>
                 <div className="border-t border-outline-variant/20 py-1">
                   <button
-                    onClick={() => { logout.mutate(); setDropdownOpen(false) }}
+                    onClick={() => { setLogoutOpen(true); setDropdownOpen(false) }}
                     className="w-full flex items-center gap-3 px-4 py-3 text-label-md text-error hover:bg-red-50 transition-colors"
                   >
                     <LogOut size={18} />
@@ -270,5 +272,27 @@ export default function TopBar({ searchPlaceholder = "Zoeken in platform..." }: 
         </div>
       </div>
     </header>
+      {logoutOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center">
+          <div className="fixed inset-0 bg-black/30 backdrop-blur-xs" onClick={() => setLogoutOpen(false)} />
+          <div className="relative bg-white rounded-2xl shadow-xl w-full max-w-sm mx-4 p-6">
+            <button onClick={() => setLogoutOpen(false)} className="absolute top-4 right-4 text-on-surface-variant hover:text-on-surface">
+              <X size={20} />
+            </button>
+            <h3 className="text-headline-md text-primary mb-2">Uitloggen</h3>
+            <p className="text-body-md text-on-surface-variant mb-6">Weet je zeker dat je wilt uitloggen?</p>
+            <div className="flex gap-3 justify-end">
+              <button onClick={() => setLogoutOpen(false)} className="px-5 py-2.5 rounded-xl border border-outline-variant text-label-md font-bold text-on-surface-variant hover:bg-surface-container transition-all">
+                Annuleren
+              </button>
+              <button onClick={() => { logout.mutate() }} className="px-5 py-2.5 rounded-xl bg-error text-on-error text-label-md font-bold hover:opacity-90 transition-all flex items-center gap-2">
+                <LogOut size={16} />
+                Uitloggen
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </>
   )
 }
