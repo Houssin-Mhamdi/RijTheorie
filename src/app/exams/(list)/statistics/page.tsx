@@ -103,6 +103,7 @@ export default function StatisticsPage() {
   const completed = attempts.filter((a) => a.score != null && a.passed != null)
   const passedCount = completed.filter((a) => a.passed).length
   const totalCompleted = completed.length
+  const failedCount = totalCompleted - passedCount
   const passRate = totalCompleted > 0 ? Math.round((passedCount / totalCompleted) * 100) : 0
   const avgScore = (() => {
     if (completed.length === 0) return 0
@@ -221,11 +222,17 @@ export default function StatisticsPage() {
             <BarChart3 size={24} className="text-primary mx-auto mb-2" />
             <p className="text-label-xs text-on-surface-variant">Examens</p>
             <p className="text-headline-md text-primary font-bold">{totalCompleted}</p>
+            <p className="text-label-xs text-on-surface-variant mt-1">
+              <span className="text-green-600 font-semibold">{passedCount} geslaagd</span>
+              {" · "}
+              <span className="text-red-600 font-semibold">{failedCount} gezakt</span>
+            </p>
           </div>
           <div className="bg-surface-container-lowest rounded-2xl border border-outline-variant/30 p-5 text-center">
             <Target size={24} className="text-green-600 mx-auto mb-2" />
             <p className="text-label-xs text-on-surface-variant">Slagings%</p>
             <p className="text-headline-md text-primary font-bold">{passRate}%</p>
+            <p className="text-label-xs text-on-surface-variant mt-1">{passedCount} van {totalCompleted} geslaagd</p>
           </div>
           <div className="bg-surface-container-lowest rounded-2xl border border-outline-variant/30 p-5 text-center">
             <TrendingUp size={24} className="text-blue-600 mx-auto mb-2" />

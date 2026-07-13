@@ -87,6 +87,7 @@ export default function ExamDetailPage() {
   const [selectedLang, setSelectedLang] = useState<string>("nl")
   const [showLangMenu, setShowLangMenu] = useState(false)
   const attemptCreated = useRef(false)
+  const attemptId = useRef<string | null>(null)
 
   const currentQuestion = questions[currentIndex]
   const hasAnswered = submitted[currentQuestion?.id] ?? false
@@ -167,6 +168,7 @@ export default function ExamDetailPage() {
               router.push("/exams")
               return
             }
+            attemptId.current = existing[0].id
             setAttemptNumber(existing[0].attempt_number)
           } else {
             const { data: count } = await supabase.rpc("count_user_exam_attempts", {
@@ -174,11 +176,12 @@ export default function ExamDetailPage() {
               p_exam_id: examId,
             })
             const nextNumber = (typeof count === "number" ? count : 0) + 1
-            await supabase.rpc("insert_exam_attempt", {
-              p_user_id: user.id,
-              p_exam_id: examId,
-              p_attempt_number: nextNumber,
-            })
+            const { data: inserted } = await supabase
+              .from("exam_attempts")
+              .insert({ user_id: user.id, exam_id: examId, attempt_number: nextNumber })
+              .select("id")
+              .single()
+            if (inserted) attemptId.current = inserted.id
             setAttemptNumber(nextNumber)
           }
         }
@@ -273,28 +276,43 @@ export default function ExamDetailPage() {
       try {
         const { data: { user } } = await supabase.auth.getUser()
         if (!user) { console.log("finish: no user"); return }
-        const { data: latest, error: latestErr } = await supabase
-          .from("exam_attempts")
-          .select("id")
-          .eq("user_id", user.id)
-          .eq("exam_id", examId)
-          .is("completed_at", null)
-          .order("started_at", { ascending: false })
-          .limit(1)
-        if (latestErr) { console.log("finish: fetch attempt error", latestErr); return }
-        console.log("finish: latest attempt", latest)
-        if (latest && latest.length > 0) {
-          const { error: finishErr } = await supabase.rpc("finish_exam_attempt", {
-            p_attempt_id: latest[0].id,
-            p_score: correct,
-            p_total_questions: total,
-            p_passed: passed,
-            p_category_scores: Object.keys(categoryStats).length > 0 ? categoryStats : null,
-          })
-          if (finishErr) console.log("finish: finish_exam_attempt error", finishErr)
-          else console.log("finish: success", { correct, total, passed })
+        let id = attemptId.current
+        if (!id) {
+          const { data: latest } = await supabase
+            .from("exam_attempts")
+            .select("id")
+            .eq("user_id", user.id)
+            .eq("exam_id", examId)
+            .is("completed_at", null)
+            .order("started_at", { ascending: false })
+            .limit(1)
+          id = latest && latest.length > 0 ? latest[0].id : null
+        }
+        if (!id) { console.log("finish: no attempt id"); return }
+        const catScores = Object.keys(categoryStats).length > 0 ? categoryStats : null
+        const { error: rpcErr } = await supabase.rpc("finish_exam_attempt", {
+          p_attempt_id: id,
+          p_score: correct,
+          p_total_questions: total,
+          p_passed: passed,
+          p_category_scores: catScores,
+        })
+        if (rpcErr) {
+          console.log("finish: rpc error, trying direct update", rpcErr)
+          const { error: updErr } = await supabase
+            .from("exam_attempts")
+            .update({
+              score: correct,
+              total_questions: total,
+              passed,
+              category_scores: catScores,
+              completed_at: new Date().toISOString(),
+            })
+            .eq("id", id)
+          if (updErr) console.log("finish: direct update error", updErr)
+          else console.log("finish: success via direct update")
         } else {
-          console.log("finish: no incomplete attempt found")
+          console.log("finish: success", { correct, total, passed })
         }
       } catch (e) {
         console.log("finish: unexpected error", e)
