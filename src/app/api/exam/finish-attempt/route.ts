@@ -14,17 +14,16 @@ export async function POST(req: Request) {
     },
   )
 
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) return Response.json({ error: "Unauthorized" }, { status: 401 })
-
   const { data: { session } } = await supabase.auth.getSession()
   if (!session?.access_token) return Response.json({ error: "No session" }, { status: 401 })
+  const userId = session.user?.id
+  if (!userId) return Response.json({ error: "No user" }, { status: 401 })
 
   const { exam_id, score, total_questions, passed, category_scores } = await req.json()
   if (!exam_id) return Response.json({ error: "Missing exam_id" }, { status: 400 })
 
   const latestRes = await fetch(
-    `${process.env.NEXT_PUBLIC_SUPABASE_URL}/rest/v1/exam_attempts?select=id&user_id=eq.${user.id}&exam_id=eq.${exam_id}&completed_at=is.null&order=started_at.desc&limit=1`,
+    `${process.env.NEXT_PUBLIC_SUPABASE_URL}/rest/v1/exam_attempts?select=id&user_id=eq.${userId}&exam_id=eq.${exam_id}&completed_at=is.null&order=started_at.desc&limit=1`,
     {
       headers: {
         apikey: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,

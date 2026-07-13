@@ -82,6 +82,7 @@ export default function ExamDetailPage() {
   const [timeLeft, setTimeLeft] = useState(45 * 60)
   const [showError, setShowError] = useState(false)
   const [showResults, setShowResults] = useState(false)
+  const [saveError, setSaveError] = useState<string | null>(null)
   const [attemptNumber, setAttemptNumber] = useState(1)
   const [studentLang, setStudentLang] = useState<string>("")
   const [selectedLang, setSelectedLang] = useState<string>("nl")
@@ -248,6 +249,7 @@ export default function ExamDetailPage() {
 
   const handleFinish = useCallback(() => {
     setShowResults(true)
+    setSaveError(null)
     const correct = questions.filter((q) => {
       const r = answerResults[q.id]
       if (r) return r.correct
@@ -279,10 +281,15 @@ export default function ExamDetailPage() {
         passed,
         category_scores: Object.keys(categoryStats).length > 0 ? categoryStats : null,
       }),
-    }).then((res) => {
-      if (!res.ok) console.log("finish: api error", res.status, res.statusText)
-      else console.log("finish: success", { correct, total, passed })
+    }).then(async (res) => {
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({ error: res.statusText }))
+        setSaveError(err.error || `Fout ${res.status}`)
+      } else {
+        console.log("finish: success", { correct, total, passed })
+      }
     }).catch((e) => {
+      setSaveError(e.message)
       console.log("finish: fetch error", e)
     })
   }, [questions, answerResults, hotspotResults, examId, exam])
@@ -426,6 +433,13 @@ export default function ExamDetailPage() {
           </div>
         </header>
 
+        {saveError && (
+          <div className="mx-4 mt-4 p-4 bg-red-50 border border-red-200 rounded-xl">
+            <p className="text-red-700 font-bold text-sm">Fout bij opslaan:</p>
+            <p className="text-red-600 text-xs mt-1">{saveError}</p>
+            <p className="text-red-500 text-xs mt-1">Resultaat is lokaal zichtbaar maar niet opgeslagen.</p>
+          </div>
+        )}
         <main className="flex-1 p-4 md:p-8 lg:p-12 overflow-x-hidden">
           <div className="mb-12">
             <div className="bg-surface-container-lowest rounded-3xl p-8 md:p-12 shadow-[0px_4px_20px_rgba(26,60,110,0.05)] border border-surface-container-high relative overflow-hidden">
