@@ -22,28 +22,32 @@ export async function POST(req: Request) {
   const { exam_id, score, total_questions, passed, category_scores } = await req.json()
   if (!exam_id) return Response.json({ error: "Missing exam_id" }, { status: 400 })
 
-  const latestRes = await fetch(
-    `${process.env.NEXT_PUBLIC_SUPABASE_URL}/rest/v1/exam_attempts?select=id&user_id=eq.${userId}&exam_id=eq.${exam_id}&completed_at=is.null&order=started_at.desc&limit=1`,
+  const rpcRes = await fetch(
+    `${process.env.NEXT_PUBLIC_SUPABASE_URL}/rest/v1/rpc/get_latest_attempt`,
     {
+      method: "POST",
       headers: {
+        "Content-Type": "application/json",
         apikey: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
         Authorization: `Bearer ${session.access_token}`,
       },
+      body: JSON.stringify({ p_user_id: userId, p_exam_id: exam_id }),
     },
   )
 
-  if (!latestRes.ok) {
-    const text = await latestRes.text()
-    return Response.json({ error: `FIND: ${latestRes.status} ${text}` }, { status: 500 })
+  if (!rpcRes.ok) {
+    const text = await rpcRes.text()
+    return Response.json({ error: `RPC FIND: ${rpcRes.status} ${text}` }, { status: 500 })
   }
 
-  const attempts = await latestRes.json()
-  if (!Array.isArray(attempts) || attempts.length === 0) {
+  const attempts = await rpcRes.json()
+  const attemptId = Array.isArray(attempts) && attempts.length > 0 ? attempts[0]?.id : null
+  if (!attemptId) {
     return Response.json({ error: "No attempt found" }, { status: 404 })
   }
 
   const updateRes = await fetch(
-    `${process.env.NEXT_PUBLIC_SUPABASE_URL}/rest/v1/exam_attempts?id=eq.${attempts[0].id}`,
+    `${process.env.NEXT_PUBLIC_SUPABASE_URL}/rest/v1/exam_attempts?id=eq.${attemptId}`,
     {
       method: "PATCH",
       headers: {
