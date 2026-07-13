@@ -81,8 +81,8 @@ export default function StatisticsPage() {
   useEffect(() => {
     const fetchStats = async () => {
       try {
-        const { data: { user }, error: userErr } = await supabase.auth.getUser()
-        if (userErr || !user) throw new Error("Niet ingelogd")
+        const { data: { user } } = await supabase.auth.getUser()
+        if (!user) throw new Error("Niet ingelogd")
         const { data, error } = await supabase
           .from("exam_attempts")
           .select("id, exam_id, score, total_questions, passed, started_at, completed_at, category_scores")
@@ -103,7 +103,6 @@ export default function StatisticsPage() {
   const completed = attempts.filter((a) => a.score != null && a.passed != null)
   const passedCount = completed.filter((a) => a.passed).length
   const totalCompleted = completed.length
-  const failedCount = totalCompleted - passedCount
   const passRate = totalCompleted > 0 ? Math.round((passedCount / totalCompleted) * 100) : 0
   const avgScore = (() => {
     if (completed.length === 0) return 0
@@ -225,7 +224,7 @@ export default function StatisticsPage() {
             <p className="text-label-xs text-on-surface-variant mt-1">
               <span className="text-green-600 font-semibold">{passedCount} geslaagd</span>
               {" · "}
-              <span className="text-red-600 font-semibold">{failedCount} gezakt</span>
+              <span className="text-red-600 font-semibold">{totalCompleted - passedCount} gezakt</span>
             </p>
           </div>
           <div className="bg-surface-container-lowest rounded-2xl border border-outline-variant/30 p-5 text-center">

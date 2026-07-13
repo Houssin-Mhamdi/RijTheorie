@@ -82,12 +82,13 @@ export default function ExamDetailPage() {
   const [timeLeft, setTimeLeft] = useState(45 * 60)
   const [showError, setShowError] = useState(false)
   const [showResults, setShowResults] = useState(false)
+  const [saveError, setSaveError] = useState<string | null>(null)
+  const [saving, setSaving] = useState(false)
   const [attemptNumber, setAttemptNumber] = useState(1)
   const [studentLang, setStudentLang] = useState<string>("")
   const [selectedLang, setSelectedLang] = useState<string>("nl")
   const [showLangMenu, setShowLangMenu] = useState(false)
   const attemptCreated = useRef(false)
-  const attemptId = useRef<string | null>(null)
 
   const currentQuestion = questions[currentIndex]
   const hasAnswered = submitted[currentQuestion?.id] ?? false
@@ -168,7 +169,6 @@ export default function ExamDetailPage() {
               router.push("/exams")
               return
             }
-            attemptId.current = existing[0].id
             setAttemptNumber(existing[0].attempt_number)
           } else {
             const { data: count } = await supabase.rpc("count_user_exam_attempts", {
@@ -176,12 +176,11 @@ export default function ExamDetailPage() {
               p_exam_id: examId,
             })
             const nextNumber = (typeof count === "number" ? count : 0) + 1
-            const { data: inserted } = await supabase
-              .from("exam_attempts")
-              .insert({ user_id: user.id, exam_id: examId, attempt_number: nextNumber })
-              .select("id")
-              .single()
-            if (inserted) attemptId.current = inserted.id
+            await supabase.rpc("insert_exam_attempt", {
+              p_user_id: user.id,
+              p_exam_id: examId,
+              p_attempt_number: nextNumber,
+            })
             setAttemptNumber(nextNumber)
           }
         }
@@ -251,6 +250,7 @@ export default function ExamDetailPage() {
 
   const handleFinish = useCallback(() => {
     setShowResults(true)
+    setSaveError(null)
     const correct = questions.filter((q) => {
       const r = answerResults[q.id]
       if (r) return r.correct
@@ -272,52 +272,29 @@ export default function ExamDetailPage() {
       const hr = hotspotResults[q.id]
       if (r?.correct || hr?.results.every((res) => res.correct)) categoryStats[cat].correct++
     })
-    ;(async () => {
-      try {
-        const { data: { user } } = await supabase.auth.getUser()
-        if (!user) { console.log("finish: no user"); return }
-        let id = attemptId.current
-        if (!id) {
-          const { data: latest } = await supabase
-            .from("exam_attempts")
-            .select("id")
-            .eq("user_id", user.id)
-            .eq("exam_id", examId)
-            .is("completed_at", null)
-            .order("started_at", { ascending: false })
-            .limit(1)
-          id = latest && latest.length > 0 ? latest[0].id : null
-        }
-        if (!id) { console.log("finish: no attempt id"); return }
-        const catScores = Object.keys(categoryStats).length > 0 ? categoryStats : null
-        const { error: rpcErr } = await supabase.rpc("finish_exam_attempt", {
-          p_attempt_id: id,
-          p_score: correct,
-          p_total_questions: total,
-          p_passed: passed,
-          p_category_scores: catScores,
-        })
-        if (rpcErr) {
-          console.log("finish: rpc error, trying direct update", rpcErr)
-          const { error: updErr } = await supabase
-            .from("exam_attempts")
-            .update({
-              score: correct,
-              total_questions: total,
-              passed,
-              category_scores: catScores,
-              completed_at: new Date().toISOString(),
-            })
-            .eq("id", id)
-          if (updErr) console.log("finish: direct update error", updErr)
-          else console.log("finish: success via direct update")
-        } else {
-          console.log("finish: success", { correct, total, passed })
-        }
-      } catch (e) {
-        console.log("finish: unexpected error", e)
+    setSaving(true)
+    fetch("/api/exam/finish-attempt", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        exam_id: examId,
+        score: correct,
+        total_questions: total,
+        passed,
+        category_scores: Object.keys(categoryStats).length > 0 ? categoryStats : null,
+      }),
+    }).then(async (res) => {
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({ error: res.statusText }))
+        throw new Error(err.error || `HTTP ${res.status}`)
       }
-    })()
+      setSaving(false)
+      console.log("finish: success", { correct, total, passed })
+    }).catch((e) => {
+      setSaving(false)
+      setSaveError(e.message)
+      console.log("finish: error", e)
+    })
   }, [questions, answerResults, hotspotResults, examId, exam])
 
   const handleHotspotSubmit = useCallback(async (positions: { x: number; y: number }[]) => {
@@ -459,6 +436,13 @@ export default function ExamDetailPage() {
           </div>
         </header>
 
+        {saveError && (
+          <div className="mx-4 mt-4 p-4 bg-red-50 border border-red-200 rounded-xl">
+            <p className="text-red-700 font-bold">Fout bij opslaan resultaat:</p>
+            <p className="text-red-600 mt-1 text-sm">{saveError}</p>
+            <p className="text-red-500 mt-1 text-xs">Je resultaat is lokaal zichtbaar maar niet opgeslagen. Neem contact op met de administrator.</p>
+          </div>
+        )}
         <main className="flex-1 p-4 md:p-8 lg:p-12 overflow-x-hidden">
           <div className="mb-12">
             <div className="bg-surface-container-lowest rounded-3xl p-8 md:p-12 shadow-[0px_4px_20px_rgba(26,60,110,0.05)] border border-surface-container-high relative overflow-hidden">

@@ -20,7 +20,7 @@ export async function POST(req: Request) {
   const { data: { session } } = await supabase.auth.getSession()
   if (!session?.access_token) return Response.json({ error: "No session" }, { status: 401 })
 
-  const { exam_id, score, total_questions, passed } = await req.json()
+  const { exam_id, score, total_questions, passed, category_scores } = await req.json()
   if (!exam_id) return Response.json({ error: "Missing exam_id" }, { status: 400 })
 
   const latestRes = await fetch(
@@ -57,6 +57,7 @@ export async function POST(req: Request) {
         score,
         total_questions,
         passed,
+        category_scores: category_scores ?? null,
         completed_at: new Date().toISOString(),
       }),
     },
