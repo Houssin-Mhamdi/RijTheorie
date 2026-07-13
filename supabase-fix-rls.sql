@@ -276,6 +276,7 @@ BEGIN
     ORDER BY ea.started_at DESC
   )
   FROM public.exam_attempts ea
+  WHERE ea.user_id = auth.uid()
   INTO result;
 
   RETURN COALESCE(result, '[]'::JSONB);

@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react"
 import { useRouter } from "next/navigation"
+import { supabase } from "@/lib/supabase"
 import {
   Chart as ChartJS,
   RadialLinearScale,
@@ -36,7 +37,10 @@ type Attempt = {
   passed: boolean | null
   started_at: string
   completed_at: string | null
-  category_scores: { category: string; correct: number; total: number }[] | null
+  category_scores:
+    | { category: string; correct: number; total: number }[]
+    | Record<string, { correct: number; total: number }>
+    | null
 }
 
 const categoryIcons: Record<string, typeof BarChart3> = {
@@ -77,10 +81,15 @@ export default function StatisticsPage() {
   useEffect(() => {
     const fetchStats = async () => {
       try {
-        const res = await fetch("/api/exam/stats")
-        if (!res.ok) throw new Error("Failed to fetch")
-        const json = await res.json()
-        setAttempts(json.attempts ?? [])
+        const { data: { user }, error: userErr } = await supabase.auth.getUser()
+        if (userErr || !user) throw new Error("Niet ingelogd")
+        const { data, error } = await supabase
+          .from("exam_attempts")
+          .select("id, exam_id, score, total_questions, passed, started_at, completed_at, category_scores")
+          .eq("user_id", user.id)
+          .order("started_at", { ascending: false })
+        if (error) throw error
+        setAttempts((data as Attempt[]) ?? [])
       } catch (e) {
         setFetchError(e instanceof Error ? e.message : String(e))
         setAttempts([])
@@ -104,10 +113,13 @@ export default function StatisticsPage() {
   const categoryStats: Record<string, { correct: number; total: number }> = {}
   completed.forEach((a) => {
     if (!a.category_scores) return
-    a.category_scores.forEach((cs) => {
-      if (!categoryStats[cs.category]) categoryStats[cs.category] = { correct: 0, total: 0 }
-      categoryStats[cs.category].correct += cs.correct
-      categoryStats[cs.category].total += cs.total
+    const entries = Array.isArray(a.category_scores)
+      ? a.category_scores.map((cs) => [cs.category, { correct: cs.correct, total: cs.total }] as const)
+      : Object.entries(a.category_scores)
+    entries.forEach(([category, cs]) => {
+      if (!categoryStats[category]) categoryStats[category] = { correct: 0, total: 0 }
+      categoryStats[category].correct += cs.correct
+      categoryStats[category].total += cs.total
     })
   })
 

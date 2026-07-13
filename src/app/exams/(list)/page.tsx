@@ -1,9 +1,10 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useEffect, useRef, useState } from "react"
 import { useRouter } from "next/navigation"
 import { useSupabaseQuery } from "@/lib/supabase-queries"
 import { supabase } from "@/lib/supabase"
+import { useProfile } from "@/hooks/use-auth"
 import { Button } from "@/components/ui/button"
 import {
   Loader2,
@@ -11,17 +12,43 @@ import {
   ListOrdered,
   Timer,
   RotateCcw,
-  GraduationCap,
   ChevronRight,
   Clock,
+  Settings,
+  ChevronDown,
+  LogOut,
+  X,
 } from "lucide-react"
 
 export default function ExamsPage() {
   const router = useRouter()
+  const { data: profile } = useProfile()
   const [authorized, setAuthorized] = useState<boolean | null>(null)
   const [attemptData, setAttemptData] = useState<Record<string, { count: number; passedCount: number; passed: boolean | null }>>({})
   const [availableLangs, setAvailableLangs] = useState<string[]>(["nl"])
   const [studentLang, setStudentLang] = useState("nl")
+  const [dropdownOpen, setDropdownOpen] = useState(false)
+  const [logoutOpen, setLogoutOpen] = useState(false)
+  const dropdownRef = useRef<HTMLDivElement>(null)
+
+  const name = profile?.name || ""
+  const email = profile?.email || ""
+  const initials = (name || email)
+    .split(" ")
+    .map((p) => p[0])
+    .slice(0, 2)
+    .join("")
+    .toUpperCase()
+
+  useEffect(() => {
+    function handleClickOutside(e: MouseEvent) {
+      if (dropdownRef.current && !dropdownRef.current.contains(e.target as Node)) {
+        setDropdownOpen(false)
+      }
+    }
+    document.addEventListener("mousedown", handleClickOutside)
+    return () => document.removeEventListener("mousedown", handleClickOutside)
+  }, [])
 
   const langLabels: Record<string, string> = {
     nl: "Nederlands", en: "English", ar: "العربية", fr: "Français",
@@ -120,8 +147,8 @@ export default function ExamsPage() {
   return (
     <div className="flex flex-col min-h-full bg-surface">
       <div className="px-4 sm:px-6 pt-6 pb-2">
-        {availableLangs.length > 0 && (
-          <div className="flex items-center gap-2 mb-4 flex-wrap">
+        <div className="flex items-center justify-between gap-3 mb-4">
+          <div className="flex items-center gap-2 flex-wrap">
             {availableLangs.map((code) => (
               <button
                 key={code}
@@ -136,15 +163,49 @@ export default function ExamsPage() {
               </button>
             ))}
           </div>
-        )}
-        <div className="flex items-center justify-between mb-1">
-          <div>
-            <h1 className="text-2xl md:text-3xl font-bold text-primary tracking-tight">Exams</h1>
-            <p className="text-body-md text-on-surface-variant mt-0.5">Select a practice exam to start</p>
+          <div className="relative shrink-0" ref={dropdownRef}>
+            <button
+              onClick={() => setDropdownOpen(!dropdownOpen)}
+              className="flex items-center gap-2 hover:bg-surface-container rounded-full py-1 pl-1 pr-2 transition-all active:scale-95"
+            >
+              <span className="size-10 md:size-11 rounded-full bg-primary flex items-center justify-center text-on-primary text-label-md font-bold shrink-0">
+                {initials || "?"}
+              </span>
+              <span className="text-label-md font-semibold text-on-surface hidden sm:block max-w-[120px] truncate">{name || email}</span>
+              <ChevronDown size={16} className="text-on-surface-variant" />
+            </button>
+
+            {dropdownOpen && (
+              <div className="absolute right-0 top-13 w-64 bg-surface shadow-lg rounded-2xl border border-outline-variant/30 overflow-hidden z-50">
+                <div className="px-4 py-4 border-b border-outline-variant/20">
+                  <p className="text-label-md font-bold text-primary truncate">{name || email}</p>
+                  <p className="text-label-xs text-on-surface-variant truncate mt-0.5">{email}</p>
+                </div>
+                <div className="py-1">
+                  <button
+                    onClick={() => { router.push("/dashboard/settings"); setDropdownOpen(false) }}
+                    className="w-full flex items-center gap-3 px-4 py-3 text-label-md text-on-surface hover:bg-surface-container transition-colors"
+                  >
+                    <Settings size={18} className="text-on-surface-variant" />
+                    Instellingen
+                  </button>
+                </div>
+                <div className="border-t border-outline-variant/20 py-1">
+                  <button
+                    onClick={() => { setDropdownOpen(false); setLogoutOpen(true) }}
+                    className="w-full flex items-center gap-3 px-4 py-3 text-label-md text-error hover:bg-red-50 transition-colors"
+                  >
+                    <LogOut size={18} />
+                    Uitloggen
+                  </button>
+                </div>
+              </div>
+            )}
           </div>
-          <div className="size-10 md:size-12 rounded-full bg-primary-container/30 flex items-center justify-center text-primary font-bold shrink-0">
-            <GraduationCap size={22} className="md:size-6" />
-          </div>
+        </div>
+        <div className="mb-1">
+          <h1 className="text-2xl md:text-3xl font-bold text-primary tracking-tight">Exams</h1>
+          <p className="text-body-md text-on-surface-variant mt-0.5">Select a practice exam to start</p>
         </div>
       </div>
 
@@ -263,6 +324,31 @@ export default function ExamsPage() {
           </button>
         </div>
       </div>
+
+      {logoutOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center">
+          <div className="fixed inset-0 bg-black/30 backdrop-blur-xs" onClick={() => setLogoutOpen(false)} />
+          <div className="relative bg-white rounded-2xl shadow-xl w-full max-w-sm mx-4 p-6">
+            <button onClick={() => setLogoutOpen(false)} className="absolute top-4 right-4 text-on-surface-variant hover:text-on-surface">
+              <X size={20} />
+            </button>
+            <h3 className="text-headline-md text-primary mb-2">Uitloggen</h3>
+            <p className="text-body-md text-on-surface-variant mb-6">Weet je zeker dat je wilt uitloggen?</p>
+            <div className="flex gap-3 justify-end">
+              <button onClick={() => setLogoutOpen(false)} className="px-5 py-2.5 rounded-xl border border-outline-variant text-label-md font-bold text-on-surface-variant hover:bg-surface-container transition-all">
+                Annuleren
+              </button>
+              <button
+                onClick={async () => { await supabase.auth.signOut(); router.push("/") }}
+                className="px-5 py-2.5 rounded-xl bg-error text-on-error text-label-md font-bold hover:opacity-90 transition-all flex items-center gap-2"
+              >
+                <LogOut size={16} />
+                Uitloggen
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

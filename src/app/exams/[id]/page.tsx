@@ -273,24 +273,31 @@ export default function ExamDetailPage() {
       try {
         const { data: { user } } = await supabase.auth.getUser()
         if (!user) { console.log("finish: no user"); return }
-        const { data: latest, error: latestErr } = await supabase.rpc("get_latest_attempt", {
-          p_user_id: user.id,
-          p_exam_id: examId,
-        })
-        if (latestErr) { console.log("finish: get_latest_attempt error", latestErr); return }
+        const { data: latest, error: latestErr } = await supabase
+          .from("exam_attempts")
+          .select("id")
+          .eq("user_id", user.id)
+          .eq("exam_id", examId)
+          .is("completed_at", null)
+          .order("started_at", { ascending: false })
+          .limit(1)
+        if (latestErr) { console.log("finish: fetch attempt error", latestErr); return }
         console.log("finish: latest attempt", latest)
         if (latest && latest.length > 0) {
-          const { error: finishErr } = await supabase.rpc("finish_exam_attempt", {
-            p_attempt_id: latest[0].id,
-            p_score: correct,
-            p_total_questions: total,
-            p_passed: passed,
-            p_category_scores: Object.keys(categoryStats).length > 0 ? categoryStats : null,
-          })
-          if (finishErr) console.log("finish: finish_exam_attempt error", finishErr)
+          const { error: finishErr } = await supabase
+            .from("exam_attempts")
+            .update({
+              score: correct,
+              total_questions: total,
+              passed,
+              category_scores: Object.keys(categoryStats).length > 0 ? categoryStats : null,
+              completed_at: new Date().toISOString(),
+            })
+            .eq("id", latest[0].id)
+          if (finishErr) console.log("finish: update error", finishErr)
           else console.log("finish: success", { correct, total, passed })
         } else {
-          console.log("finish: no attempt found")
+          console.log("finish: no incomplete attempt found")
         }
       } catch (e) {
         console.log("finish: unexpected error", e)
