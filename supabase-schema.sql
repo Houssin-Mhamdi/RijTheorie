@@ -430,6 +430,7 @@ CREATE TABLE IF NOT EXISTS public.site_settings (
   site_name text NOT NULL DEFAULT 'RijTheorie Pro',
   site_logo_url text,
   languages JSONB DEFAULT '["nl"]'::jsonb,
+  payment_settings JSONB DEFAULT '{}'::jsonb,
   created_at TIMESTAMPTZ DEFAULT NOW(),
   updated_at TIMESTAMPTZ DEFAULT NOW(),
   CONSTRAINT single_row CHECK (id = 1)
@@ -532,12 +533,145 @@ BEGIN
     ORDER BY ea.started_at DESC
   )
   FROM public.exam_attempts ea
-  WHERE ea.user_id = auth.uid()
+  WHERE (public.is_admin() OR ea.user_id = auth.uid())
   INTO result;
 
   RETURN COALESCE(result, '[]'::JSONB);
 END;
 $$;
+
+-- 17. RPC: Update last_active_at (SECURITY DEFINER — bypasses RLS)
+CREATE OR REPLACE FUNCTION public.update_last_active_at()
+RETURNS VOID
+LANGUAGE plpgsql SECURITY DEFINER
+SET search_path = ''
+AS $$
+BEGIN
+  UPDATE public.profiles
+  SET last_active_at = NOW()
+  WHERE id = auth.uid();
+END;
+$$;
+
+-- 18. SUBSCRIPTION PLANS TABLE
+CREATE TABLE IF NOT EXISTS public.subscription_plans (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  name TEXT NOT NULL,
+  description TEXT,
+  price NUMERIC(10,2) NOT NULL DEFAULT 0,
+  duration_days INTEGER NOT NULL DEFAULT 30,
+  features JSONB DEFAULT '[]'::jsonb,
+  is_active BOOLEAN DEFAULT true,
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+ALTER TABLE public.subscription_plans ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "Anyone can read active plans"
+  ON public.subscription_plans FOR SELECT
+  USING (true);
+
+CREATE POLICY "Only admins can insert plans"
+  ON public.subscription_plans FOR INSERT
+  WITH CHECK (public.is_admin());
+
+CREATE POLICY "Only admins can update plans"
+  ON public.subscription_plans FOR UPDATE
+  USING (public.is_admin());
+
+CREATE POLICY "Only admins can delete plans"
+  ON public.subscription_plans FOR DELETE
+  USING (public.is_admin());
+
+-- 19. USER SUBSCRIPTIONS TABLE
+CREATE TABLE IF NOT EXISTS public.user_subscriptions (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id UUID REFERENCES public.profiles(id) ON DELETE CASCADE NOT NULL,
+  plan_id UUID REFERENCES public.subscription_plans(id) ON DELETE SET NULL,
+  start_date TIMESTAMPTZ DEFAULT NOW(),
+  end_date TIMESTAMPTZ NOT NULL,
+  is_active BOOLEAN DEFAULT true,
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+ALTER TABLE public.user_subscriptions ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "Users can read own subscriptions"
+  ON public.user_subscriptions FOR SELECT
+  USING (auth.uid() = user_id);
+
+CREATE POLICY "Admins can read all subscriptions"
+  ON public.user_subscriptions FOR SELECT
+  USING (public.is_admin());
+
+CREATE POLICY "Admins can insert subscriptions"
+  ON public.user_subscriptions FOR INSERT
+  WITH CHECK (public.is_admin());
+
+CREATE POLICY "Admins can update subscriptions"
+  ON public.user_subscriptions FOR UPDATE
+  USING (public.is_admin());
+
+-- RPC for students to subscribe themselves (SECURITY DEFINER bypasses RLS)
+CREATE OR REPLACE FUNCTION public.subscribe_to_plan(p_plan_id UUID)
+RETURNS JSONB
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = ''
+AS $$
+DECLARE
+  v_plan public.subscription_plans;
+  v_subscription public.user_subscriptions;
+BEGIN
+  SELECT * INTO v_plan FROM public.subscription_plans WHERE id = p_plan_id AND is_active = true;
+  IF NOT FOUND THEN
+    RETURN jsonb_build_object('error', 'Plan not found or inactive');
+  END IF;
+
+  UPDATE public.user_subscriptions
+  SET is_active = false
+  WHERE user_id = auth.uid() AND is_active = true;
+
+  INSERT INTO public.user_subscriptions (user_id, plan_id, start_date, end_date, is_active)
+  VALUES (auth.uid(), p_plan_id, NOW(), NOW() + (v_plan.duration_days || ' days')::INTERVAL, true)
+  RETURNING * INTO v_subscription;
+
+  RETURN jsonb_build_object(
+    'id', v_subscription.id,
+    'plan_id', v_subscription.plan_id,
+    'end_date', v_subscription.end_date,
+    'is_active', v_subscription.is_active
+  );
+END;
+$$;
+
+-- Seed 3 default subscription plans
+INSERT INTO public.subscription_plans (name, description, price, duration_days, features)
+VALUES
+  ('1 maand', 'Toegang tot alle oefenexamens voor 1 maand', 9.99, 30, '["Alle examens", "Onbeperkt oefenen", "Resultaten bekijken"]'),
+  ('3 maanden', 'Toegang tot alle oefenexamens voor 3 maanden', 19.99, 90, '["Alle examens", "Onbeperkt oefenen", "Resultaten bekijken", "Voortgangsstatistieken"]'),
+  ('6 maanden', 'Toegang tot alle oefenexamens voor 6 maanden', 29.99, 180, '["Alle examens", "Onbeperkt oefenen", "Resultaten bekijken", "Voortgangsstatistieken", "Prioriteit ondersteuning"]')
+ON CONFLICT DO NOTHING;
+
+-- Payouts table for revenue payouts to admin
+CREATE TABLE IF NOT EXISTS public.payouts (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  amount NUMERIC(10,2) NOT NULL DEFAULT 0,
+  description TEXT,
+  status TEXT NOT NULL DEFAULT 'pending',
+  paid_at TIMESTAMPTZ,
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+ALTER TABLE public.payouts ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "Admins can read payouts"
+  ON public.payouts FOR SELECT
+  USING (public.is_admin());
+
+CREATE POLICY "Admins can insert payouts"
+  ON public.payouts FOR INSERT
+  WITH CHECK (public.is_admin());
 
 -- Run this in Supabase SQL editor to create the avatars storage bucket:
 -- INSERT INTO storage.buckets (id, name, public) VALUES ('avatars', 'avatars', true);

@@ -45,7 +45,7 @@ export async function proxy(request: NextRequest) {
   const path = request.nextUrl.pathname
   const isAuthPage = path === "/login" || path === "/signup"
   const isRoot = path === "/"
-  const isAdminRoute = path.startsWith("/dashboard") || path.startsWith("/learn") || path.startsWith("/questions") || path.startsWith("/lessons") || path.startsWith("/students")
+  const isAdminRoute = path.startsWith("/dashboard") || path.startsWith("/learn") || path.startsWith("/questions") || path.startsWith("/lessons") || path.startsWith("/students") || path.startsWith("/subscriptions")
   const isStudentRoute = path.startsWith("/exams") || path.startsWith("/results")
 
   if (!user && (isAdminRoute || isStudentRoute)) {
@@ -75,5 +75,5 @@ export async function proxy(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ["/dashboard/:path*", "/learn/:path*", "/questions/:path*", "/lessons/:path*", "/students/:path*", "/exams/:path*", "/results/:path*", "/login", "/signup", "/"],
+  matcher: ["/dashboard/:path*", "/learn/:path*", "/questions/:path*", "/lessons/:path*", "/students/:path*", "/exams/:path*", "/results/:path*", "/subscriptions/:path*", "/login", "/signup", "/"],
 }

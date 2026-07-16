@@ -18,6 +18,7 @@ import {
   ChevronDown,
   LogOut,
   X,
+  Lock,
 } from "lucide-react"
 
 export default function ExamsPage() {
@@ -25,6 +26,11 @@ export default function ExamsPage() {
   const { data: profile } = useProfile()
   const [authorized, setAuthorized] = useState<boolean | null>(null)
   const [attemptData, setAttemptData] = useState<Record<string, { count: number; passedCount: number; passed: boolean | null }>>({})
+  const [subscription, setSubscription] = useState<{ plan: { name: string; features: string[] }; end_date: string } | null>(null)
+  const [plans, setPlans] = useState<{ id: string; name: string; description: string; price: number; duration_days: number; features: string[] }[]>([])
+  const [subLoading, setSubLoading] = useState(true)
+  const [subscribing, setSubscribing] = useState<string | null>(null)
+  const [statusMessage, setStatusMessage] = useState<{ type: "success" | "error"; text: string } | null>(null)
   const [availableLangs, setAvailableLangs] = useState<string[]>(["nl"])
   const [studentLang, setStudentLang] = useState("nl")
   const [dropdownOpen, setDropdownOpen] = useState(false)
@@ -65,8 +71,70 @@ export default function ExamsPage() {
         supabase.from("profiles").select("language").eq("id", user.id).single().then(({ data }) => {
           if (data?.language) setStudentLang(data.language)
         })
+        supabase
+          .from("user_subscriptions")
+          .select("*, plan:subscription_plans(name, features)")
+          .eq("user_id", user.id)
+          .eq("is_active", true)
+          .gte("end_date", new Date().toISOString())
+          .order("end_date", { ascending: false })
+          .limit(1)
+          .then(({ data }) => {
+            if (data && data.length > 0) {
+              const sub = data[0] as Record<string, unknown>
+              const plan = sub.plan as Record<string, unknown> | undefined
+              setSubscription({
+                plan: { name: (plan?.name as string) ?? "", features: (plan?.features as string[]) ?? [] },
+                end_date: sub.end_date as string,
+              })
+            }
+            setSubLoading(false)
+          })
+      } else {
+        setSubLoading(false)
       }
+    }).catch(() => setSubLoading(false))
+    supabase.from("subscription_plans").select("*").eq("is_active", true).order("duration_days", { ascending: true }).then(({ data }) => {
+      if (data) setPlans(data as typeof plans)
     })
+  }, [])
+
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search)
+    if (params.get("subscription") === "success") {
+      setStatusMessage({ type: "success", text: "Betaling gelukt! Abonnement wordt geactiveerd..." })
+      window.history.replaceState({}, "", "/exams")
+
+      // Poll until webhook creates the subscription (retries every 2s, up to 30s)
+      let attempts = 0
+      const interval = setInterval(async () => {
+        attempts++
+        const { data: { user } } = await supabase.auth.getUser()
+        if (!user) { clearInterval(interval); return }
+
+        const { data } = await supabase.from("user_subscriptions")
+          .select("*, plan:subscription_plans(name, features)")
+          .eq("user_id", user.id).eq("is_active", true).gte("end_date", new Date().toISOString())
+          .order("end_date", { ascending: false }).limit(1)
+
+        if (data && data.length > 0) {
+          const sub = data[0] as Record<string, unknown>
+          const plan = sub.plan as Record<string, unknown> | undefined
+          setSubscription({
+            plan: { name: (plan?.name as string) ?? "", features: (plan?.features as string[]) ?? [] },
+            end_date: sub.end_date as string,
+          })
+          setStatusMessage({ type: "success", text: "Betaling gelukt! Je abonnement is geactiveerd." })
+          clearInterval(interval)
+        } else if (attempts > 15) {
+          setStatusMessage({ type: "error", text: "Betaling verwerkt, maar activering duurt langer dan verwacht. Ververs de pagina of neem contact op." })
+          clearInterval(interval)
+        }
+      }, 2000)
+    } else if (params.get("subscription") === "cancelled") {
+      setStatusMessage({ type: "error", text: "Betaling geannuleerd. Je kunt het later opnieuw proberen." })
+      window.history.replaceState({}, "", "/exams")
+    }
   }, [])
 
   useEffect(() => {
@@ -87,12 +155,11 @@ export default function ExamsPage() {
   }, [router])
 
   const { data: exams, isLoading: examsLoading } = useSupabaseQuery(
-    ["exams", "free"],
+    ["exams", "all"],
     async () => {
       const { data, error } = await supabase
         .from("exams")
         .select("*, exam_questions(count), course:courses(title, icon_name)")
-        .eq("is_free", true)
         .order("created_at", { ascending: true })
       return { data, error }
     },
@@ -142,6 +209,96 @@ export default function ExamsPage() {
     if (user) {
       await supabase.from("profiles").update({ language: code }).eq("id", user.id)
     }
+  }
+
+  const handleSubscribe = async (planId: string) => {
+    setSubscribing(planId)
+    try {
+      const { data: { user } } = await supabase.auth.getUser()
+      if (!user) throw new Error("Not logged in")
+
+      const res = await fetch("/api/stripe/create-checkout", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ planId, userId: user.id }),
+      })
+      const json = await res.json()
+      if (!res.ok) throw new Error(json.error || "Checkout failed")
+
+      window.location.href = json.url
+    } catch (e) {
+      setStatusMessage({ type: "error", text: e instanceof Error ? e.message : "Subscription failed" })
+      setSubscribing(null)
+    }
+  }
+
+  const renderExamCard = (examData: Record<string, unknown>) => {
+    const courseData = examData.course as Record<string, unknown> | undefined
+    const questionCount = (examData.exam_questions as { count: number }[] | undefined)?.[0]?.count ?? 0
+    const examId = examData.id as string
+    const att = attemptData[examId]
+    const hasStarted = att && att.count > 0
+    const hasPassed = att?.passed === true
+    const isComplete = att?.passed !== null
+    const statusLabel = hasPassed ? "Geslaagd" : hasStarted && isComplete ? "Gezakt" : hasStarted ? "Bezig" : "Not started"
+    const statusClass = hasPassed ? "bg-green-100 text-green-700" : hasStarted && isComplete ? "bg-red-100 text-red-700" : hasStarted ? "bg-primary-container/10 text-primary" : "bg-surface-container-low text-on-surface-variant"
+
+    return (
+      <div
+        key={examId}
+        className="bg-surface-container-lowest rounded-2xl border border-outline-variant/40 overflow-hidden active:scale-[0.98] md:active:scale-[0.99] transition-transform"
+      >
+        <div className="p-5 md:p-6">
+          <div className="flex items-start justify-between mb-3">
+            <div className="flex-1 min-w-0 mr-3">
+              <div className="flex items-center gap-1.5 md:gap-2 mb-1.5 flex-wrap">
+                <span className={`px-1.5 py-0.5 md:px-3 md:py-1 rounded-full text-[10px] md:text-sm font-bold ${statusClass}`}>
+                  {statusLabel}
+                </span>
+                {hasStarted && (
+                  <span className="px-1.5 py-0.5 md:px-3 md:py-1 rounded-full text-[10px] md:text-sm font-bold bg-primary-container/10 text-primary">
+                    Poging {att!.count}
+                  </span>
+                )}
+                {hasStarted && (
+                  <span className={`px-1.5 py-0.5 md:px-3 md:py-1 rounded-full text-[10px] md:text-sm font-bold ${(att?.passedCount ?? 0) > 0 ? "bg-green-100 text-green-700" : "bg-orange-100 text-orange-700"}`}>
+                    {att!.passedCount}/{att!.count} geslaagd
+                  </span>
+                )}
+              </div>
+              <h3 className="text-headline-md md:text-headline-lg font-bold text-primary truncate">
+                {examData.title as string}
+              </h3>
+              {courseData && (
+                <p className="text-label-sm text-on-surface-variant mt-0.5">{courseData.title as string}</p>
+              )}
+            </div>
+            <div className="size-10 md:size-12 rounded-xl bg-primary-container/10 flex items-center justify-center shrink-0">
+              <FileText size={20} className="md:size-6 text-primary" />
+            </div>
+          </div>
+
+          <div className="flex items-center gap-5 mb-5">
+            <div className="flex items-center gap-1.5 text-label-sm text-on-surface-variant">
+              <ListOrdered size={16} />
+              <span>{questionCount} vragen</span>
+            </div>
+            <div className="flex items-center gap-1.5 text-label-sm text-on-surface-variant">
+              <Timer size={16} />
+              <span>45 min</span>
+            </div>
+          </div>
+
+          <Button
+            className="w-full h-12 md:h-11 rounded-xl text-label-md font-bold"
+            variant="secondary"
+            onClick={() => router.push(`/exams/${examData.id}`)}
+          >
+            Start Exam
+          </Button>
+        </div>
+      </div>
+    )
   }
 
   return (
@@ -209,6 +366,19 @@ export default function ExamsPage() {
         </div>
       </div>
 
+      {statusMessage && (
+        <div className={`mx-4 sm:mx-6 mb-4 px-5 py-4 rounded-xl text-label-md font-bold ${
+          statusMessage.type === "success"
+            ? "bg-green-100 text-green-800 border border-green-200"
+            : "bg-red-100 text-red-800 border border-red-200"
+        }`}>
+          <div className="flex items-center gap-2">
+            <span>{statusMessage.type === "success" ? "✓" : "✕"}</span>
+            <span>{statusMessage.text}</span>
+          </div>
+        </div>
+      )}
+
       {examsLoading && (
         <div className="flex-1 flex items-center justify-center py-20">
           <div className="flex flex-col items-center gap-3">
@@ -216,6 +386,90 @@ export default function ExamsPage() {
             <span className="text-label-sm text-on-surface-variant">Loading exams...</span>
           </div>
         </div>
+      )}
+
+      {!examsLoading && exams && exams.length > 0 && (
+        <>
+          {(() => {
+            const allExams = exams as Record<string, unknown>[]
+            const freeExams = allExams.filter((e) => e.is_free === true)
+            const paidExams = allExams.filter((e) => e.is_free !== true)
+            const showPaid = profile?.role !== "student" || subscription
+
+            return (
+              <div className="flex-1 px-4 sm:px-6 pb-4 space-y-6">
+                {/* Free exams section */}
+                {freeExams.length > 0 && (
+                  <>
+                    <h2 className="text-headline-sm font-bold text-primary">Gratis examens</h2>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6">
+                      {freeExams.map((exam) => renderExamCard(exam))}
+                    </div>
+                  </>
+                )}
+
+                {/* Paid exams section */}
+                {paidExams.length > 0 && (
+                  <>
+                    <h2 className="text-headline-sm font-bold text-primary">
+                      {showPaid ? "Alle examens" : "Premium examens"}
+                    </h2>
+                    {showPaid ? (
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6">
+                        {paidExams.map((exam) => renderExamCard(exam))}
+                      </div>
+                    ) : (
+                      <div className="bg-surface-container-lowest rounded-2xl border border-outline-variant/40 p-8 text-center">
+                        <Lock size={36} className="text-outline-variant mx-auto mb-3" />
+                        <p className="text-body-lg text-primary font-semibold mb-1">Ontgrendel premium examens</p>
+                        <p className="text-body-md text-on-surface-variant mb-6 max-w-md mx-auto">
+                          Neem een abonnement om toegang te krijgen tot alle premium oefenexamens en je optimaal voor te bereiden.
+                        </p>
+                        {freeExams.length > 0 && (
+                          <p className="text-label-sm text-on-surface-variant mb-6">
+                            Je kunt nog steeds de gratis examens hierboven maken.
+                          </p>
+                        )}
+                        {plans.length > 0 && (
+                          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 max-w-3xl mx-auto">
+                            {plans.map((plan) => (
+                              <div key={plan.id} className="bg-surface rounded-xl border border-outline-variant/30 p-5 text-left">
+                                <h3 className="text-headline-sm font-bold text-primary mb-1">{plan.name}</h3>
+                                <p className="text-headline-lg font-bold text-primary mb-3">&euro;{plan.price.toFixed(2)}</p>
+                                <div className="space-y-1.5 mb-5">
+                                  {(plan.features as string[]).map((f, i) => (
+                                    <div key={i} className="flex items-center gap-2 text-label-sm text-on-surface-variant">
+                                      <span className="size-1.5 rounded-full bg-primary shrink-0" />
+                                      {f}
+                                    </div>
+                                  ))}
+                                </div>
+                                <button
+                                  onClick={() => handleSubscribe(plan.id)}
+                                  disabled={subscribing === plan.id}
+                                  className="w-full py-2.5 rounded-xl bg-primary text-on-primary text-label-md font-bold hover:opacity-90 transition-all active:scale-[0.97] disabled:opacity-50 disabled:active:scale-100"
+                                >
+                                  {subscribing === plan.id ? (
+                                    <span className="flex items-center justify-center gap-2">
+                                      <Loader2 size={16} className="animate-spin" />
+                      Bezig...
+                                    </span>
+                                  ) : (
+                                    "Abonneer"
+                                  )}
+                                </button>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  </>
+                )}
+              </div>
+            )
+          })()}
+        </>
       )}
 
       {!examsLoading && (!exams || exams.length === 0) && (
@@ -228,80 +482,7 @@ export default function ExamsPage() {
         </div>
       )}
 
-      {!examsLoading && exams && exams.length > 0 && (
-        <div className="flex-1 px-4 sm:px-6 pb-4 grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6">
-          {exams.map((exam) => {
-            const examData = exam as Record<string, unknown>
-            const courseData = examData.course as Record<string, unknown> | undefined
-            const questionCount = (examData.exam_questions as { count: number }[] | undefined)?.[0]?.count ?? 0
-            const examId = examData.id as string
-            const att = attemptData[examId]
-            const hasStarted = att && att.count > 0
-            const hasPassed = att?.passed === true
-            const isComplete = att?.passed !== null
-            const statusLabel = hasPassed ? "Geslaagd" : hasStarted && isComplete ? "Gezakt" : hasStarted ? "Bezig" : "Not started"
-            const statusClass = hasPassed ? "bg-green-100 text-green-700" : hasStarted && isComplete ? "bg-red-100 text-red-700" : hasStarted ? "bg-primary-container/10 text-primary" : "bg-surface-container-low text-on-surface-variant"
-
-            return (
-              <div
-                key={examId}
-                className="bg-surface-container-lowest rounded-2xl border border-outline-variant/40 overflow-hidden active:scale-[0.98] md:active:scale-[0.99] transition-transform"
-              >
-                <div className="p-5 md:p-6">
-                    <div className="flex items-start justify-between mb-3">
-                      <div className="flex-1 min-w-0 mr-3">
-                        <div className="flex items-center gap-1.5 md:gap-2 mb-1.5 flex-wrap">
-                          <span className={`px-1.5 py-0.5 md:px-3 md:py-1 rounded-full text-[10px] md:text-sm font-bold ${statusClass}`}>
-                            {statusLabel}
-                          </span>
-                          {hasStarted && (
-                            <span className="px-1.5 py-0.5 md:px-3 md:py-1 rounded-full text-[10px] md:text-sm font-bold bg-primary-container/10 text-primary">
-                              Poging {att!.count}
-                            </span>
-                          )}
-                          {hasStarted && (
-                            <span className={`px-1.5 py-0.5 md:px-3 md:py-1 rounded-full text-[10px] md:text-sm font-bold ${(att?.passedCount ?? 0) > 0 ? "bg-green-100 text-green-700" : "bg-orange-100 text-orange-700"}`}>
-                              {att!.passedCount}/{att!.count} geslaagd
-                            </span>
-                          )}
-                      </div>
-                      <h3 className="text-headline-md md:text-headline-lg font-bold text-primary truncate">
-                        {examData.title as string}
-                      </h3>
-                      {courseData && (
-                        <p className="text-label-sm text-on-surface-variant mt-0.5">{courseData.title as string}</p>
-                      )}
-                    </div>
-                    <div className="size-10 md:size-12 rounded-xl bg-primary-container/10 flex items-center justify-center shrink-0">
-                      <FileText size={20} className="md:size-6 text-primary" />
-                    </div>
-                  </div>
-
-                  <div className="flex items-center gap-5 mb-5">
-                    <div className="flex items-center gap-1.5 text-label-sm text-on-surface-variant">
-                      <ListOrdered size={16} />
-                      <span>{questionCount} vragen</span>
-                    </div>
-                    <div className="flex items-center gap-1.5 text-label-sm text-on-surface-variant">
-                      <Timer size={16} />
-                      <span>45 min</span>
-                    </div>
-                  </div>
-
-                  <Button
-                    className="w-full h-12 md:h-11 rounded-xl text-label-md font-bold"
-                    variant="secondary"
-                    onClick={() => router.push(`/exams/${examData.id}`)}
-                  >
-                    Start Exam
-                  </Button>
-                </div>
-              </div>
-            )
-          })}
-        </div>
-      )}
-
+      {(profile?.role !== "student" || subscription) && (
       <div className="px-4 sm:px-6 pb-6 pt-2">
         <div className="bg-gradient-to-br from-primary to-primary/80 rounded-2xl p-5 md:p-6 text-white">
           <div className="flex items-start md:items-center gap-4">
@@ -324,7 +505,7 @@ export default function ExamsPage() {
           </button>
         </div>
       </div>
-
+      )}
       {logoutOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center">
           <div className="fixed inset-0 bg-black/30 backdrop-blur-xs" onClick={() => setLogoutOpen(false)} />

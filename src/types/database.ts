@@ -43,6 +43,25 @@ export type SiteSettings = {
   site_name: string
   site_logo_url: string | null
   languages: string[]
+  payment_settings: {
+    stripe_publishable_key?: string
+    stripe_secret_key?: string
+    webhook_secret?: string
+    stripe_connected?: boolean
+    stripe_account_id?: string
+    bank_account_holder?: string
+    bank_account_number?: string
+    bank_name?: string
+  } | null
   created_at: string
   updated_at: string
+}
+
+export type Payout = {
+  id: string
+  amount: number
+  description: string | null
+  status: string
+  paid_at: string | null
+  created_at: string
 }

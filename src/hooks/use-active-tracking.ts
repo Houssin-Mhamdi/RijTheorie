@@ -12,13 +12,9 @@ export function useActiveTracking() {
     if (!session?.user?.id) return
 
     const update = () => {
-      supabase
-        .from("profiles")
-        .update({ last_active_at: new Date().toISOString() })
-        .eq("id", session.user.id)
-        .then(({ error }) => {
-          if (error) console.error("Failed to update last_active_at", error)
-        })
+      supabase.rpc("update_last_active_at").then(({ error }) => {
+        if (error) console.error("Failed to update last_active_at", error)
+      })
     }
 
     update()

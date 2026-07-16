@@ -82,14 +82,20 @@ export default function StatisticsPage() {
     const fetchStats = async () => {
       try {
         const { data: { user } } = await supabase.auth.getUser()
-        if (!user) throw new Error("Niet ingelogd")
-        const { data, error } = await supabase
+        console.warn("STATS DEBUG: user", user?.id, "role", user?.role)
+        const { data: profile } = await supabase
+          .from("profiles")
+          .select("role")
+          .eq("id", user?.id)
+          .single()
+        console.warn("STATS DEBUG: profile role", profile?.role)
+        const { data: attempts, error } = await supabase
           .from("exam_attempts")
           .select("id, exam_id, score, total_questions, passed, started_at, completed_at, category_scores")
-          .eq("user_id", user.id)
           .order("started_at", { ascending: false })
+        console.warn("STATS DEBUG: attempts count", attempts?.length, "error", error)
         if (error) throw error
-        setAttempts((data as Attempt[]) ?? [])
+        setAttempts((attempts as Attempt[]) ?? [])
       } catch (e) {
         setFetchError(e instanceof Error ? e.message : String(e))
         setAttempts([])
@@ -100,9 +106,11 @@ export default function StatisticsPage() {
     fetchStats()
   }, [])
 
+  const totalAttempts = attempts.length
   const completed = attempts.filter((a) => a.score != null && a.passed != null)
   const passedCount = completed.filter((a) => a.passed).length
   const totalCompleted = completed.length
+  const inProgress = totalAttempts - totalCompleted
   const passRate = totalCompleted > 0 ? Math.round((passedCount / totalCompleted) * 100) : 0
   const avgScore = (() => {
     if (completed.length === 0) return 0
@@ -216,30 +224,35 @@ export default function StatisticsPage() {
       </header>
 
       <main className="px-4 py-6 max-w-4xl mx-auto space-y-6">
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+        <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
           <div className="bg-surface-container-lowest rounded-2xl border border-outline-variant/30 p-5 text-center">
             <BarChart3 size={24} className="text-primary mx-auto mb-2" />
-            <p className="text-label-xs text-on-surface-variant">Examens</p>
-            <p className="text-headline-md text-primary font-bold">{totalCompleted}</p>
-            <p className="text-label-xs text-on-surface-variant mt-1">
-              <span className="text-green-600 font-semibold">{passedCount} geslaagd</span>
-              {" · "}
-              <span className="text-red-600 font-semibold">{totalCompleted - passedCount} gezakt</span>
-            </p>
+            <p className="text-label-xs text-on-surface-variant">Totaal</p>
+            <p className="text-headline-md text-primary font-bold" title="Totaal aantal gestarte examens">{totalAttempts}</p>
+          </div>
+          <div className="bg-surface-container-lowest rounded-2xl border border-outline-variant/30 p-5 text-center">
+            <TrendingUp size={24} className="text-green-600 mx-auto mb-2" />
+            <p className="text-label-xs text-on-surface-variant">Afgerond</p>
+            <p className="text-headline-md text-green-600 font-bold" title="Aantal afgeronde examens">{totalCompleted}</p>
+          </div>
+          <div className="bg-surface-container-lowest rounded-2xl border border-outline-variant/30 p-5 text-center">
+            <BookOpen size={24} className="text-amber-600 mx-auto mb-2" />
+            <p className="text-label-xs text-on-surface-variant">Bezig</p>
+            <p className="text-headline-md text-amber-600 font-bold" title="Aantal gestart maar niet afgerond">{inProgress}</p>
           </div>
           <div className="bg-surface-container-lowest rounded-2xl border border-outline-variant/30 p-5 text-center">
             <Target size={24} className="text-green-600 mx-auto mb-2" />
             <p className="text-label-xs text-on-surface-variant">Slagings%</p>
-            <p className="text-headline-md text-primary font-bold">{passRate}%</p>
+            <p className="text-headline-md text-green-600 font-bold">{passRate}%</p>
             <p className="text-label-xs text-on-surface-variant mt-1">{passedCount} van {totalCompleted} geslaagd</p>
           </div>
           <div className="bg-surface-container-lowest rounded-2xl border border-outline-variant/30 p-5 text-center">
-            <TrendingUp size={24} className="text-blue-600 mx-auto mb-2" />
+            <Lightbulb size={24} className="text-blue-600 mx-auto mb-2" />
             <p className="text-label-xs text-on-surface-variant">Gem. Score</p>
             <p className="text-headline-md text-primary font-bold">{avgScore}%</p>
           </div>
           <div className="bg-surface-container-lowest rounded-2xl border border-outline-variant/30 p-5 text-center">
-            <BookOpen size={24} className="text-purple-600 mx-auto mb-2" />
+            <Eye size={24} className="text-purple-600 mx-auto mb-2" />
             <p className="text-label-xs text-on-surface-variant">Categorieën</p>
             <p className="text-headline-md text-primary font-bold">{categories.length}</p>
           </div>
