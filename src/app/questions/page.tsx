@@ -51,10 +51,8 @@ export default function QuestionsPage() {
   const { data: examAttempts, isLoading: attemptsLoading } = useSupabaseQuery(
     ["exam_attempts", "admin"],
     async () => {
-      const res = await fetch("/api/exam/stats")
-      if (!res.ok) return { data: null, error: null }
-      const json = await res.json()
-      return { data: json.attempts, error: null }
+      const { data, error } = await supabase.rpc("get_exam_stats_full")
+      return { data, error }
     },
   )
 

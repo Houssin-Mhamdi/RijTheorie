@@ -52,10 +52,8 @@ export default function DashboardPage() {
   const { data: examAttempts } = useSupabaseQuery(
     ["exam_attempts", "stats"],
     async () => {
-      const res = await fetch("/api/exam/stats")
-      if (!res.ok) return { data: null, error: null }
-      const json = await res.json()
-      return { data: json.attempts, error: null }
+      const { data, error } = await supabase.rpc("get_exam_stats_full")
+      return { data, error }
     },
   )
 
