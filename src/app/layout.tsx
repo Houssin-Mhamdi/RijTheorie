@@ -1,6 +1,7 @@
 import type { Metadata } from "next"
 import { Inter } from "next/font/google"
 import Providers from "@/components/providers"
+import { ClarityAnalytics } from "@/components/analytics/clarity-analytics"
 import "./globals.css"
 
 const inter = Inter({
@@ -24,6 +25,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
 
       <body className="font-sans bg-background text-on-surface antialiased">
         <Providers>{children}</Providers>
+        <ClarityAnalytics />
       </body>
     </html>
   )
