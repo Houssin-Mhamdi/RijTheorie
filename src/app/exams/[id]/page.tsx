@@ -114,6 +114,14 @@ export default function ExamDetailPage() {
       setExam(examData)
       setTimeLeft((examData.duration_minutes ?? 45) * 60)
 
+      const { data: canAccess, error: accessErr } = await supabase
+        .rpc("can_access_exam", { p_exam_id: examId })
+
+      if (accessErr || canAccess === false) {
+        router.push("/exams?subscription=required")
+        return
+      }
+
       const { data: rpcData, error: rpcErr } = await supabase
         .rpc("get_exam_questions", { p_exam_id: examId })
 

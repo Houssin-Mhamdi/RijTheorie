@@ -130,6 +130,9 @@ export default function ExamsPage() {
     } else if (params.get("subscription") === "cancelled") {
       setStatusMessage({ type: "error", text: "Betaling geannuleerd. Je kunt het later opnieuw proberen." })
       window.history.replaceState({}, "", "/exams")
+    } else if (params.get("subscription") === "required") {
+      setStatusMessage({ type: "error", text: "Je hebt een actief abonnement nodig om dit examen te maken." })
+      window.history.replaceState({}, "", "/exams")
     }
   }, [])
 

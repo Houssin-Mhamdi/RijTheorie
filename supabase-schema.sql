@@ -691,3 +691,25 @@ CREATE POLICY "Admins can insert payouts"
 -- CREATE POLICY "Users can delete own avatars"
 --   ON storage.objects FOR DELETE
 --   USING (bucket_id = 'avatars' AND (owner = auth.uid() OR public.is_admin()));
+
+-- 24. CAN ACCESS EXAM RPC (SECURITY DEFINER)
+CREATE OR REPLACE FUNCTION public.can_access_exam(p_exam_id UUID)
+RETURNS BOOLEAN
+LANGUAGE plpgsql SECURITY DEFINER
+SET search_path = ''
+AS $$
+DECLARE
+  v_is_free BOOLEAN;
+  v_has_sub BOOLEAN;
+BEGIN
+  SELECT is_free INTO v_is_free FROM public.exams WHERE id = p_exam_id;
+  IF NOT FOUND THEN RETURN false; END IF;
+  IF v_is_free THEN RETURN true; END IF;
+  IF public.is_admin() THEN RETURN true; END IF;
+  SELECT EXISTS (
+    SELECT 1 FROM public.user_subscriptions
+    WHERE user_id = auth.uid() AND is_active = true AND end_date > NOW()
+  ) INTO v_has_sub;
+  RETURN v_has_sub;
+END;
+$$;
