@@ -73,7 +73,7 @@ export default function ExamsPage() {
         })
         supabase
           .from("user_subscriptions")
-          .select("*, plan:subscription_plans(name, features)")
+          .select("*")
           .eq("user_id", user.id)
           .eq("is_active", true)
           .gte("end_date", new Date().toISOString())
@@ -81,11 +81,9 @@ export default function ExamsPage() {
           .limit(1)
           .then(({ data }) => {
             if (data && data.length > 0) {
-              const sub = data[0] as Record<string, unknown>
-              const plan = sub.plan as Record<string, unknown> | undefined
               setSubscription({
-                plan: { name: (plan?.name as string) ?? "", features: (plan?.features as string[]) ?? [] },
-                end_date: sub.end_date as string,
+                plan: { name: "", features: [] },
+                end_date: data[0].end_date as string,
               })
             }
             setSubLoading(false)
@@ -113,16 +111,14 @@ export default function ExamsPage() {
         if (!user) { clearInterval(interval); return }
 
         const { data } = await supabase.from("user_subscriptions")
-          .select("*, plan:subscription_plans(name, features)")
+          .select("*")
           .eq("user_id", user.id).eq("is_active", true).gte("end_date", new Date().toISOString())
           .order("end_date", { ascending: false }).limit(1)
 
         if (data && data.length > 0) {
-          const sub = data[0] as Record<string, unknown>
-          const plan = sub.plan as Record<string, unknown> | undefined
           setSubscription({
-            plan: { name: (plan?.name as string) ?? "", features: (plan?.features as string[]) ?? [] },
-            end_date: sub.end_date as string,
+            plan: { name: "", features: [] },
+            end_date: data[0].end_date as string,
           })
           setStatusMessage({ type: "success", text: "Betaling gelukt! Je abonnement is geactiveerd." })
           clearInterval(interval)
