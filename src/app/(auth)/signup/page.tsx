@@ -175,10 +175,10 @@ export default function SignupPage() {
             Log in
           </Link>
           <span className="hidden sm:block text-outline-variant">|</span>
-          <Link href="#" className="text-label-md text-primary hover:underline flex items-center gap-1">
-            <Shield size={18} />
-            Privacy Policy
-          </Link>
+            <Link href="/privacy" className="text-label-md text-primary hover:underline flex items-center gap-1">
+              <Shield size={18} />
+              Privacy Policy
+            </Link>
         </div>
       </div>
       <div className="mt-8 flex items-center justify-center gap-4 opacity-40">

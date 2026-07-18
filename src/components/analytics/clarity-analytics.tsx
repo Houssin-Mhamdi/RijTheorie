@@ -8,7 +8,17 @@ export function ClarityAnalytics() {
 
   useEffect(() => {
     if (!projectId) return
-    clarity.init(projectId)
+    const pid: string = projectId
+    const consent = localStorage.getItem("cookie-consent")
+    if (consent === "accepted") {
+      clarity.init(pid)
+      return
+    }
+    function onAccept() {
+      clarity.init(pid)
+    }
+    window.addEventListener("cookie-consent-accepted", onAccept)
+    return () => window.removeEventListener("cookie-consent-accepted", onAccept)
   }, [projectId])
 
   return null

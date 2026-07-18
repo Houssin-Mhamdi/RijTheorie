@@ -167,7 +167,7 @@ export default function LoginPage() {
             Account aanmaken
           </Link>
           <span className="hidden sm:block text-outline-variant">|</span>
-          <Link href="#" className="text-label-md text-primary hover:underline flex items-center gap-1">
+          <Link href="/privacy" className="text-label-md text-primary hover:underline flex items-center gap-1">
             <Shield size={18} />
             Privacy Policy
           </Link>

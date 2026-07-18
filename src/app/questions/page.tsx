@@ -48,25 +48,6 @@ export default function QuestionsPage() {
     async () => { const { data, error } = await supabase.from("questions").select("*").order("created_at", { ascending: false }); return { data, error } },
   )
 
-  const { data: examAttempts, isLoading: attemptsLoading } = useSupabaseQuery(
-    ["exam_attempts", "admin"],
-    async () => {
-      const { data, error } = await supabase.rpc("get_exam_stats_full")
-      return { data, error }
-    },
-  )
-
-  const avgScore = (() => {
-    if (!examAttempts || examAttempts.length === 0) return null
-    const total = examAttempts.reduce((sum: number, a: Record<string, unknown>) => {
-      const s = a as Record<string, unknown>
-      const score = s.score as number
-      const totalQ = s.total_questions as number
-      return sum + (totalQ > 0 ? (score / totalQ) * 100 : 0)
-    }, 0)
-    return Math.round(total / examAttempts.length)
-  })()
-
   const createMutation = useSupabaseMutation<QuestionInput, unknown>(async (values) => {
     const { data, error } = await supabase
       .from("questions")
@@ -222,10 +203,8 @@ export default function QuestionsPage() {
         <StatsCard label="Most Tested" value="Right of Way">
           <p className="text-on-surface-variant">{(questionsData as Record<string, unknown>[] | undefined)?.filter((q) => q.category === "Right of Way").length || 0} questions</p>
         </StatsCard>
-        <StatsCard label="Avg Student Score" value={avgScore !== null ? `${avgScore}%` : "—"}>
-          <div className="flex items-center gap-1 text-on-surface-variant">
-            <span>{examAttempts?.length ?? 0} completed exams</span>
-          </div>
+        <StatsCard label="Categories" value={String(categories.length)}>
+          <p className="text-on-surface-variant">{categories.length > 0 ? `${categories.join(", ")}` : "No categories yet"}</p>
         </StatsCard>
       </div>
 
@@ -272,13 +251,13 @@ export default function QuestionsPage() {
         </div>
 
         {showFilters && (
-          <div className="px-6 py-4 border-b border-surface-container bg-surface-container-low flex flex-wrap gap-4">
-            <div className="flex flex-col gap-1">
+          <div className="px-4 sm:px-6 py-4 border-b border-surface-container bg-surface-container-low flex flex-wrap gap-4">
+            <div className="flex flex-col gap-1 w-full sm:w-auto">
               <label className="text-label-xs text-on-surface-variant font-bold uppercase">Categorie</label>
               <select
                 value={filterCategory}
                 onChange={(e) => { setFilterCategory(e.target.value); setCurrentPage(1) }}
-                className="px-3 py-2 bg-surface border border-outline-variant rounded-lg text-body-md focus:ring-2 focus:ring-primary focus:border-primary"
+                className="w-full sm:w-auto px-3 py-2 bg-surface border border-outline-variant rounded-lg text-body-md focus:ring-2 focus:ring-primary focus:border-primary"
               >
                 <option value="all">Alle categorieën</option>
                 {categories.map((cat) => (
@@ -286,24 +265,24 @@ export default function QuestionsPage() {
                 ))}
               </select>
             </div>
-            <div className="flex flex-col gap-1">
+            <div className="flex flex-col gap-1 w-full sm:w-auto">
               <label className="text-label-xs text-on-surface-variant font-bold uppercase">Media</label>
               <select
                 value={filterMedia}
                 onChange={(e) => { setFilterMedia(e.target.value as "all" | "with" | "without"); setCurrentPage(1) }}
-                className="px-3 py-2 bg-surface border border-outline-variant rounded-lg text-body-md focus:ring-2 focus:ring-primary focus:border-primary"
+                className="w-full sm:w-auto px-3 py-2 bg-surface border border-outline-variant rounded-lg text-body-md focus:ring-2 focus:ring-primary focus:border-primary"
               >
                 <option value="all">Alles</option>
                 <option value="with">Met media</option>
                 <option value="without">Zonder media</option>
               </select>
             </div>
-            <div className="flex flex-col gap-1">
+            <div className="flex flex-col gap-1 w-full sm:w-auto">
               <label className="text-label-xs text-on-surface-variant font-bold uppercase">Antwoorden</label>
               <select
                 value={filterAnswers}
                 onChange={(e) => { setFilterAnswers(e.target.value as "all" | "min3" | "exact4"); setCurrentPage(1) }}
-                className="px-3 py-2 bg-surface border border-outline-variant rounded-lg text-body-md focus:ring-2 focus:ring-primary focus:border-primary"
+                className="w-full sm:w-auto px-3 py-2 bg-surface border border-outline-variant rounded-lg text-body-md focus:ring-2 focus:ring-primary focus:border-primary"
               >
                 <option value="all">Alles</option>
                 <option value="min3">Minimaal 3 antwoorden</option>

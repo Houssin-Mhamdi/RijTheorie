@@ -85,25 +85,27 @@ export default function TopBar({ searchPlaceholder = "Zoeken in platform..." }: 
         { data: lessons },
         { data: courses },
         { data: exams },
+        { data: subscriptions },
       ] = await Promise.all([
         supabase.from("profiles").select("id, name, email").ilike("name", q).limit(5),
         supabase.from("questions").select("id, question_text, category").ilike("question_text", q).limit(5),
         supabase.from("lessons").select("id, title").ilike("title", q).limit(5),
         supabase.from("courses").select("id, title").ilike("title", q).limit(5),
-        supabase.from("exams").select("id, title").ilike("title", q).limit(5),
+        supabase.from("exams").select("id, title, description").ilike("title", q).limit(5),
+        supabase.from("subscription_plans").select("id, name, description").ilike("name", q).limit(5),
       ])
 
       const items: SearchResult[] = []
 
       if (students && students.length > 0) {
         students.forEach((s) => {
-          items.push({ id: s.id, label: s.name ?? s.email, description: s.email, href: "/students", category: "Studenten", icon: User })
+          items.push({ id: s.id, label: s.name ?? s.email, description: s.email, href: `/students/${s.id}`, category: "Studenten", icon: User })
         })
       }
 
       if (questions && questions.length > 0) {
         questions.forEach((q) => {
-          items.push({ id: q.id, label: q.question_text.slice(0, 80), description: q.category, href: "/questions", category: "Vragen", icon: ClipboardList })
+          items.push({ id: q.id, label: q.question_text.slice(0, 80), description: q.category, href: `/questions`, category: "Vragen", icon: ClipboardList })
         })
       }
 
@@ -115,13 +117,19 @@ export default function TopBar({ searchPlaceholder = "Zoeken in platform..." }: 
 
       if (courses && courses.length > 0) {
         courses.forEach((c) => {
-          items.push({ id: c.id, label: c.title, href: "/lessons", category: "Cursussen", icon: GraduationCap })
+          items.push({ id: c.id, label: c.title, href: `/lessons/${c.id}`, category: "Cursussen", icon: GraduationCap })
         })
       }
 
       if (exams && exams.length > 0) {
         exams.forEach((e) => {
-          items.push({ id: e.id, label: e.title, href: "/exams", category: "Examens", icon: FileText })
+          items.push({ id: e.id, label: e.title, description: e.description ?? undefined, href: `/exams/${e.id}`, category: "Examens", icon: FileText })
+        })
+      }
+
+      if (subscriptions && subscriptions.length > 0) {
+        subscriptions.forEach((s) => {
+          items.push({ id: s.id, label: s.name, description: s.description ?? undefined, href: `/subscriptions`, category: "Abonnementen", icon: FileText })
         })
       }
 
@@ -219,11 +227,11 @@ export default function TopBar({ searchPlaceholder = "Zoeken in platform..." }: 
           </div>
         </div>
 
-        <div className="flex items-center gap-4 shrink-0 ml-4">
-          <button className="hover:bg-surface-container rounded-full p-2 transition-all text-on-surface-variant">
+        <div className="flex items-center gap-2 sm:gap-4 shrink-0 ml-2 sm:ml-4">
+          <button className="hidden sm:block hover:bg-surface-container rounded-full p-2 transition-all text-on-surface-variant">
             <Bell size={20} />
           </button>
-          <button className="hover:bg-surface-container rounded-full p-2 transition-all text-on-surface-variant">
+          <button className="hidden sm:block hover:bg-surface-container rounded-full p-2 transition-all text-on-surface-variant">
             <HelpCircle size={20} />
           </button>
 

@@ -17,10 +17,13 @@ export const studentNavItems: NavItem[] = [
 
 export const settingsItem = { href: "/dashboard/settings", label: "Settings", icon: Settings }
 
-export const mobileNavItems = [
+export const mobileNavItems: NavItem[] = [
   { href: "/dashboard", label: "Home", icon: LayoutDashboard },
   { href: "/questions", label: "Questions", icon: ClipboardList },
   { href: "/lessons", label: "Courses", icon: BookOpen },
+  { href: "/students", label: "Students", icon: Users },
+  { href: "/subscriptions", label: "Subscriptions", icon: CreditCard },
+  { href: "/dashboard/billing", label: "Billing", icon: Receipt },
 ]
 
 export const studentMobileNavItems = [

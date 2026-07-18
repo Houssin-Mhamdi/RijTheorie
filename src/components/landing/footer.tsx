@@ -16,7 +16,7 @@ export function Footer() {
         </div>
         <nav className="flex flex-wrap justify-center gap-6 md:gap-12">
           <a className="text-tertiary-fixed-dim opacity-80 font-medium text-label-sm hover:text-secondary-container dark:hover:text-secondary-fixed transition-colors" href="#">Over ons</a>
-          <a className="text-tertiary-fixed-dim opacity-80 font-medium text-label-sm hover:text-secondary-container dark:hover:text-secondary-fixed transition-colors" href="#">Privacy Policy</a>
+          <a className="text-tertiary-fixed-dim opacity-80 font-medium text-label-sm hover:text-secondary-container dark:hover:text-secondary-fixed transition-colors" href="/privacy">Privacy Policy</a>
           <a className="text-tertiary-fixed-dim opacity-80 font-medium text-label-sm hover:text-secondary-container dark:hover:text-secondary-fixed transition-colors" href="#">Algemene Voorwaarden</a>
           <a className="text-tertiary-fixed-dim opacity-80 font-medium text-label-sm hover:text-secondary-container dark:hover:text-secondary-fixed transition-colors" href="#">Support</a>
         </nav>

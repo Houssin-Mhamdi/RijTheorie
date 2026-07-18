@@ -173,10 +173,20 @@ export default function ExamDetailPage() {
             .limit(1)
           if (existing && existing.length > 0) {
             if (existing[0].completed_at) {
-              router.push("/exams")
-              return
+              const { data: count } = await supabase.rpc("count_user_exam_attempts", {
+                p_user_id: user.id,
+                p_exam_id: examId,
+              })
+              const nextNumber = (typeof count === "number" ? count : 0) + 1
+              await supabase.rpc("insert_exam_attempt", {
+                p_user_id: user.id,
+                p_exam_id: examId,
+                p_attempt_number: nextNumber,
+              })
+              setAttemptNumber(nextNumber)
+            } else {
+              setAttemptNumber(existing[0].attempt_number)
             }
-            setAttemptNumber(existing[0].attempt_number)
           } else {
             const { data: count } = await supabase.rpc("count_user_exam_attempts", {
               p_user_id: user.id,
@@ -556,7 +566,7 @@ export default function ExamDetailPage() {
                     </div>
                     <div className="text-right">
                       <span className="font-bold text-primary">{stats.correct}/{stats.total}</span>
-                      <div className="w-32 h-2 bg-surface-container rounded-full mt-1">
+                      <div className="w-24 sm:w-32 h-2 bg-surface-container rounded-full mt-1">
                         <div
                           className={`h-full rounded-full transition-all ${percent >= 80 ? "bg-green-500" : percent >= 50 ? "bg-amber-500" : "bg-red-500"}`}
                           style={{ width: `${percent}%` }}
@@ -725,7 +735,7 @@ export default function ExamDetailPage() {
                       key={code}
                       type="button"
                       className={`w-full text-left px-4 py-2 text-body-md hover:bg-surface-container-high transition-colors ${selectedLang === code ? "font-bold text-primary" : "text-on-surface"}`}
-                      onClick={() => { setSelectedLang(code); setShowLangMenu(false) }}
+                      onClick={async () => { setSelectedLang(code); setShowLangMenu(false); const { data: { user } } = await supabase.auth.getUser(); if (user) await supabase.from("profiles").update({ language: code }).eq("id", user.id) }}
                     >
                       {label}
                     </button>

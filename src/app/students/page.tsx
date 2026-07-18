@@ -142,6 +142,49 @@ export default function StudentsPage() {
     },
   })
 
+  const thirtyDaysAgo = new Date(Date.now() - 30 * 86400000).toISOString()
+
+  const { data: newStudents } = useQuery({
+    queryKey: ["new-students"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("profiles")
+        .select("id")
+        .eq("role", "student")
+        .gte("created_at", thirtyDaysAgo)
+      if (error) throw error
+      return data
+    },
+  })
+
+  const { data: subscriptions } = useQuery({
+    queryKey: ["all-subscriptions"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("user_subscriptions")
+        .select("id, start_date, end_date, is_active")
+        .order("start_date", { ascending: false })
+      if (error) throw error
+      return data as { id: string; start_date: string; end_date: string; is_active: boolean }[]
+    },
+  })
+
+  const newSubscriptions = subscriptions?.filter((s) => new Date(s.start_date) >= new Date(thirtyDaysAgo)).length ?? 0
+  const expiredSubscriptions = subscriptions?.filter((s) => !s.is_active || new Date(s.end_date) < new Date()).length ?? 0
+
+  const mostActiveStudent = useMemo(() => {
+    const counts: Record<string, { id: string; name: string; count: number }> = {}
+    for (const a of allExamAttempts) {
+      if (!counts[a.user_id]) counts[a.user_id] = { id: a.user_id, name: "", count: 0 }
+      counts[a.user_id].count++
+    }
+    const sorted = Object.values(counts).sort((a, b) => b.count - a.count)
+    if (sorted.length === 0) return null
+    const student = students.find((s) => s.id === sorted[0].id)
+    if (student) sorted[0].name = student.name || student.email
+    return sorted[0]
+  }, [allExamAttempts, students])
+
   const studentsWithProgress: StudentWithProgress[] = useMemo(() => {
     if (totalExams === 0) return students.map((s) => ({ ...s, progress: 0 }))
     const passedExams: Record<string, Set<string>> = {}
@@ -242,45 +285,70 @@ export default function StudentsPage() {
         </div>
       </div>
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-6">
         <div className="bg-surface-container-lowest p-6 rounded-2xl shadow-[0px_4px_20px_rgba(26,60,110,0.05)] border border-surface-container">
-          <div className="flex items-center justify-between mb-4">
-            <div className="p-2 bg-primary/10 text-primary rounded-lg">
-              <Users size={20} />
-            </div>
+          <div className="p-2 bg-primary/10 text-primary rounded-lg inline-flex mb-4">
+            <Users size={20} />
           </div>
           <p className="text-label-md text-on-surface-variant">Total Students</p>
           <h3 className="text-headline-md text-primary mt-1">{totalStudents}</h3>
         </div>
-
         <div className="bg-surface-container-lowest p-6 rounded-2xl shadow-[0px_4px_20px_rgba(26,60,110,0.05)] border border-surface-container">
-          <div className="flex items-center justify-between mb-4">
-            <div className="p-2 bg-secondary-container/10 text-secondary rounded-lg">
-              <FileText size={20} />
-            </div>
+          <div className="p-2 bg-secondary-container/10 text-secondary rounded-lg inline-flex mb-4">
+            <FileText size={20} />
           </div>
           <p className="text-label-md text-on-surface-variant">Exam Attempts</p>
           <h3 className="text-headline-md text-primary mt-1">{totalAttempts}</h3>
         </div>
-
         <div className="bg-surface-container-lowest p-6 rounded-2xl shadow-[0px_4px_20px_rgba(26,60,110,0.05)] border border-surface-container">
-          <div className="flex items-center justify-between mb-4">
-            <div className="p-2 bg-green-100 text-green-700 rounded-lg">
-              <BadgeCheck size={20} />
-            </div>
+          <div className="p-2 bg-green-100 text-green-700 rounded-lg inline-flex mb-4">
+            <BadgeCheck size={20} />
           </div>
           <p className="text-label-md text-on-surface-variant">Geslaagd</p>
           <h3 className="text-headline-md text-primary mt-1">{totalPassed}</h3>
         </div>
-
         <div className="bg-surface-container-lowest p-6 rounded-2xl shadow-[0px_4px_20px_rgba(26,60,110,0.05)] border border-surface-container">
-          <div className="flex items-center justify-between mb-4">
-            <div className="p-2 bg-error-container/20 text-error rounded-lg">
-              <TrendingUp size={20} />
-            </div>
+          <div className="p-2 bg-error-container/20 text-error rounded-lg inline-flex mb-4">
+            <TrendingUp size={20} />
           </div>
           <p className="text-label-md text-on-surface-variant">Avg Progress</p>
           <h3 className="text-headline-md text-primary mt-1">{avgProgress}%</h3>
+        </div>
+      </div>
+
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-8">
+        <div className="bg-surface-container-lowest p-6 rounded-2xl shadow-[0px_4px_20px_rgba(26,60,110,0.05)] border border-surface-container">
+          <div className="p-2 bg-cyan-100 text-cyan-700 rounded-lg inline-flex mb-4">
+            <Users size={20} />
+          </div>
+          <p className="text-label-md text-on-surface-variant">Nieuwe studenten (30d)</p>
+          <h3 className="text-headline-md text-primary mt-1">{newStudents?.length ?? 0}</h3>
+        </div>
+        <div className="bg-surface-container-lowest p-6 rounded-2xl shadow-[0px_4px_20px_rgba(26,60,110,0.05)] border border-surface-container">
+          <div className="p-2 bg-blue-100 text-blue-700 rounded-lg inline-flex mb-4">
+            <BadgeCheck size={20} />
+          </div>
+          <p className="text-label-md text-on-surface-variant">Nieuwe abonnementen (30d)</p>
+          <h3 className="text-headline-md text-primary mt-1">{newSubscriptions}</h3>
+        </div>
+        <div className="bg-surface-container-lowest p-6 rounded-2xl shadow-[0px_4px_20px_rgba(26,60,110,0.05)] border border-surface-container">
+          <div className="p-2 bg-red-100 text-red-700 rounded-lg inline-flex mb-4">
+            <TrendingUp size={20} className="rotate-180" />
+          </div>
+          <p className="text-label-md text-on-surface-variant">Verlopen abonnementen</p>
+          <h3 className="text-headline-md text-primary mt-1">{expiredSubscriptions}</h3>
+        </div>
+        <div className="bg-surface-container-lowest p-6 rounded-2xl shadow-[0px_4px_20px_rgba(26,60,110,0.05)] border border-surface-container">
+          <div className="p-2 bg-amber-100 text-amber-700 rounded-lg inline-flex mb-4">
+            <TrendingUp size={20} />
+          </div>
+          <p className="text-label-md text-on-surface-variant">Actiefste student</p>
+          <h3 className="text-headline-md text-primary mt-1">
+            {mostActiveStudent ? `${mostActiveStudent.count}` : "—"}
+          </h3>
+          <p className="text-label-xs text-on-surface-variant mt-1 truncate">
+            {mostActiveStudent ? mostActiveStudent.name : "Geen data"}
+          </p>
         </div>
       </div>
 

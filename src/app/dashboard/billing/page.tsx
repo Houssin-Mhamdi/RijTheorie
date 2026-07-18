@@ -330,7 +330,7 @@ export default function BillingPage() {
           </div>
         </div>
 
-        <div className="mt-8 flex items-center justify-between">
+        <div className="mt-8 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div>
             {verifyError && (
               <p className="text-label-sm text-error font-medium">{verifyError}</p>
@@ -342,10 +342,10 @@ export default function BillingPage() {
           <button
             onClick={handleSaveKeys}
             disabled={saving}
-            className="bg-primary text-white px-8 py-3 rounded-lg font-bold text-label-md hover:bg-primary-container transition-all shadow-md active:scale-95 disabled:opacity-50"
+            className="w-full sm:w-auto bg-primary text-white px-8 py-3 rounded-lg font-bold text-label-md hover:bg-primary-container transition-all shadow-md active:scale-95 disabled:opacity-50"
           >
             {saving ? (
-              <span className="flex items-center gap-2"><Loader2 size={16} className="animate-spin" />Verifying...</span>
+              <span className="flex items-center gap-2 justify-center"><Loader2 size={16} className="animate-spin" />Verifying...</span>
             ) : (
               "Save Settings"
             )}

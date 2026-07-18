@@ -104,24 +104,24 @@ export default function ResultsPage() {
               const questionCount = (examData.exam_questions as { count: number }[] | undefined)?.[0]?.count ?? 0
 
               return (
-                <div key={examData.id as string} className="px-6 py-4 flex items-center justify-between hover:bg-surface-container-low/50 transition-colors">
-                  <div className="flex items-center gap-4">
-                    <div className="p-2 rounded-xl bg-surface-container-low">
+                <div key={examData.id as string} className="px-4 sm:px-6 py-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 hover:bg-surface-container-low/50 transition-colors">
+                  <div className="flex items-center gap-4 min-w-0">
+                    <div className="p-2 rounded-xl bg-surface-container-low shrink-0">
                       <FileText size={18} className="text-primary" />
                     </div>
-                    <div>
-                      <p className="text-label-md text-primary font-medium">{examData.title as string}</p>
+                    <div className="min-w-0">
+                      <p className="text-label-md text-primary font-medium truncate">{examData.title as string}</p>
                       {courseData && (
-                        <p className="text-body-sm text-on-surface-variant">{courseData.title as string}</p>
+                        <p className="text-body-sm text-on-surface-variant truncate">{courseData.title as string}</p>
                       )}
                     </div>
                   </div>
-                  <div className="flex items-center gap-6">
-                    <div className="flex items-center gap-2 text-body-sm text-on-surface-variant">
+                  <div className="flex items-center gap-4 sm:gap-6 shrink-0">
+                    <div className="flex items-center gap-2 text-body-sm text-on-surface-variant whitespace-nowrap">
                       <Timer size={14} />
                       <span>{questionCount} questions</span>
                     </div>
-                    <span className="px-3 py-1 rounded-full text-label-sm bg-surface-container-low text-on-surface-variant">
+                    <span className="px-3 py-1 rounded-full text-label-sm bg-surface-container-low text-on-surface-variant whitespace-nowrap">
                       Not started
                     </span>
                   </div>

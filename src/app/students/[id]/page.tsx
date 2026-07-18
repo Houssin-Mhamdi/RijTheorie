@@ -86,6 +86,43 @@ export default function StudentDetailPage() {
     enabled: !!id,
   })
 
+  const { data: subscription, isLoading: subLoading } = useQuery({
+    queryKey: ["student-subscription", id],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("user_subscriptions")
+        .select("id, start_date, end_date, is_active, plan_id, subscription_plans(name)")
+        .eq("user_id", id)
+        .order("start_date", { ascending: false })
+        .limit(1)
+        .maybeSingle()
+      if (error) throw error
+      return data as {
+        id: string
+        start_date: string
+        end_date: string
+        is_active: boolean
+        plan_id: string
+        subscription_plans: { name: string } | null
+      } | null
+    },
+    enabled: !!id,
+  })
+
+  function getTimeLeft(endDate: string): string {
+    const now = Date.now()
+    const end = new Date(endDate).getTime()
+    const diffMs = end - now
+    if (diffMs <= 0) return "Expired"
+    const days = Math.floor(diffMs / 86400000)
+    const hours = Math.floor((diffMs % 86400000) / 3600000)
+    return `${days}d ${hours}h remaining`
+  }
+
+  function getDurationDays(startDate: string, endDate: string): number {
+    return Math.round((new Date(endDate).getTime() - new Date(startDate).getTime()) / 86400000)
+  }
+
   const { data: attempts = [], isLoading: attemptsLoading } = useQuery({
     queryKey: ["student-attempts", id],
     queryFn: async () => {
@@ -115,7 +152,15 @@ export default function StudentDetailPage() {
           return sum + pct
         }, 0) / total)
       : 0
-    return { total, passed, failed, avgScore, avgPct }
+    const MAX_EXAM_MS = 3 * 3600000
+    const totalMs = completed.reduce((sum, a) => {
+      if (!a.started_at || !a.completed_at) return sum
+      const diff = new Date(a.completed_at).getTime() - new Date(a.started_at).getTime()
+      return sum + Math.min(diff, MAX_EXAM_MS)
+    }, 0)
+    const avgHours = total > 0 ? Math.round((totalMs / total) / 3600000 * 10) / 10 : 0
+    const totalHours = Math.round(totalMs / 3600000 * 10) / 10
+    return { total, passed, failed, avgScore, avgPct, totalHours, avgHours }
   }, [attempts])
 
   const categoryStats = useMemo(() => {
@@ -144,7 +189,7 @@ export default function StudentDetailPage() {
     currentPage * ITEMS_PER_PAGE,
   )
 
-  const isLoading = studentLoading || attemptsLoading
+  const isLoading = studentLoading || attemptsLoading || subLoading
 
   if (isLoading) {
     return (
@@ -209,7 +254,7 @@ export default function StudentDetailPage() {
         </div>
       </div>
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4 mb-8">
         <div className="bg-surface-container-lowest p-6 rounded-2xl shadow-[0px_4px_20px_rgba(26,60,110,0.05)] border border-surface-container">
           <div className="flex items-center justify-between mb-4">
             <div className="p-2 bg-primary/10 text-primary rounded-lg">
@@ -249,6 +294,55 @@ export default function StudentDetailPage() {
           <p className="text-label-md text-on-surface-variant">Avg Score</p>
           <h3 className="text-headline-md text-primary mt-1">{stats.avgScore}/{stats.total > 0 ? attempts[0]?.total_questions ?? "—" : "—"} ({stats.avgPct}%)</h3>
         </div>
+
+        <div className="bg-surface-container-lowest p-6 rounded-2xl shadow-[0px_4px_20px_rgba(26,60,110,0.05)] border border-surface-container">
+          <div className="flex items-center justify-between mb-4">
+            <div className="p-2 bg-blue-100 text-blue-700 rounded-lg">
+              <Clock size={20} />
+            </div>
+          </div>
+          <p className="text-label-md text-on-surface-variant">Study Time</p>
+          <h3 className="text-headline-md text-primary mt-1">{stats.totalHours}h</h3>
+          <p className="text-label-xs text-on-surface-variant mt-1">{stats.avgHours}h avg per exam</p>
+        </div>
+      </div>
+
+      <div className="rounded-2xl border border-surface-container bg-surface-container-lowest p-6 mb-6 shadow-[0px_4px_20px_rgba(26,60,110,0.05)]">
+        <div className="flex items-center gap-2 mb-4">
+          <BadgeCheck size={20} className="text-primary" />
+          <h3 className="text-headline-sm text-primary">Subscription</h3>
+        </div>
+        {!subscription ? (
+          <div className="flex items-center gap-3 py-3">
+            <div className="size-10 rounded-xl bg-surface-container flex items-center justify-center">
+              <XCircle size={20} className="text-on-surface-variant" />
+            </div>
+            <p className="text-body-md text-on-surface-variant">No subscription yet</p>
+          </div>
+        ) : (
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+            <div>
+              <p className="text-label-xs text-on-surface-variant">Plan</p>
+              <p className="text-label-sm font-bold text-primary">{subscription.subscription_plans?.name ?? "—"}</p>
+            </div>
+            <div>
+              <p className="text-label-xs text-on-surface-variant">Started</p>
+              <p className="text-label-sm font-bold text-primary">{formatDate(subscription.start_date)}</p>
+            </div>
+            <div>
+              <p className="text-label-xs text-on-surface-variant">Duration</p>
+              <p className="text-label-sm font-bold text-primary">{getDurationDays(subscription.start_date, subscription.end_date)} days</p>
+            </div>
+            <div>
+              <p className="text-label-xs text-on-surface-variant">Status</p>
+              <p className={`text-label-sm font-bold ${subscription.is_active && new Date(subscription.end_date) > new Date() ? "text-emerald-600" : "text-red-600"}`}>
+                {subscription.is_active && new Date(subscription.end_date) > new Date()
+                  ? getTimeLeft(subscription.end_date)
+                  : "Expired"}
+              </p>
+            </div>
+          </div>
+        )}
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
