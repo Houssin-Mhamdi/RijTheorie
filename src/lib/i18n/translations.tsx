@@ -944,6 +944,11 @@ export function LanguageProvider({ children }: { children: React.ReactNode }) {
     return () => { cancelled = true }
   }, [])
 
+  useEffect(() => {
+    document.documentElement.dir = lang === "ar" ? "rtl" : "ltr"
+    document.documentElement.lang = lang
+  }, [lang])
+
   const setLang = async (code: LangCode) => {
     setLangState(code)
     const { data: { user } } = await supabase.auth.getUser()

@@ -22,7 +22,7 @@ export const viewport = {
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="nl" className={`${inter.variable} light scroll-smooth`} data-scroll-behavior="smooth" suppressHydrationWarning>
+    <html lang="nl" dir="ltr" className={`${inter.variable} light scroll-smooth`} data-scroll-behavior="smooth" suppressHydrationWarning>
 
       <body className="font-sans bg-background text-on-surface antialiased">
         <Providers>{children}</Providers>
