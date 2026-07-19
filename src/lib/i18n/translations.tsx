@@ -882,8 +882,8 @@ const translations: Record<LangCode, Record<string, string>> = {
 
 export function useTranslation() {
   const ctx = useContext(LanguageContext)
-  if (!ctx) return { t: (key: string, params?: Record<string, string | number>) => key, lang: "nl" as LangCode, setLang: (_: LangCode) => {} }
-  const { lang } = ctx
+  if (!ctx) return { t: (key: string, params?: Record<string, string | number>) => key, lang: "nl" as LangCode, setLang: (_: LangCode) => {}, availableLangs: ["nl"], langLabels: {} as Record<string, string> }
+  const { lang, availableLangs, langLabels } = ctx
 
   function t(key: string, params?: Record<string, string | number>): string {
     let text = translations[lang]?.[key] || translations.nl[key] || key
@@ -895,12 +895,19 @@ export function useTranslation() {
     return text
   }
 
-  return { t, lang: ctx.lang, setLang: ctx.setLang }
+  return { t, lang: ctx.lang, setLang: ctx.setLang, availableLangs: ctx.availableLangs, langLabels: ctx.langLabels }
+}
+
+const langLabels: Record<string, string> = {
+  nl: "Nederlands", en: "English", ar: "العربية", fr: "Français",
+  de: "Deutsch", tr: "Türkçe", pl: "Polski", es: "Español", it: "Italiano",
 }
 
 interface LanguageContextType {
   lang: LangCode
   setLang: (code: LangCode) => void
+  availableLangs: string[]
+  langLabels: Record<string, string>
 }
 
 const LanguageContext = createContext<LanguageContextType | null>(null)
@@ -908,20 +915,33 @@ const LanguageContext = createContext<LanguageContextType | null>(null)
 export function LanguageProvider({ children }: { children: React.ReactNode }) {
   const [lang, setLangState] = useState<LangCode>("nl")
   const [ready, setReady] = useState(false)
+  const [availableLangs, setAvailableLangs] = useState<string[]>(["nl"])
 
   useEffect(() => {
+    let cancelled = false
+    let loaded = 0
+    const checkReady = () => { if (++loaded >= 2 && !cancelled) setReady(true) }
+
     supabase.auth.getUser().then(({ data: { user } }) => {
+      if (cancelled) return
       if (user) {
         supabase.from("profiles").select("language").eq("id", user.id).single().then(({ data }) => {
-          if (data?.language && ["nl", "en", "ar"].includes(data.language)) {
+          if (!cancelled && data?.language && ["nl", "en", "ar"].includes(data.language)) {
             setLangState(data.language as LangCode)
           }
-          setReady(true)
+          checkReady()
         })
       } else {
-        setReady(true)
+        checkReady()
       }
     })
+
+    supabase.from("site_settings").select("languages").eq("id", 1).single().then(({ data }) => {
+      if (!cancelled && data?.languages) setAvailableLangs(data.languages as string[])
+      checkReady()
+    })
+
+    return () => { cancelled = true }
   }, [])
 
   const setLang = async (code: LangCode) => {
@@ -933,7 +953,7 @@ export function LanguageProvider({ children }: { children: React.ReactNode }) {
   }
 
   return (
-    <LanguageContext.Provider value={{ lang, setLang }}>
+    <LanguageContext.Provider value={{ lang, setLang, availableLangs, langLabels }}>
       {ready ? children : null}
     </LanguageContext.Provider>
   )

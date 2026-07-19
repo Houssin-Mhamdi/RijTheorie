@@ -8,6 +8,8 @@ import { Button } from "@/components/ui/button"
 import DataTable from "@/components/ui/data-table"
 import type { Column } from "@/components/ui/data-table"
 import { supabase } from "@/lib/supabase"
+import { useTranslation } from "@/lib/i18n/translations"
+import { LanguageSwitcher } from "@/components/language-switcher"
 import type { Profile } from "@/types/database"
 
 const ITEMS_PER_PAGE = 5
@@ -103,6 +105,7 @@ function timeAgo(dateStr: string | null): string {
 }
 
 export default function StudentsPage() {
+  const { t } = useTranslation()
   const router = useRouter()
   const [currentPage, setCurrentPage] = useState(1)
 
@@ -256,7 +259,7 @@ export default function StudentsPage() {
       render: (value) => timeAgo(value as string | null),
     },
     {
-      header: "Examens",
+      header: t("students.exams"),
       accessor: "id",
       className: "text-body-md text-on-surface-variant",
       render: (value) => {
@@ -264,7 +267,7 @@ export default function StudentsPage() {
         if (!s) return <span className="text-label-sm text-outline-variant">—</span>
         return (
           <span className={`text-label-sm font-bold ${s.passed > 0 ? "text-green-700" : "text-on-surface-variant"}`}>
-            {s.passed}/{s.total} geslaagd
+            {t("students.passedCount", { passed: s.passed, total: s.total })}
           </span>
         )
       },
@@ -283,6 +286,7 @@ export default function StudentsPage() {
           <h2 className="text-headline-lg text-primary">Student Overview</h2>
           <p className="text-body-md text-on-surface-variant mt-1">Manage all enrolled students and their progress.</p>
         </div>
+        <LanguageSwitcher />
       </div>
 
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-6">
@@ -304,7 +308,7 @@ export default function StudentsPage() {
           <div className="p-2 bg-green-100 text-green-700 rounded-lg inline-flex mb-4">
             <BadgeCheck size={20} />
           </div>
-          <p className="text-label-md text-on-surface-variant">Geslaagd</p>
+          <p className="text-label-md text-on-surface-variant">{t("students.passed")}</p>
           <h3 className="text-headline-md text-primary mt-1">{totalPassed}</h3>
         </div>
         <div className="bg-surface-container-lowest p-6 rounded-2xl shadow-[0px_4px_20px_rgba(26,60,110,0.05)] border border-surface-container">
@@ -321,33 +325,33 @@ export default function StudentsPage() {
           <div className="p-2 bg-cyan-100 text-cyan-700 rounded-lg inline-flex mb-4">
             <Users size={20} />
           </div>
-          <p className="text-label-md text-on-surface-variant">Nieuwe studenten (30d)</p>
+          <p className="text-label-md text-on-surface-variant">{t("students.new30d")}</p>
           <h3 className="text-headline-md text-primary mt-1">{newStudents?.length ?? 0}</h3>
         </div>
         <div className="bg-surface-container-lowest p-6 rounded-2xl shadow-[0px_4px_20px_rgba(26,60,110,0.05)] border border-surface-container">
           <div className="p-2 bg-blue-100 text-blue-700 rounded-lg inline-flex mb-4">
             <BadgeCheck size={20} />
           </div>
-          <p className="text-label-md text-on-surface-variant">Nieuwe abonnementen (30d)</p>
+          <p className="text-label-md text-on-surface-variant">{t("students.newSubs30d")}</p>
           <h3 className="text-headline-md text-primary mt-1">{newSubscriptions}</h3>
         </div>
         <div className="bg-surface-container-lowest p-6 rounded-2xl shadow-[0px_4px_20px_rgba(26,60,110,0.05)] border border-surface-container">
           <div className="p-2 bg-red-100 text-red-700 rounded-lg inline-flex mb-4">
             <TrendingUp size={20} className="rotate-180" />
           </div>
-          <p className="text-label-md text-on-surface-variant">Verlopen abonnementen</p>
+          <p className="text-label-md text-on-surface-variant">{t("students.expiredSubs")}</p>
           <h3 className="text-headline-md text-primary mt-1">{expiredSubscriptions}</h3>
         </div>
         <div className="bg-surface-container-lowest p-6 rounded-2xl shadow-[0px_4px_20px_rgba(26,60,110,0.05)] border border-surface-container">
           <div className="p-2 bg-amber-100 text-amber-700 rounded-lg inline-flex mb-4">
             <TrendingUp size={20} />
           </div>
-          <p className="text-label-md text-on-surface-variant">Actiefste student</p>
+          <p className="text-label-md text-on-surface-variant">{t("students.mostActive")}</p>
           <h3 className="text-headline-md text-primary mt-1">
             {mostActiveStudent ? `${mostActiveStudent.count}` : "—"}
           </h3>
           <p className="text-label-xs text-on-surface-variant mt-1 truncate">
-            {mostActiveStudent ? mostActiveStudent.name : "Geen data"}
+            {mostActiveStudent ? mostActiveStudent.name : t("students.noData")}
           </p>
         </div>
       </div>

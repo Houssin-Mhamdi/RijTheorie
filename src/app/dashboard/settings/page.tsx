@@ -5,9 +5,11 @@ import { useRouter } from "next/navigation"
 import { useSession, useProfile } from "@/hooks/use-auth"
 import { supabase } from "@/lib/supabase"
 import { Button } from "@/components/ui/button"
+import { useTranslation } from "@/lib/i18n/translations"
 import { Loader2, User, Key, Globe, Camera, Save, CheckCircle2, AlertCircle, Plus, X, Languages } from "lucide-react"
 
 export default function SettingsPage() {
+  const { t } = useTranslation()
   const { data: session, isLoading: sessionLoading } = useSession()
   const { data: profile, refetch: refetchProfile } = useProfile()
   const router = useRouter()
@@ -233,8 +235,8 @@ export default function SettingsPage() {
 
   return (
     <div className="px-4 md:px-6 py-8 max-w-3xl mx-auto">
-      <h1 className="text-headline-lg text-primary mb-2">Instellingen</h1>
-      <p className="text-body-md text-on-surface-variant mb-8">Beheer je profiel en site-instellingen</p>
+      <h1 className="text-headline-lg text-primary mb-2">{t("settings.title")}</h1>
+      <p className="text-body-md text-on-surface-variant mb-8">{t("settings.subtitle")}</p>
 
       {/* Profile Section */}
       <div className="bg-surface rounded-2xl border border-outline-variant/20 p-6 mb-6">
@@ -243,8 +245,8 @@ export default function SettingsPage() {
             <User size={22} className="text-primary" />
           </div>
           <div>
-            <h2 className="text-headline-md font-bold text-primary">Profiel</h2>
-            <p className="text-label-sm text-on-surface-variant">Je persoonlijke gegevens</p>
+            <h2 className="text-headline-md font-bold text-primary">{t("settings.profile")}</h2>
+            <p className="text-label-sm text-on-surface-variant">{t("settings.profileDesc")}</p>
           </div>
         </div>
 
@@ -270,13 +272,13 @@ export default function SettingsPage() {
 
         <div className="space-y-4 mb-6">
           <div>
-            <label className="block text-label-sm font-bold text-primary mb-1.5">Naam</label>
+            <label className="block text-label-sm font-bold text-primary mb-1.5">{t("settings.name")}</label>
             <input
               type="text"
               value={name}
               onChange={(e) => setName(e.target.value)}
               className="w-full px-4 py-2.5 rounded-xl border border-outline-variant/50 bg-surface text-body-md text-on-surface focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all"
-              placeholder="Je naam"
+              placeholder={t("settings.namePlaceholder")}
             />
           </div>
         </div>
@@ -295,7 +297,7 @@ export default function SettingsPage() {
         )}
 
         <Button onClick={saveProfile} disabled={savingProfile} className="w-full sm:w-auto">
-          {savingProfile ? "Bezig..." : "Profiel opslaan"}
+          {savingProfile ? t("common.loading") : t("settings.saveProfile")}
           <Save size={16} />
         </Button>
       </div>
@@ -307,13 +309,13 @@ export default function SettingsPage() {
             <Languages size={22} className="text-primary" />
           </div>
           <div>
-            <h2 className="text-headline-md font-bold text-primary">Taal</h2>
-            <p className="text-label-sm text-on-surface-variant">Kies je leertaal</p>
+            <h2 className="text-headline-md font-bold text-primary">{t("settings.language")}</h2>
+            <p className="text-label-sm text-on-surface-variant">{t("settings.languageDesc")}</p>
           </div>
         </div>
         <div className="space-y-4 mb-6">
           <div>
-            <label className="block text-label-sm font-bold text-primary mb-1.5">Leertaal</label>
+            <label className="block text-label-sm font-bold text-primary mb-1.5">{t("settings.studyLang")}</label>
             <select
               value={studentLang}
               onChange={(e) => setStudentLang(e.target.value)}
@@ -332,7 +334,7 @@ export default function SettingsPage() {
           </div>
         )}
         <Button onClick={saveStudentLang} disabled={savingStudentLang} className="w-full sm:w-auto">
-          {savingStudentLang ? "Bezig..." : "Taal opslaan"}
+          {savingStudentLang ? t("common.loading") : t("settings.saveLang")}
           <Save size={16} />
         </Button>
       </div>
@@ -344,30 +346,30 @@ export default function SettingsPage() {
             <Key size={22} className="text-primary" />
           </div>
           <div>
-            <h2 className="text-headline-md font-bold text-primary">Wachtwoord</h2>
-            <p className="text-label-sm text-on-surface-variant">Wijzig je wachtwoord</p>
+            <h2 className="text-headline-md font-bold text-primary">{t("settings.password")}</h2>
+            <p className="text-label-sm text-on-surface-variant">{t("settings.passwordDesc")}</p>
           </div>
         </div>
 
         <div className="space-y-4 mb-6">
           <div>
-            <label className="block text-label-sm font-bold text-primary mb-1.5">Huidig wachtwoord</label>
+            <label className="block text-label-sm font-bold text-primary mb-1.5">{t("settings.currentPassword")}</label>
             <input
               type="password"
               value={currentPassword}
               onChange={(e) => setCurrentPassword(e.target.value)}
               className="w-full px-4 py-2.5 rounded-xl border border-outline-variant/50 bg-surface text-body-md text-on-surface focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all"
-              placeholder="Vul huidig wachtwoord in"
+              placeholder={t("settings.currentPasswordPlaceholder")}
             />
           </div>
           <div>
-            <label className="block text-label-sm font-bold text-primary mb-1.5">Nieuw wachtwoord</label>
+            <label className="block text-label-sm font-bold text-primary mb-1.5">{t("settings.newPassword")}</label>
             <input
               type="password"
               value={newPassword}
               onChange={(e) => setNewPassword(e.target.value)}
               className="w-full px-4 py-2.5 rounded-xl border border-outline-variant/50 bg-surface text-body-md text-on-surface focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all"
-              placeholder="Vul nieuw wachtwoord in"
+              placeholder={t("settings.newPasswordPlaceholder")}
             />
           </div>
         </div>
@@ -386,7 +388,7 @@ export default function SettingsPage() {
         )}
 
         <Button onClick={changePassword} disabled={changingPassword || !currentPassword || !newPassword} className="w-full sm:w-auto">
-          {changingPassword ? "Bezig..." : "Wachtwoord wijzigen"}
+          {changingPassword ? t("common.loading") : t("settings.changePassword")}
           <Key size={16} />
         </Button>
       </div>
@@ -398,14 +400,14 @@ export default function SettingsPage() {
             <Globe size={22} className="text-primary" />
           </div>
           <div>
-            <h2 className="text-headline-md font-bold text-primary">Site Instellingen</h2>
-            <p className="text-label-sm text-on-surface-variant">Wijzig de naam van je platform</p>
+            <h2 className="text-headline-md font-bold text-primary">{t("settings.siteSettings")}</h2>
+            <p className="text-label-sm text-on-surface-variant">{t("settings.subtitle")}</p>
           </div>
         </div>
 
         <div className="space-y-4 mb-6">
           <div>
-            <label className="block text-label-sm font-bold text-primary mb-1.5">Site naam</label>
+            <label className="block text-label-sm font-bold text-primary mb-1.5">{t("settings.siteName")}</label>
             <input
               type="text"
               value={siteName}
@@ -424,7 +426,7 @@ export default function SettingsPage() {
         )}
 
         <Button onClick={saveSiteName} disabled={savingSite || !siteName} className="w-full sm:w-auto">
-          {savingSite ? "Bezig..." : "Site naam opslaan"}
+          {savingSite ? t("common.loading") : t("settings.saveSiteName")}
           <Save size={16} />
         </Button>
       </div>
@@ -436,8 +438,8 @@ export default function SettingsPage() {
               <Globe size={22} className="text-primary" />
             </div>
             <div>
-              <h2 className="text-headline-md font-bold text-primary">Platform Talen</h2>
-              <p className="text-label-sm text-on-surface-variant">Beheer de beschikbare talen voor studenten</p>
+              <h2 className="text-headline-md font-bold text-primary">{t("settings.platformLangs")}</h2>
+              <p className="text-label-sm text-on-surface-variant">{t("settings.platformLangsDesc")}</p>
             </div>
           </div>
           <div className="flex flex-wrap gap-2 mb-4">
@@ -449,7 +451,7 @@ export default function SettingsPage() {
                     <X size={14} />
                   </button>
                 )}
-                {code === "nl" && <span className="text-[10px] text-outline">(standaard)</span>}
+                {code === "nl" && <span className="text-[10px] text-outline">{t("settings.default")}</span>}
               </div>
             ))}
           </div>
@@ -459,7 +461,7 @@ export default function SettingsPage() {
               onChange={(e) => setNewLang(e.target.value)}
               className="flex-1 px-4 py-2 rounded-xl border border-outline-variant/50 bg-surface text-body-md focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all"
             >
-              <option value="">Selecteer een taal</option>
+              <option value="">{t("settings.selectLang")}</option>
               {Object.entries(langOptions)
                 .filter(([code]) => !siteLanguages.includes(code))
                 .map(([code, label]) => (
@@ -473,7 +475,7 @@ export default function SettingsPage() {
               className="px-4 py-2 rounded-xl bg-primary text-on-primary font-bold text-label-sm hover:opacity-90 transition-all disabled:opacity-30 flex items-center gap-1"
             >
               <Plus size={16} />
-              Toevoegen
+              {t("settings.add")}
             </button>
           </div>
           {langMessage && (
@@ -482,13 +484,13 @@ export default function SettingsPage() {
               <span>{langMessage}</span>
               {langMessage.includes("bestaat niet") && (
                 <button type="button" onClick={runMigration} disabled={savingLangs} className="ml-auto text-label-sm font-bold text-primary hover:underline shrink-0">
-                  {savingLangs ? "Bezig..." : "Probeer aan te maken"}
+                  {savingLangs ? t("common.loading") : t("settings.tryCreate")}
                 </button>
               )}
             </div>
           )}
           <Button onClick={saveLanguages} disabled={savingLangs} className="w-full sm:w-auto">
-            {savingLangs ? "Bezig..." : "Talen opslaan"}
+            {savingLangs ? t("common.loading") : t("settings.saveLangs")}
             <Save size={16} />
           </Button>
         </div>

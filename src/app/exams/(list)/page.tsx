@@ -6,6 +6,7 @@ import { useSupabaseQuery } from "@/lib/supabase-queries"
 import { supabase } from "@/lib/supabase"
 import { useProfile } from "@/hooks/use-auth"
 import { useTranslation } from "@/lib/i18n/translations"
+import { LanguageSwitcher } from "@/components/language-switcher"
 import { Button } from "@/components/ui/button"
 import {
   Loader2,
@@ -33,8 +34,6 @@ export default function ExamsPage() {
   const [subLoading, setSubLoading] = useState(true)
   const [subscribing, setSubscribing] = useState<string | null>(null)
   const [statusMessage, setStatusMessage] = useState<{ type: "success" | "error"; text: string } | null>(null)
-  const [availableLangs, setAvailableLangs] = useState<string[]>(["nl"])
-  const [studentLang, setStudentLang] = useState("nl")
   const [dropdownOpen, setDropdownOpen] = useState(false)
   const [logoutOpen, setLogoutOpen] = useState(false)
   const dropdownRef = useRef<HTMLDivElement>(null)
@@ -58,21 +57,9 @@ export default function ExamsPage() {
     return () => document.removeEventListener("mousedown", handleClickOutside)
   }, [])
 
-  const langLabels: Record<string, string> = {
-    nl: "Nederlands", en: "English", ar: "العربية", fr: "Français",
-    de: "Deutsch", tr: "Türkçe", pl: "Polski", es: "Español", it: "Italiano",
-  }
-
   useEffect(() => {
-    supabase.from("site_settings").select("languages").eq("id", 1).single().then(({ data, error }) => {
-      if (error && error.code === "PGRST205") return
-      if (data) setAvailableLangs(data.languages as string[] || ["nl"])
-    })
     supabase.auth.getUser().then(({ data: { user } }) => {
       if (user) {
-        supabase.from("profiles").select("language").eq("id", user.id).single().then(({ data }) => {
-          if (data?.language) setStudentLang(data.language)
-        })
         supabase
           .from("user_subscriptions")
           .select("*")
@@ -204,14 +191,6 @@ export default function ExamsPage() {
 
   if (authorized === false) return null
 
-  const handleLangChange = async (code: string) => {
-    setStudentLang(code)
-    const { data: { user } } = await supabase.auth.getUser()
-    if (user) {
-      await supabase.from("profiles").update({ language: code }).eq("id", user.id)
-    }
-  }
-
   const handleSubscribe = async (planId: string) => {
     setSubscribing(planId)
     try {
@@ -311,21 +290,7 @@ export default function ExamsPage() {
     <div className="flex flex-col min-h-full bg-surface">
       <div className="px-4 sm:px-6 pt-6 pb-2">
         <div className="flex items-center justify-between gap-3 mb-4">
-          <div className="flex items-center gap-2 flex-wrap">
-            {availableLangs.map((code) => (
-              <button
-                key={code}
-                onClick={() => handleLangChange(code)}
-                className={`px-3 py-1.5 rounded-full text-label-sm font-bold transition-all active:scale-95 ${
-                  studentLang === code
-                    ? "bg-primary text-on-primary shadow-sm"
-                    : "bg-surface-container-high text-on-surface-variant hover:bg-surface-container"
-                }`}
-              >
-                {langLabels[code] || code.toUpperCase()}
-              </button>
-            ))}
-          </div>
+          <LanguageSwitcher />
           <div className="relative shrink-0" ref={dropdownRef}>
             <button
               onClick={() => setDropdownOpen(!dropdownOpen)}

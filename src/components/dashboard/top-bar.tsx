@@ -5,6 +5,8 @@ import { useRouter } from "next/navigation"
 import { useSession, useLogout } from "@/hooks/use-auth"
 import { supabase } from "@/lib/supabase"
 import { Search, Bell, HelpCircle, Settings, LogOut, User, FileText, BookOpen, GraduationCap, ClipboardList, Loader2, X } from "lucide-react"
+import { useTranslation } from "@/lib/i18n/translations"
+import { LanguageSwitcher } from "@/components/language-switcher"
 
 interface SearchResult {
   id: string
@@ -19,10 +21,12 @@ interface TopBarProps {
   searchPlaceholder?: string
 }
 
-export default function TopBar({ searchPlaceholder = "Zoeken in platform..." }: TopBarProps) {
+export default function TopBar({ searchPlaceholder }: TopBarProps) {
+  const { t } = useTranslation()
   const { data: session } = useSession()
   const logout = useLogout()
   const router = useRouter()
+  const placeholder = searchPlaceholder ?? t("topbar.search")
   const [dropdownOpen, setDropdownOpen] = useState(false)
   const [logoutOpen, setLogoutOpen] = useState(false)
   const dropdownRef = useRef<HTMLDivElement>(null)
@@ -171,7 +175,7 @@ export default function TopBar({ searchPlaceholder = "Zoeken in platform..." }: 
               <input
                 ref={inputRef}
                 className="bg-transparent border-none focus:ring-0 focus:outline-none text-body-md w-full placeholder:text-on-surface-variant"
-                placeholder={searchPlaceholder}
+                placeholder={placeholder}
                 type="text"
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
@@ -184,7 +188,7 @@ export default function TopBar({ searchPlaceholder = "Zoeken in platform..." }: 
               <div className="absolute top-12 left-0 right-0 bg-surface shadow-lg rounded-2xl border border-outline-variant/30 overflow-hidden z-50 max-h-96 overflow-y-auto">
                 {results.length === 0 && !searching && (
                   <div className="px-4 py-6 text-center text-label-sm text-on-surface-variant">
-                    Geen resultaten gevonden voor &ldquo;{search}&rdquo;
+                    {t("topbar.noResults")} &ldquo;{search}&rdquo;
                   </div>
                 )}
                 {results.length > 0 && (
@@ -219,8 +223,8 @@ export default function TopBar({ searchPlaceholder = "Zoeken in platform..." }: 
                   </div>
                 )}
                 <div className="border-t border-outline-variant/20 px-4 py-2 text-label-xs text-on-surface-variant flex items-center justify-between">
-                  <span>{results.length} resultaten</span>
-                  <span>ESC om te sluiten</span>
+                  <span>{t("topbar.resultsCount", { n: results.length })}</span>
+                  <span>{t("topbar.escToClose")}</span>
                 </div>
               </div>
             )}
@@ -255,14 +259,14 @@ export default function TopBar({ searchPlaceholder = "Zoeken in platform..." }: 
                     className="w-full flex items-center gap-3 px-4 py-3 text-label-md text-on-surface hover:bg-surface-container transition-colors"
                   >
                     <User size={18} className="text-on-surface-variant" />
-                    Profiel
+                    {t("topbar.profile")}
                   </button>
                   <button
                     onClick={() => { router.push("/dashboard/settings"); setDropdownOpen(false) }}
                     className="w-full flex items-center gap-3 px-4 py-3 text-label-md text-on-surface hover:bg-surface-container transition-colors"
                   >
                     <Settings size={18} className="text-on-surface-variant" />
-                    Instellingen
+                    {t("topbar.settings")}
                   </button>
                 </div>
                 <div className="border-t border-outline-variant/20 py-1">
@@ -271,12 +275,14 @@ export default function TopBar({ searchPlaceholder = "Zoeken in platform..." }: 
                     className="w-full flex items-center gap-3 px-4 py-3 text-label-md text-error hover:bg-red-50 transition-colors"
                   >
                     <LogOut size={18} />
-                    Uitloggen
+                    {t("topbar.logout")}
                   </button>
                 </div>
               </div>
             )}
           </div>
+
+          <LanguageSwitcher />
         </div>
       </div>
     </header>
@@ -287,15 +293,15 @@ export default function TopBar({ searchPlaceholder = "Zoeken in platform..." }: 
             <button onClick={() => setLogoutOpen(false)} className="absolute top-4 right-4 text-on-surface-variant hover:text-on-surface">
               <X size={20} />
             </button>
-            <h3 className="text-headline-md text-primary mb-2">Uitloggen</h3>
-            <p className="text-body-md text-on-surface-variant mb-6">Weet je zeker dat je wilt uitloggen?</p>
+            <h3 className="text-headline-md text-primary mb-2">{t("topbar.logout")}</h3>
+            <p className="text-body-md text-on-surface-variant mb-6">{t("topbar.logoutConfirm")}</p>
             <div className="flex gap-3 justify-end">
               <button onClick={() => setLogoutOpen(false)} className="px-5 py-2.5 rounded-xl border border-outline-variant text-label-md font-bold text-on-surface-variant hover:bg-surface-container transition-all">
-                Annuleren
+                {t("common.cancel")}
               </button>
               <button onClick={() => { logout.mutate() }} className="px-5 py-2.5 rounded-xl bg-error text-on-error text-label-md font-bold hover:opacity-90 transition-all flex items-center gap-2">
                 <LogOut size={16} />
-                Uitloggen
+                {t("topbar.logout")}
               </button>
             </div>
           </div>

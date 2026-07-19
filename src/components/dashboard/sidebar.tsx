@@ -7,6 +7,8 @@ import { LogOut, PanelLeftClose, PanelLeft, X, type LucideIcon } from "lucide-re
 import { supabase } from "@/lib/supabase"
 import { useRouter } from "next/navigation"
 import { useState } from "react"
+import { useTranslation } from "@/lib/i18n/translations"
+import { LanguageSwitcher } from "@/components/language-switcher"
 
 export interface NavItem {
   href: string
@@ -33,6 +35,7 @@ export default function Sidebar({
   collapsed = false,
   onToggleCollapse,
 }: SidebarProps) {
+  const { t } = useTranslation()
   const pathname = usePathname()
   const router = useRouter()
   const [logoutOpen, setLogoutOpen] = useState(false)
@@ -101,10 +104,10 @@ export default function Sidebar({
               collapsed ? "justify-center h-11 w-11 mx-auto" : "gap-3 px-4 py-3 mx-3",
               "text-on-surface-variant hover:bg-surface-container-low",
             )}
-            title={collapsed ? "Uitloggen" : undefined}
+            title={collapsed ? t("topbar.logout") : undefined}
           >
             <LogOut size={20} className="shrink-0" />
-            {!collapsed && <span className="text-label-md truncate">Uitloggen</span>}
+            {!collapsed && <span className="text-label-md truncate">{t("topbar.logout")}</span>}
           </button>
         )}
         {logoutOpen && (
@@ -114,21 +117,26 @@ export default function Sidebar({
               <button onClick={() => setLogoutOpen(false)} className="absolute top-4 right-4 text-on-surface-variant hover:text-on-surface">
                 <X size={20} />
               </button>
-              <h3 className="text-headline-md text-primary mb-2">Uitloggen</h3>
-              <p className="text-body-md text-on-surface-variant mb-6">Weet je zeker dat je wilt uitloggen?</p>
+              <h3 className="text-headline-md text-primary mb-2">{t("topbar.logout")}</h3>
+              <p className="text-body-md text-on-surface-variant mb-6">{t("topbar.logoutConfirm")}</p>
               <div className="flex gap-3 justify-end">
                 <button onClick={() => setLogoutOpen(false)} className="px-5 py-2.5 rounded-xl border border-outline-variant text-label-md font-bold text-on-surface-variant hover:bg-surface-container transition-all">
-                  Annuleren
+                  {t("common.cancel")}
                 </button>
                 <button
                   onClick={async () => { await supabase.auth.signOut(); router.push("/") }}
                   className="px-5 py-2.5 rounded-xl bg-error text-on-error text-label-md font-bold hover:opacity-90 transition-all flex items-center gap-2"
                 >
                   <LogOut size={16} />
-                  Uitloggen
+                  {t("topbar.logout")}
                 </button>
               </div>
             </div>
+          </div>
+        )}
+        {!collapsed && (
+          <div className="px-4 py-2 border-t border-outline-variant/30 mt-2">
+            <LanguageSwitcher />
           </div>
         )}
         {onToggleCollapse && (

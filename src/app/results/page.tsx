@@ -4,8 +4,11 @@ import { useSupabaseQuery } from "@/lib/supabase-queries"
 import { supabase } from "@/lib/supabase"
 import { Loader2, CheckCircle2, XCircle, BarChart3, FileText, Timer, Award } from "lucide-react"
 import { useSession } from "@/hooks/use-auth"
+import { useTranslation } from "@/lib/i18n/translations"
+import { LanguageSwitcher } from "@/components/language-switcher"
 
 export default function ResultsPage() {
+  const { t } = useTranslation()
   const { data: session } = useSession()
 
   const { data: exams, isLoading } = useSupabaseQuery(
@@ -36,9 +39,12 @@ export default function ResultsPage() {
 
   return (
     <div>
-      <div className="mb-10">
-        <h1 className="text-headline-lg text-primary mb-2">Exam Results</h1>
-        <p className="text-body-lg text-on-surface-variant">View your performance across all practice exams.</p>
+      <div className="mb-10 flex items-start justify-between">
+        <div>
+          <h1 className="text-headline-lg text-primary mb-2">{t("results.title")}</h1>
+          <p className="text-body-lg text-on-surface-variant">{t("results.subtitle")}</p>
+        </div>
+        <LanguageSwitcher />
       </div>
 
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-10">
@@ -49,7 +55,7 @@ export default function ResultsPage() {
             </div>
           </div>
           <p className="text-headline-lg text-primary font-bold">{totalExams}</p>
-          <p className="text-label-sm text-on-surface-variant">Total Exams</p>
+          <p className="text-label-sm text-on-surface-variant">{t("results.totalExams")}</p>
         </div>
 
         <div className="bg-surface-container-lowest p-5 rounded-2xl border border-outline-variant/20">
@@ -59,7 +65,7 @@ export default function ResultsPage() {
             </div>
           </div>
           <p className="text-headline-lg text-primary font-bold">{passed}</p>
-          <p className="text-label-sm text-on-surface-variant">Passed</p>
+          <p className="text-label-sm text-on-surface-variant">{t("results.passed")}</p>
         </div>
 
         <div className="bg-surface-container-lowest p-5 rounded-2xl border border-outline-variant/20">
@@ -69,7 +75,7 @@ export default function ResultsPage() {
             </div>
           </div>
           <p className="text-headline-lg text-primary font-bold">{failed}</p>
-          <p className="text-label-sm text-on-surface-variant">Failed</p>
+          <p className="text-label-sm text-on-surface-variant">{t("results.failed")}</p>
         </div>
 
         <div className="bg-surface-container-lowest p-5 rounded-2xl border border-outline-variant/20">
@@ -79,20 +85,20 @@ export default function ResultsPage() {
             </div>
           </div>
           <p className="text-headline-lg text-primary font-bold">{avgScore}%</p>
-          <p className="text-label-sm text-on-surface-variant">Avg Score</p>
+          <p className="text-label-sm text-on-surface-variant">{t("results.avgScore")}</p>
         </div>
       </div>
 
       <div className="bg-surface-container-lowest rounded-2xl border border-outline-variant/20 overflow-hidden">
         <div className="px-6 py-4 border-b border-outline-variant/20">
-          <h3 className="text-headline-sm text-primary">Exam History</h3>
+          <h3 className="text-headline-sm text-primary">{t("results.history")}</h3>
         </div>
 
         {(!exams || exams.length === 0) && (
           <div className="text-center py-16">
             <BarChart3 size={48} className="mx-auto text-outline-variant mb-4" />
-            <p className="text-body-md text-on-surface-variant">No exam results yet</p>
-            <p className="text-body-sm text-outline-variant mt-1">Complete an exam to see your results here.</p>
+            <p className="text-body-md text-on-surface-variant">{t("results.noResults")}</p>
+            <p className="text-body-sm text-outline-variant mt-1">{t("results.noResultsDesc")}</p>
           </div>
         )}
 
@@ -119,10 +125,10 @@ export default function ResultsPage() {
                   <div className="flex items-center gap-4 sm:gap-6 shrink-0">
                     <div className="flex items-center gap-2 text-body-sm text-on-surface-variant whitespace-nowrap">
                       <Timer size={14} />
-                      <span>{questionCount} questions</span>
+                      <span>{t("results.questions", { n: questionCount })}</span>
                     </div>
                     <span className="px-3 py-1 rounded-full text-label-sm bg-surface-container-low text-on-surface-variant whitespace-nowrap">
-                      Not started
+                      {t("results.notStarted")}
                     </span>
                   </div>
                 </div>

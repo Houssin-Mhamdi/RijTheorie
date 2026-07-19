@@ -3,6 +3,8 @@
 import { useProfile } from "@/hooks/use-auth"
 import { supabase } from "@/lib/supabase"
 import { useSupabaseQuery } from "@/lib/supabase-queries"
+import { useTranslation } from "@/lib/i18n/translations"
+import { LanguageSwitcher } from "@/components/language-switcher"
 import type { Course, Profile } from "@/types/database"
 import { BookOpen, Users, FileText, GraduationCap, BarChart3, CheckCircle, XCircle, AlertCircle, Clock, TrendingUp } from "lucide-react"
 import {
@@ -22,6 +24,7 @@ import { Bar, Doughnut, Line } from "react-chartjs-2"
 ChartJS.register(CategoryScale, LinearScale, BarElement, ArcElement, PointElement, LineElement, Tooltip, Legend, Filler)
 
 export default function DashboardPage() {
+  const { t } = useTranslation()
   const { data: profile } = useProfile()
 
   const { data: courses } = useSupabaseQuery<Course[]>(
@@ -89,12 +92,12 @@ export default function DashboardPage() {
   })()
 
   const stats = [
-    { label: "Totaal cursussen", value: totalCourses, icon: FileText, color: "text-blue-600 bg-blue-100" },
-    { label: "Actief", value: activeCourses, icon: BookOpen, color: "text-green-600 bg-green-100" },
-    { label: "Studenten", value: totalStudents, icon: Users, color: "text-purple-600 bg-purple-100" },
-    { label: "Actieve abonnementen", value: activeStudentCount, icon: GraduationCap, color: "text-emerald-600 bg-emerald-100" },
-    { label: "Examens", value: totalExams, icon: BarChart3, color: "text-orange-600 bg-orange-100" },
-    { label: "Gem. studietijd", value: `${avgStudyHours}h`, icon: Clock, color: "text-cyan-600 bg-cyan-100" },
+    { label: t("dash.totalCourses"), value: totalCourses, icon: FileText, color: "text-blue-600 bg-blue-100" },
+    { label: t("dash.active"), value: activeCourses, icon: BookOpen, color: "text-green-600 bg-green-100" },
+    { label: t("dash.students"), value: totalStudents, icon: Users, color: "text-purple-600 bg-purple-100" },
+    { label: t("dash.activeSubs"), value: activeStudentCount, icon: GraduationCap, color: "text-emerald-600 bg-emerald-100" },
+    { label: t("dash.exams"), value: totalExams, icon: BarChart3, color: "text-orange-600 bg-orange-100" },
+    { label: t("dash.avgStudy"), value: `${avgStudyHours}h`, icon: Clock, color: "text-cyan-600 bg-cyan-100" },
   ]
 
   const avgScore = (() => {
@@ -145,7 +148,7 @@ export default function DashboardPage() {
   const studentGrowthData = {
     labels: studentGrowth.map((d) => d.month),
     datasets: [{
-      label: "Totaal studenten",
+      label: t("dash.totalStudents"),
       data: studentGrowth.map((d) => d.count),
       borderColor: "#8b5cf6",
       backgroundColor: "rgba(139,92,246,0.1)",
@@ -183,7 +186,7 @@ export default function DashboardPage() {
   })()
 
   const passRateData = {
-    labels: ["Geslaagd", "Gezakt", "Bezig"],
+    labels: [t("dash.passed"), t("dash.failed"), t("dash.inProgress")],
     datasets: [{
       data: [passedAttempts, failedAttempts, pendingAttempts],
       backgroundColor: ["#22c55e", "#ef4444", "#f59e0b"],
@@ -195,7 +198,7 @@ export default function DashboardPage() {
   const categoryData = {
     labels: Object.keys(questionsByCategory),
     datasets: [{
-      label: "Vragen",
+      label: t("dash.questions"),
       data: Object.values(questionsByCategory),
       backgroundColor: ["#6366f1", "#06b6d4", "#f59e0b", "#ef4444", "#22c55e", "#ec4899", "#8b5cf6", "#14b8a6"],
       borderRadius: 6,
@@ -207,7 +210,7 @@ export default function DashboardPage() {
     labels: attemptsOverTime.map(([date]) => date),
     datasets: [
       {
-        label: "Totaal",
+        label: t("dash.total"),
         data: attemptsOverTime.map(([, d]) => d.total),
         borderColor: "#6366f1",
         backgroundColor: "rgba(99,102,241,0.1)",
@@ -231,8 +234,11 @@ export default function DashboardPage() {
 
   return (
     <div className="px-4 md:px-6 py-8">
-      <h1 className="text-headline-lg text-primary mb-2">Welkom, {profile?.name ?? "Admin"}</h1>
-      <p className="text-body-md text-on-surface-variant mb-8">Overzicht van je RijTheorie Pro platform</p>
+      <div className="flex items-center justify-between mb-2">
+        <h1 className="text-headline-lg text-primary">{t("dash.welcome")}, {profile?.name ?? "Admin"}</h1>
+        <LanguageSwitcher />
+      </div>
+      <p className="text-body-md text-on-surface-variant mb-8">{t("dash.subtitle")}</p>
 
       <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-4 mb-8">
         {stats.map((stat) => (
@@ -250,19 +256,19 @@ export default function DashboardPage() {
         <div className="rounded-xl border border-outline-variant/20 bg-surface p-6">
           <div className="flex items-center gap-2 mb-4">
             <BarChart3 size={20} className="text-primary" />
-            <h2 className="text-headline-sm text-primary">Examens over tijd</h2>
+            <h2 className="text-headline-sm text-primary">{t("dash.examsOverTime")}</h2>
           </div>
           {attemptsOverTime.length > 0 ? (
             <Line data={attemptsOverTimeData} options={{ responsive: true, plugins: { legend: { position: "bottom" } }, scales: { y: { beginAtZero: true, ticks: { stepSize: 1 } } } }} />
           ) : (
-            <p className="text-on-surface-variant text-body-md py-8 text-center">Nog geen examens afgelegd</p>
+            <p className="text-on-surface-variant text-body-md py-8 text-center">{t("dash.noExams")}</p>
           )}
         </div>
 
         <div className="rounded-xl border border-outline-variant/20 bg-surface p-6">
           <div className="flex items-center gap-2 mb-6">
             <CheckCircle size={20} className="text-green-600" />
-            <h2 className="text-headline-sm text-primary">Slagingspercentage</h2>
+            <h2 className="text-headline-sm text-primary">{t("dash.passRate")}</h2>
           </div>
           {totalAttemptCount > 0 ? (
             <div className="flex flex-col sm:flex-row items-center gap-6">
@@ -271,15 +277,15 @@ export default function DashboardPage() {
               </div>
               <div className="flex-1 space-y-3">
                 <div className="flex items-center justify-between">
-                  <span className="flex items-center gap-2 text-body-md"><span className="size-3 rounded-full bg-green-500" /> Geslaagd</span>
+                  <span className="flex items-center gap-2 text-body-md"><span className="size-3 rounded-full bg-green-500" /> {t("dash.passed")}</span>
                   <span className="font-bold text-green-600">{passedAttempts}</span>
                 </div>
                 <div className="flex items-center justify-between">
-                  <span className="flex items-center gap-2 text-body-md"><span className="size-3 rounded-full bg-red-500" /> Gezakt</span>
+                  <span className="flex items-center gap-2 text-body-md"><span className="size-3 rounded-full bg-red-500" /> {t("dash.failed")}</span>
                   <span className="font-bold text-red-600">{failedAttempts}</span>
                 </div>
                 <div className="flex items-center justify-between">
-                  <span className="flex items-center gap-2 text-body-md"><span className="size-3 rounded-full bg-amber-500" /> Bezig</span>
+                  <span className="flex items-center gap-2 text-body-md"><span className="size-3 rounded-full bg-amber-500" /> {t("dash.inProgress")}</span>
                   <span className="font-bold text-amber-600">{pendingAttempts}</span>
                 </div>
                 <div className="pt-2 border-t border-outline-variant/30">
@@ -301,8 +307,8 @@ export default function DashboardPage() {
               <TrendingUp size={20} className="text-purple-600" />
             </div>
             <div>
-              <h2 className="text-headline-sm text-primary">Studentengroei</h2>
-              <p className="text-label-xs text-on-surface-variant">Cumulatief over tijd</p>
+              <h2 className="text-headline-sm text-primary">{t("dash.studentGrowth")}</h2>
+              <p className="text-label-xs text-on-surface-variant">{t("dash.cumulative")}</p>
             </div>
           </div>
           {studentGrowth.length > 0 ? (
@@ -312,7 +318,7 @@ export default function DashboardPage() {
           ) : (
             <div className="flex flex-col items-center justify-center h-64 text-on-surface-variant">
               <TrendingUp size={40} className="opacity-30 mb-3" />
-              <p className="text-body-md">Nog geen studenten</p>
+              <p className="text-body-md">{t("dash.noStudents")}</p>
             </div>
           )}
         </div>
@@ -323,8 +329,8 @@ export default function DashboardPage() {
               <BarChart3 size={20} className="text-indigo-600" />
             </div>
             <div>
-              <h2 className="text-headline-sm text-primary">Vragen per categorie</h2>
-              <p className="text-label-xs text-on-surface-variant">{Object.keys(questionsByCategory).length} categorie&euml;n</p>
+              <h2 className="text-headline-sm text-primary">{t("dash.questionsPerCategory")}</h2>
+              <p className="text-label-xs text-on-surface-variant">{Object.keys(questionsByCategory).length} {t("dash.categories")}</p>
             </div>
           </div>
           {Object.keys(questionsByCategory).length > 0 ? (
@@ -334,7 +340,7 @@ export default function DashboardPage() {
           ) : (
             <div className="flex flex-col items-center justify-center h-64 text-on-surface-variant">
               <BarChart3 size={40} className="opacity-30 mb-3" />
-              <p className="text-body-md">Nog geen vragen aangemaakt</p>
+              <p className="text-body-md">{t("dash.noQuestions")}</p>
             </div>
           )}
         </div>
@@ -343,7 +349,7 @@ export default function DashboardPage() {
       <div className="rounded-xl border border-outline-variant/20 bg-surface p-6">
         <div className="flex items-center gap-2 mb-4">
           <AlertCircle size={20} className="text-red-500" />
-          <h2 className="text-headline-sm text-primary">Meest foutieve categorie&euml;n</h2>
+          <h2 className="text-headline-sm text-primary">{t("dash.worstCategories")}</h2>
         </div>
         {topProblemCategories.length > 0 ? (
           <div className="space-y-3">
@@ -357,7 +363,7 @@ export default function DashboardPage() {
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center justify-between mb-1">
                       <span className="text-label-sm font-bold text-primary truncate">{cat.category}</span>
-                      <span className="text-label-sm text-red-600 font-bold shrink-0 ml-2">{pct}% fout</span>
+                      <span className="text-label-sm text-red-600 font-bold shrink-0 ml-2">{t("dash.percentWrong", { pct })}</span>
                     </div>
                     <div className="w-full h-2 bg-red-100 rounded-full overflow-hidden">
                       <div
@@ -366,7 +372,7 @@ export default function DashboardPage() {
                       />
                     </div>
                     <p className="text-label-xs text-on-surface-variant mt-0.5">
-                      {cat.incorrect} van {cat.total} vragen foutief beantwoord
+                      {cat.incorrect} {t("dash.wrongDesc")}
                     </p>
                   </div>
                 </div>
@@ -374,21 +380,21 @@ export default function DashboardPage() {
             })}
           </div>
         ) : (
-          <p className="text-on-surface-variant text-body-md py-4 text-center">Nog geen examenresultaten beschikbaar</p>
+          <p className="text-on-surface-variant text-body-md py-4 text-center">{t("dash.noResults")}</p>
         )}
       </div>
 
       <div className="rounded-xl border border-outline-variant/20 bg-surface p-6">
-        <h2 className="text-headline-sm text-primary mb-4">Snel acties</h2>
+        <h2 className="text-headline-sm text-primary mb-4">{t("dash.quickActions")}</h2>
         <div className="flex flex-wrap gap-3">
           <a href="/lessons" className="px-4 py-2 bg-primary text-on-primary rounded-lg text-body-md hover:opacity-90 transition-opacity">
-            Cursussen beheren
+            {t("dash.manageCourses")}
           </a>
           <a href="/questions" className="px-4 py-2 bg-primary-container text-on-primary-container rounded-lg text-body-md hover:opacity-90 transition-opacity">
-            Vragen beheren
+            {t("dash.manageQuestions")}
           </a>
           <a href="/students" className="px-4 py-2 bg-secondary-container text-on-secondary-container rounded-lg text-body-md hover:opacity-90 transition-opacity">
-            Studenten bekijken
+            {t("dash.viewStudents")}
           </a>
         </div>
       </div>

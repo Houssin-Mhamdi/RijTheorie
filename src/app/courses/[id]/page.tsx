@@ -4,6 +4,8 @@ import { useEffect, useState } from "react"
 import { useParams, useRouter } from "next/navigation"
 import { supabase } from "@/lib/supabase"
 import { Car, Motorbike, Bike, Truck, Ship, ChevronLeft, Loader2, FileText, ListOrdered, Timer, CheckCircle, XCircle, ArrowRight } from "lucide-react"
+import { useTranslation } from "@/lib/i18n/translations"
+import { LanguageSwitcher } from "@/components/language-switcher"
 
 const iconMap: Record<string, typeof Car> = { Car, Motorbike, Bike, Truck, Ship }
 
@@ -11,6 +13,7 @@ export default function CourseDetailPage() {
   const params = useParams()
   const router = useRouter()
   const courseId = params.id as string
+  const { t } = useTranslation()
 
   const [course, setCourse] = useState<Record<string, unknown> | null>(null)
   const [exams, setExams] = useState<Record<string, unknown>[]>([])
@@ -90,28 +93,31 @@ export default function CourseDetailPage() {
           className="flex items-center gap-1.5 text-label-sm text-on-surface-variant hover:text-primary transition-colors mb-5"
         >
           <ChevronLeft size={18} />
-          Terug naar examens
+          {t("course.back")}
         </button>
 
         {/* Course header */}
-        <div className="flex items-center gap-4 mb-8">
-          <div className="size-16 md:size-20 rounded-2xl bg-primary-container/20 flex items-center justify-center">
-            <Icon size={32} className="md:size-10 text-primary" />
+        <div className="flex items-center justify-between mb-8">
+          <div className="flex items-center gap-4">
+            <div className="size-16 md:size-20 rounded-2xl bg-primary-container/20 flex items-center justify-center">
+              <Icon size={32} className="md:size-10 text-primary" />
+            </div>
+            <div>
+              <h1 className="text-headline-lg md:text-display-sm font-bold text-primary">
+                {course.title as string}
+              </h1>
+              <p className="text-body-md text-on-surface-variant mt-0.5">
+                {t("course.examCount", { n: totalExams, completed: completedExams })}
+              </p>
+            </div>
           </div>
-          <div>
-            <h1 className="text-headline-lg md:text-display-sm font-bold text-primary">
-              {course.title as string}
-            </h1>
-            <p className="text-body-md text-on-surface-variant mt-0.5">
-              {totalExams} {totalExams === 1 ? "examen" : "examens"} — {completedExams} behaald
-            </p>
-          </div>
+          <LanguageSwitcher />
         </div>
 
         {/* Progress card */}
         <div className="bg-surface-container-lowest rounded-2xl border border-outline-variant/30 p-6 mb-8">
           <div className="flex items-center justify-between mb-3">
-            <h2 className="text-headline-sm font-bold text-primary">Voortgang</h2>
+            <h2 className="text-headline-sm font-bold text-primary">{t("course.progress")}</h2>
             <span className="text-headline-sm font-bold text-primary">{progressPct}%</span>
           </div>
           <div className="w-full h-3 bg-surface-container-high rounded-full overflow-hidden mb-5">
@@ -123,21 +129,21 @@ export default function CourseDetailPage() {
           <div className="grid grid-cols-3 gap-4">
             <div className="text-center">
               <p className="text-headline-md font-bold text-primary">{completedExams}</p>
-              <p className="text-label-sm text-on-surface-variant">Behaald</p>
+              <p className="text-label-sm text-on-surface-variant">{t("course.completed")}</p>
             </div>
             <div className="text-center">
               <p className="text-headline-md font-bold text-orange-500">{inProgress}</p>
-              <p className="text-label-sm text-on-surface-variant">Bezig</p>
+              <p className="text-label-sm text-on-surface-variant">{t("course.inProgress")}</p>
             </div>
             <div className="text-center">
               <p className="text-headline-md font-bold text-on-surface-variant">{totalExams - completedExams - inProgress}</p>
-              <p className="text-label-sm text-on-surface-variant">Niet gestart</p>
+              <p className="text-label-sm text-on-surface-variant">{t("course.notStarted")}</p>
             </div>
           </div>
         </div>
 
         {/* Exams list */}
-        <h2 className="text-headline-sm font-bold text-primary mb-4">Examens</h2>
+        <h2 className="text-headline-sm font-bold text-primary mb-4">{t("course.exams")}</h2>
         <div className="space-y-3">
           {exams.map((exam) => {
             const examId = exam.id as string
@@ -146,7 +152,7 @@ export default function CourseDetailPage() {
             const hasStarted = att && att.count > 0
             const passed = att?.passed === true
 
-            const statusLabel = passed ? "Geslaagd" : hasStarted ? "Bezig" : "Niet gestart"
+            const statusLabel = passed ? t("exams.passed") : hasStarted ? t("exams.inProgress") : t("exams.notStarted")
             const statusClass = passed
               ? "bg-green-100 text-green-700"
               : hasStarted
@@ -175,7 +181,7 @@ export default function CourseDetailPage() {
                     </span>
                     {hasStarted && (
                       <span className="text-label-xs text-on-surface-variant">
-                        Poging {att.count}
+                        {t("exams.attempt", { n: att.count })}
                       </span>
                     )}
                   </div>
@@ -185,7 +191,7 @@ export default function CourseDetailPage() {
                   <div className="flex items-center gap-4 mt-0.5">
                     <span className="text-label-xs text-on-surface-variant flex items-center gap-1">
                       <ListOrdered size={12} />
-                      {questionCount} vragen
+                      {t("exams.questions", { n: questionCount })}
                     </span>
                     <span className="text-label-xs text-on-surface-variant flex items-center gap-1">
                       <Timer size={12} />
