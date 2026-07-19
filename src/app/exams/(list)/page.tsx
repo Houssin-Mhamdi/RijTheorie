@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation"
 import { useSupabaseQuery } from "@/lib/supabase-queries"
 import { supabase } from "@/lib/supabase"
 import { useProfile } from "@/hooks/use-auth"
+import { useTranslation } from "@/lib/i18n/translations"
 import { Button } from "@/components/ui/button"
 import {
   Loader2,
@@ -24,6 +25,7 @@ import {
 export default function ExamsPage() {
   const router = useRouter()
   const { data: profile } = useProfile()
+  const { t } = useTranslation()
   const [authorized, setAuthorized] = useState<boolean | null>(null)
   const [attemptData, setAttemptData] = useState<Record<string, { count: number; passedCount: number; passed: boolean | null }>>({})
   const [subscription, setSubscription] = useState<{ plan: { name: string; features: string[] }; end_date: string } | null>(null)
@@ -239,7 +241,7 @@ export default function ExamsPage() {
     const hasStarted = att && att.count > 0
     const hasPassed = att?.passed === true
     const isComplete = att?.passed !== null
-    const statusLabel = hasPassed ? "Geslaagd" : hasStarted && isComplete ? "Gezakt" : hasStarted ? "Bezig" : "Not started"
+    const statusLabel = hasPassed ? t("exams.passed") : hasStarted && isComplete ? t("exams.failed") : hasStarted ? t("exams.inProgress") : t("exams.notStarted")
     const statusClass = hasPassed ? "bg-green-100 text-green-700" : hasStarted && isComplete ? "bg-red-100 text-red-700" : hasStarted ? "bg-primary-container/10 text-primary" : "bg-surface-container-low text-on-surface-variant"
 
     return (
@@ -256,12 +258,12 @@ export default function ExamsPage() {
                 </span>
                 {hasStarted && (
                   <span className="px-1.5 py-0.5 md:px-3 md:py-1 rounded-full text-[10px] md:text-sm font-bold bg-primary-container/10 text-primary">
-                    Poging {att!.count}
+                    {t("exams.attempt", { n: att!.count })}
                   </span>
                 )}
                 {hasStarted && (
                   <span className={`px-1.5 py-0.5 md:px-3 md:py-1 rounded-full text-[10px] md:text-sm font-bold ${(att?.passedCount ?? 0) > 0 ? "bg-green-100 text-green-700" : "bg-orange-100 text-orange-700"}`}>
-                    {att!.passedCount}/{att!.count} geslaagd
+                    {t("exams.passedCount", { passed: att!.passedCount, total: att!.count })}
                   </span>
                 )}
               </div>
@@ -269,7 +271,12 @@ export default function ExamsPage() {
                 {examData.title as string}
               </h3>
               {courseData && (
-                <p className="text-label-sm text-on-surface-variant mt-0.5">{courseData.title as string}</p>
+                <button
+                  onClick={(e) => { e.stopPropagation(); router.push(`/courses/${examData.course_id}`) }}
+                  className="text-label-sm text-on-surface-variant mt-0.5 hover:text-primary transition-colors text-left"
+                >
+                  {courseData.title as string}
+                </button>
               )}
             </div>
             <div className="size-10 md:size-12 rounded-xl bg-primary-container/10 flex items-center justify-center shrink-0">
@@ -280,7 +287,7 @@ export default function ExamsPage() {
           <div className="flex items-center gap-5 mb-5">
             <div className="flex items-center gap-1.5 text-label-sm text-on-surface-variant">
               <ListOrdered size={16} />
-              <span>{questionCount} vragen</span>
+              <span>{t("exams.questions", { n: questionCount })}</span>
             </div>
             <div className="flex items-center gap-1.5 text-label-sm text-on-surface-variant">
               <Timer size={16} />
@@ -400,7 +407,7 @@ export default function ExamsPage() {
                 {/* Free exams section */}
                 {freeExams.length > 0 && (
                   <>
-                    <h2 className="text-headline-sm font-bold text-primary">Gratis examens</h2>
+                    <h2 className="text-headline-sm font-bold text-primary">{t("exams.gratis")}</h2>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6">
                       {freeExams.map((exam) => renderExamCard(exam))}
                     </div>
@@ -411,7 +418,7 @@ export default function ExamsPage() {
                 {paidExams.length > 0 && (
                   <>
                     <h2 className="text-headline-sm font-bold text-primary">
-                      {showPaid ? "Alle examens" : "Premium examens"}
+                      {showPaid ? t("exams.all") : t("exams.premium")}
                     </h2>
                     {showPaid ? (
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6">
@@ -420,13 +427,13 @@ export default function ExamsPage() {
                     ) : (
                       <div className="bg-surface-container-lowest rounded-2xl border border-outline-variant/40 p-8 text-center">
                         <Lock size={36} className="text-outline-variant mx-auto mb-3" />
-                        <p className="text-body-lg text-primary font-semibold mb-1">Ontgrendel premium examens</p>
+                        <p className="text-body-lg text-primary font-semibold mb-1">{t("exams.unlockTitle")}</p>
                         <p className="text-body-md text-on-surface-variant mb-6 max-w-md mx-auto">
-                          Neem een abonnement om toegang te krijgen tot alle premium oefenexamens en je optimaal voor te bereiden.
+                          {t("exams.unlockDesc")}
                         </p>
                         {freeExams.length > 0 && (
                           <p className="text-label-sm text-on-surface-variant mb-6">
-                            Je kunt nog steeds de gratis examens hierboven maken.
+                            {t("exams.freeAvailable")}
                           </p>
                         )}
                         {plans.length > 0 && (
@@ -451,10 +458,10 @@ export default function ExamsPage() {
                                   {subscribing === plan.id ? (
                                     <span className="flex items-center justify-center gap-2">
                                       <Loader2 size={16} className="animate-spin" />
-                      Bezig...
+                                      {t("exams.loadingShort")}
                                     </span>
                                   ) : (
-                                    "Abonneer"
+                                    t("exams.subscribe")
                                   )}
                                 </button>
                               </div>
@@ -476,8 +483,8 @@ export default function ExamsPage() {
           <div className="size-20 rounded-full bg-surface-container-low flex items-center justify-center mb-5">
             <FileText size={36} className="text-outline-variant" />
           </div>
-          <p className="text-body-lg text-on-surface font-semibold mb-1">No exams available</p>
-          <p className="text-body-md text-on-surface-variant text-center">Check back later for new practice exams.</p>
+          <p className="text-body-lg text-on-surface font-semibold mb-1">{t("exams.noExams")}</p>
+          <p className="text-body-md text-on-surface-variant text-center">{t("exams.noExamsDesc")}</p>
         </div>
       )}
 
@@ -489,9 +496,9 @@ export default function ExamsPage() {
               <RotateCcw size={24} className="md:size-7" />
             </div>
             <div className="flex-1 min-w-0">
-              <h4 className="text-headline-md md:text-headline-lg font-bold mb-1">Wrongly answered questions?</h4>
+              <h4 className="text-headline-md md:text-headline-lg font-bold mb-1">{t("exams.reviewTitle")}</h4>
               <p className="text-body-md opacity-85 leading-relaxed">
-                Review the questions you previously answered incorrectly to strengthen your knowledge.
+                {t("exams.reviewDesc")}
               </p>
             </div>
           </div>
@@ -499,7 +506,7 @@ export default function ExamsPage() {
             onClick={() => router.push("/exams/review")}
             className="mt-4 md:mt-5 w-full bg-white/20 rounded-xl py-3 px-4 flex items-center justify-between text-label-md font-bold active:bg-white/30 transition-colors hover:bg-white/30"
           >
-            <span>Review Mistakes</span>
+            <span>{t("exams.reviewButton")}</span>
             <ChevronRight size={20} />
           </button>
         </div>
@@ -512,18 +519,18 @@ export default function ExamsPage() {
             <button onClick={() => setLogoutOpen(false)} className="absolute top-4 right-4 text-on-surface-variant hover:text-on-surface">
               <X size={20} />
             </button>
-            <h3 className="text-headline-md text-primary mb-2">Uitloggen</h3>
-            <p className="text-body-md text-on-surface-variant mb-6">Weet je zeker dat je wilt uitloggen?</p>
+            <h3 className="text-headline-md text-primary mb-2">{t("exams.logout")}</h3>
+            <p className="text-body-md text-on-surface-variant mb-6">{t("exams.logoutConfirm")}</p>
             <div className="flex gap-3 justify-end">
               <button onClick={() => setLogoutOpen(false)} className="px-5 py-2.5 rounded-xl border border-outline-variant text-label-md font-bold text-on-surface-variant hover:bg-surface-container transition-all">
-                Annuleren
+                {t("common.cancel")}
               </button>
               <button
                 onClick={async () => { await supabase.auth.signOut(); router.push("/") }}
                 className="px-5 py-2.5 rounded-xl bg-error text-on-error text-label-md font-bold hover:opacity-90 transition-all flex items-center gap-2"
               >
                 <LogOut size={16} />
-                Uitloggen
+                {t("exams.logout")}
               </button>
             </div>
           </div>

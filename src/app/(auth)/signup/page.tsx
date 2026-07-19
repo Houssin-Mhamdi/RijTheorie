@@ -11,8 +11,10 @@ import { Form, FormField, FormItem, FormLabel, FormControl, FormMessage } from "
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
 import { Mail, ArrowRight, HelpCircle, Shield, User, Lock, Eye, EyeOff, Loader2 } from "lucide-react"
+import { useTranslation } from "@/lib/i18n/translations"
 
 export default function SignupPage() {
+  const { t } = useTranslation()
   const router = useRouter()
   const [showPassword, setShowPassword] = useState(false)
   const [showConfirm, setShowConfirm] = useState(false)
@@ -43,8 +45,8 @@ export default function SignupPage() {
         <img src="/screen.png" alt="RijTheorie Pro" className="h-8 w-auto" />
         <span className="text-headline-md text-primary">RijTheorie Pro</span>
       </div>
-      <h1 className="text-headline-md text-primary mb-2">Account aanmaken</h1>
-      <p className="text-body-md text-on-surface-variant mb-8">Maak een account aan om te beginnen.</p>
+      <h1 className="text-headline-md text-primary mb-2">{t("auth.signupTitle")}</h1>
+      <p className="text-body-md text-on-surface-variant mb-8">{t("auth.signupSubtitle")}</p>
       <Form {...form}>
         <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
           <FormField
@@ -52,14 +54,14 @@ export default function SignupPage() {
             name="name"
             render={({ field }) => (
               <FormItem>
-                <FormLabel className="text-label-md text-on-surface-variant ml-1">Naam</FormLabel>
+                <FormLabel className="text-label-md text-on-surface-variant ml-1">{t("auth.nameLabel")}</FormLabel>
                 <FormControl>
                   <div className="relative group">
                     <div className="absolute inset-y-0 left-4 flex items-center pointer-events-none text-on-surface-variant group-focus-within:text-primary transition-colors">
                       <User size={20} />
                     </div>
                     <Input
-                      placeholder="Jouw naam"
+                      placeholder={t("auth.namePlaceholder")}
                       className="w-full h-[56px] pl-12 pr-4 bg-surface-container-low border-outline-variant rounded-xl text-body-md focus:ring-2 focus:ring-primary focus:border-primary placeholder:text-outline"
                       {...field}
                     />
@@ -74,14 +76,14 @@ export default function SignupPage() {
             name="email"
             render={({ field }) => (
               <FormItem>
-                <FormLabel className="text-label-md text-on-surface-variant ml-1">E-mailadres</FormLabel>
+                <FormLabel className="text-label-md text-on-surface-variant ml-1">{t("auth.emailLabel")}</FormLabel>
                 <FormControl>
                   <div className="relative group">
                     <div className="absolute inset-y-0 left-4 flex items-center pointer-events-none text-on-surface-variant group-focus-within:text-primary transition-colors">
                       <Mail size={20} />
                     </div>
                     <Input
-                      placeholder="je@voorbeeld.nl"
+                      placeholder={t("auth.emailPlaceholder")}
                       className="w-full h-[56px] pl-12 pr-4 bg-surface-container-low border-outline-variant rounded-xl text-body-md focus:ring-2 focus:ring-primary focus:border-primary placeholder:text-outline"
                       {...field}
                     />
@@ -96,7 +98,7 @@ export default function SignupPage() {
             name="password"
             render={({ field }) => (
               <FormItem>
-                <FormLabel className="text-label-md text-on-surface-variant ml-1">Wachtwoord</FormLabel>
+                <FormLabel className="text-label-md text-on-surface-variant ml-1">{t("auth.passwordLabel")}</FormLabel>
                 <FormControl>
                   <div className="relative group">
                     <div className="absolute inset-y-0 left-4 flex items-center pointer-events-none text-on-surface-variant group-focus-within:text-primary transition-colors">
@@ -104,7 +106,7 @@ export default function SignupPage() {
                     </div>
                     <Input
                       type={showPassword ? "text" : "password"}
-                      placeholder="Minimaal 8 tekens"
+                      placeholder={t("auth.minChars")}
                       className="w-full h-[56px] pl-12 pr-12 bg-surface-container-low border-outline-variant rounded-xl text-body-md focus:ring-2 focus:ring-primary focus:border-primary placeholder:text-outline"
                       {...field}
                     />
@@ -127,7 +129,7 @@ export default function SignupPage() {
             name="confirmPassword"
             render={({ field }) => (
               <FormItem>
-                <FormLabel className="text-label-md text-on-surface-variant ml-1">Bevestig wachtwoord</FormLabel>
+                <FormLabel className="text-label-md text-on-surface-variant ml-1">{t("auth.confirmPassword")}</FormLabel>
                 <FormControl>
                   <div className="relative group">
                     <div className="absolute inset-y-0 left-4 flex items-center pointer-events-none text-on-surface-variant group-focus-within:text-primary transition-colors">
@@ -135,7 +137,7 @@ export default function SignupPage() {
                     </div>
                     <Input
                       type={showConfirm ? "text" : "password"}
-                      placeholder="Herhaal je wachtwoord"
+                      placeholder={t("auth.confirmPasswordPlaceholder")}
                       className="w-full h-[56px] pl-12 pr-12 bg-surface-container-low border-outline-variant rounded-xl text-body-md focus:ring-2 focus:ring-primary focus:border-primary placeholder:text-outline"
                       {...field}
                     />
@@ -163,27 +165,27 @@ export default function SignupPage() {
             ) : (
               <ArrowRight size={20} className="transition-transform group-hover:translate-x-1" />
             )}
-            <span>{signupMutation.isPending ? "Bezig..." : "Registreer"}</span>
+            <span>{signupMutation.isPending ? t("common.loading") : t("auth.register")}</span>
           </Button>
         </form>
       </Form>
       <div className="mt-10 pt-8 border-t border-outline-variant/30 text-center">
-        <p className="text-label-md text-on-surface-variant mb-4">Heb je al een account?</p>
+        <p className="text-label-md text-on-surface-variant mb-4">{t("auth.hasAccount")}</p>
         <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
           <Link href="/login" className="text-label-md text-primary hover:underline flex items-center gap-1">
             <HelpCircle size={18} />
-            Log in
+            {t("auth.login")}
           </Link>
           <span className="hidden sm:block text-outline-variant">|</span>
             <Link href="/privacy" className="text-label-md text-primary hover:underline flex items-center gap-1">
               <Shield size={18} />
-              Privacy Policy
+              {t("common.privacy")}
             </Link>
         </div>
       </div>
       <div className="mt-8 flex items-center justify-center gap-4 opacity-40">
         <div className="h-px w-12 bg-outline-variant" />
-        <p className="text-label-sm text-on-surface-variant tracking-widest uppercase">Autoriteit in Verkeer</p>
+        <p className="text-label-sm text-on-surface-variant tracking-widest uppercase">{t("landing.authority")}</p>
         <div className="h-px w-12 bg-outline-variant" />
       </div>
     </div>

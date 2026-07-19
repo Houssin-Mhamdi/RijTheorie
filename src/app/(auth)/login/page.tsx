@@ -9,8 +9,10 @@ import { Form, FormField, FormItem, FormLabel, FormControl, FormMessage } from "
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
 import { Mail, ArrowRight, HelpCircle, Shield, Eye, EyeOff, Loader2 } from "lucide-react"
+import { useTranslation } from "@/lib/i18n/translations"
 
 export default function LoginPage() {
+  const { t } = useTranslation()
   const [step, setStep] = useState<"email" | "password">("email")
   const [showPassword, setShowPassword] = useState(false)
   const loginMutation = useLogin()
@@ -51,9 +53,9 @@ export default function LoginPage() {
         <img src="/screen.png" alt="RijTheorie Pro" className="h-8 w-auto" />
         <span className="text-headline-md text-primary">RijTheorie Pro</span>
       </div>
-      <h1 className="text-headline-md text-primary mb-2">Welkom bij RijTheorie</h1>
+      <h1 className="text-headline-md text-primary mb-2">{t("auth.loginTitle")}</h1>
       <p className="text-body-md text-on-surface-variant mb-8">
-        {step === "email" ? "Log in om direct te starten met je theorie." : "Voer je wachtwoord in om in te loggen."}
+        {step === "email" ? t("auth.loginSubtitle") : t("auth.enterPassword")}
       </p>
       <Form {...form}>
         <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
@@ -63,14 +65,14 @@ export default function LoginPage() {
               name="email"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel className="text-label-md text-on-surface-variant ml-1">E-mailadres</FormLabel>
+                  <FormLabel className="text-label-md text-on-surface-variant ml-1">{t("auth.emailLabel")}</FormLabel>
                   <FormControl>
                     <div className="relative group">
                       <div className="absolute inset-y-0 left-4 flex items-center pointer-events-none text-on-surface-variant group-focus-within:text-primary transition-colors">
                         <Mail size={20} />
                       </div>
                       <Input
-                        placeholder="je@voorbeeld.nl"
+                        placeholder={t("auth.emailPlaceholder")}
                         className="w-full h-[56px] pl-12 pr-4 bg-surface-container-low border-outline-variant rounded-xl text-body-md focus:ring-2 focus:ring-primary focus:border-primary placeholder:text-outline"
                         {...field}
                       />
@@ -88,7 +90,7 @@ export default function LoginPage() {
                 name="email"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel className="text-label-md text-on-surface-variant ml-1">E-mailadres</FormLabel>
+                    <FormLabel className="text-label-md text-on-surface-variant ml-1">{t("auth.emailLabel")}</FormLabel>
                     <FormControl>
                       <div className="relative group">
                         <div className="absolute inset-y-0 left-4 flex items-center pointer-events-none text-on-surface-variant">
@@ -105,19 +107,19 @@ export default function LoginPage() {
                           onClick={() => setStep("email")}
                           className="absolute right-4 top-1/2 -translate-y-1/2 text-label-sm text-primary font-semibold hover:underline"
                         >
-                          Wijzig
-                        </button>
-                      </div>
-                    </FormControl>
-                  </FormItem>
-                )}
-              />
+                            {t("auth.change")}
+                          </button>
+                        </div>
+                      </FormControl>
+                    </FormItem>
+                  )}
+                />
               <FormField
                 control={form.control}
                 name="password"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel className="text-label-md text-on-surface-variant ml-1">Wachtwoord</FormLabel>
+                    <FormLabel className="text-label-md text-on-surface-variant ml-1">{t("auth.passwordLabel")}</FormLabel>
                     <FormControl>
                       <div className="relative group">
                         <div className="absolute inset-y-0 left-4 flex items-center pointer-events-none text-on-surface-variant group-focus-within:text-primary transition-colors">
@@ -125,7 +127,7 @@ export default function LoginPage() {
                         </div>
                         <Input
                           type={showPassword ? "text" : "password"}
-                          placeholder="Je wachtwoord"
+                          placeholder={t("auth.passwordPlaceholder")}
                           className="w-full h-[56px] pl-12 pr-12 bg-surface-container-low border-outline-variant rounded-xl text-body-md focus:ring-2 focus:ring-primary focus:border-primary placeholder:text-outline"
                           {...field}
                         />
@@ -155,27 +157,27 @@ export default function LoginPage() {
             ) : (
               <ArrowRight size={20} className="transition-transform group-hover:translate-x-1" />
             )}
-            <span>{loginMutation.isPending ? "Bezig met inloggen..." : "Inloggen"}</span>
+            <span>{loginMutation.isPending ? t("auth.loggingIn") : t("auth.login")}</span>
           </Button>
         </form>
       </Form>
       <div className="mt-10 pt-8 border-t border-outline-variant/30 text-center">
-        <p className="text-label-md text-on-surface-variant mb-4">Nog geen account?</p>
+        <p className="text-label-md text-on-surface-variant mb-4">{t("auth.noAccount")}</p>
         <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
           <Link href="/signup" className="text-label-md text-primary hover:underline flex items-center gap-1">
             <HelpCircle size={18} />
-            Account aanmaken
+            {t("auth.createAccount")}
           </Link>
           <span className="hidden sm:block text-outline-variant">|</span>
           <Link href="/privacy" className="text-label-md text-primary hover:underline flex items-center gap-1">
             <Shield size={18} />
-            Privacy Policy
+            {t("common.privacy")}
           </Link>
         </div>
       </div>
       <div className="mt-8 flex items-center justify-center gap-4 opacity-40">
         <div className="h-px w-12 bg-outline-variant" />
-        <p className="text-label-sm text-on-surface-variant tracking-widest uppercase">Autoriteit in Verkeer</p>
+        <p className="text-label-sm text-on-surface-variant tracking-widest uppercase">{t("landing.authority")}</p>
         <div className="h-px w-12 bg-outline-variant" />
       </div>
     </div>

@@ -3,7 +3,7 @@
 import { useProfile } from "@/hooks/use-auth"
 import { supabase } from "@/lib/supabase"
 import { useSupabaseQuery } from "@/lib/supabase-queries"
-import type { Lesson, Profile } from "@/types/database"
+import type { Course, Profile } from "@/types/database"
 import { BookOpen, Users, FileText, GraduationCap, BarChart3, CheckCircle, XCircle, AlertCircle, Clock, TrendingUp } from "lucide-react"
 import {
   Chart as ChartJS,
@@ -24,9 +24,9 @@ ChartJS.register(CategoryScale, LinearScale, BarElement, ArcElement, PointElemen
 export default function DashboardPage() {
   const { data: profile } = useProfile()
 
-  const { data: lessons } = useSupabaseQuery<Lesson[]>(
-    ["lessons", "all"],
-    async () => { const { data, error } = await supabase.from("lessons").select("*").order("order_index"); return { data, error } },
+  const { data: courses } = useSupabaseQuery<Course[]>(
+    ["courses", "all"],
+    async () => { const { data, error } = await supabase.from("courses").select("*").order("created_at"); return { data, error } },
   )
 
   const { data: exams } = useSupabaseQuery(
@@ -64,8 +64,8 @@ export default function DashboardPage() {
     },
   )
 
-  const totalLessons = lessons?.length ?? 0
-  const publishedLessons = lessons?.filter((l) => l.published).length ?? 0
+  const totalCourses = courses?.length ?? 0
+  const activeCourses = courses?.filter((c) => c.active !== false).length ?? 0
   const totalStudents = allProfiles?.filter((p) => p.role === "student").length ?? 0
   const totalExams = exams?.length ?? 0
 
@@ -89,8 +89,8 @@ export default function DashboardPage() {
   })()
 
   const stats = [
-    { label: "Totaal lessen", value: totalLessons, icon: FileText, color: "text-blue-600 bg-blue-100" },
-    { label: "Gepubliceerd", value: publishedLessons, icon: BookOpen, color: "text-green-600 bg-green-100" },
+    { label: "Totaal cursussen", value: totalCourses, icon: FileText, color: "text-blue-600 bg-blue-100" },
+    { label: "Actief", value: activeCourses, icon: BookOpen, color: "text-green-600 bg-green-100" },
     { label: "Studenten", value: totalStudents, icon: Users, color: "text-purple-600 bg-purple-100" },
     { label: "Actieve abonnementen", value: activeStudentCount, icon: GraduationCap, color: "text-emerald-600 bg-emerald-100" },
     { label: "Examens", value: totalExams, icon: BarChart3, color: "text-orange-600 bg-orange-100" },

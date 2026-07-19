@@ -1,6 +1,6 @@
 "use client"
 
-import { Car, Motorbike, Bike, Truck, Ship, Filter, Download, Plus, TrendingUp, ArrowRight, Save } from "lucide-react"
+import { Car, Motorbike, Bike, Truck, Ship, Filter, Download, Plus, TrendingUp, ArrowRight, Save, Pencil, Trash2 } from "lucide-react"
 import CourseCard from "@/components/dashboard/course-card"
 import { Button } from "@/components/ui/button"
 import SlideOver from "@/components/ui/slide-over"
@@ -19,6 +19,7 @@ function mapCourse(c: Record<string, unknown>, totalStudents: number) {
   return {
     id: c.id as string,
     icon: iconMap[c.icon_name as string] || Car,
+    icon_name: c.icon_name as string,
     title: c.title as string,
     studentCount: totalStudents,
     active: c.active as boolean,
@@ -29,6 +30,8 @@ function mapCourse(c: Record<string, unknown>, totalStudents: number) {
 export default function CoursesPage() {
   const router = useRouter()
   const [slideOverOpen, setSlideOverOpen] = useState(false)
+  const [editingCourse, setEditingCourse] = useState<{ id: string; title: string; icon_name: string; active: boolean } | null>(null)
+  const [deletingCourse, setDeletingCourse] = useState<{ id: string; title: string } | null>(null)
   const { data: session } = useSession()
 
   const { data: coursesData, isLoading, refetch: refetchCourses } = useSupabaseQuery(
@@ -54,6 +57,16 @@ export default function CoursesPage() {
     return { data: null, error }
   })
 
+  const updateMutation = useSupabaseMutation(async ({ id, ...values }: CourseInput & { id: string }) => {
+    const { error } = await supabase.from("courses").update(values).eq("id", id)
+    return { data: null, error }
+  })
+
+  const deleteMutation = useSupabaseMutation(async (id: string) => {
+    const { error } = await supabase.from("courses").delete().eq("id", id)
+    return { data: null, error }
+  })
+
   async function handleSubmit(data: CourseInput) {
     try {
       await createMutation.mutateAsync(data)
@@ -61,6 +74,31 @@ export default function CoursesPage() {
       setSlideOverOpen(false)
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Failed to create course")
+    }
+  }
+
+  async function handleUpdate(data: CourseInput) {
+    if (!editingCourse) return
+    try {
+      await updateMutation.mutateAsync({ ...data, id: editingCourse.id })
+      toast.success("Course updated")
+      setEditingCourse(null)
+      setSlideOverOpen(false)
+      refetchCourses()
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Failed to update course")
+    }
+  }
+
+  async function handleDelete() {
+    if (!deletingCourse) return
+    try {
+      await deleteMutation.mutateAsync(deletingCourse.id)
+      toast.success("Course deleted")
+      setDeletingCourse(null)
+      refetchCourses()
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Failed to delete course")
     }
   }
 
@@ -93,18 +131,36 @@ export default function CoursesPage() {
         ))}
 
         {!isLoading && courses.map((course) => (
-          <div key={course.id} onClick={() => router.push(`/lessons/${course.id}`)} className="cursor-pointer">
-            <CourseCard
-              icon={course.icon}
-              title={course.title}
-              studentCount={course.studentCount}
-              active={course.active}
-              onToggle={async () => {
-                await toggleMutation.mutateAsync({ courseId: course.id, active: !course.active })
-                refetchCourses()
-              }}
-              draft={course.draft}
-            />
+          <div key={course.id} className="relative group">
+            <div onClick={() => router.push(`/lessons/${course.id}`)} className="cursor-pointer">
+              <CourseCard
+                icon={course.icon}
+                title={course.title}
+                studentCount={course.studentCount}
+                active={course.active}
+                onToggle={async () => {
+                  await toggleMutation.mutateAsync({ courseId: course.id, active: !course.active })
+                  refetchCourses()
+                }}
+                draft={course.draft}
+              />
+            </div>
+            <div className="absolute top-3 right-3 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+              <button
+                onClick={(e) => { e.stopPropagation(); setEditingCourse({ id: course.id, title: course.title, icon_name: course.icon_name, active: course.active }); setSlideOverOpen(true) }}
+                className="size-8 rounded-lg bg-white/90 backdrop-blur shadow-sm border border-outline-variant/30 flex items-center justify-center hover:bg-white transition-all active:scale-90"
+                title="Edit"
+              >
+                <Pencil size={15} className="text-on-surface-variant" />
+              </button>
+              <button
+                onClick={(e) => { e.stopPropagation(); setDeletingCourse({ id: course.id, title: course.title }) }}
+                className="size-8 rounded-lg bg-white/90 backdrop-blur shadow-sm border border-outline-variant/30 flex items-center justify-center hover:bg-red-50 transition-all active:scale-90"
+                title="Delete"
+              >
+                <Trash2 size={15} className="text-error" />
+              </button>
+            </div>
           </div>
         ))}
 
@@ -154,21 +210,51 @@ export default function CoursesPage() {
 
       <SlideOver
         open={slideOverOpen}
-        onClose={() => setSlideOverOpen(false)}
-        title="Nieuwe Cursus"
-        description="Maak een nieuwe theoriecursus aan"
+        onClose={() => { setSlideOverOpen(false); setEditingCourse(null) }}
+        title={editingCourse ? "Cursus Bewerken" : "Nieuwe Cursus"}
+        description={editingCourse ? "Pas de cursusgegevens aan" : "Maak een nieuwe theoriecursus aan"}
         footer={
           <div className="flex gap-4">
-            <button onClick={() => setSlideOverOpen(false)} className="flex-1 px-6 py-3 border border-outline rounded-xl text-label-md text-on-surface-variant hover:bg-surface-container-low transition-all">Cancel</button>
-            <button type="submit" form="course-form" disabled={createMutation.isPending} className="flex-1 px-6 py-3 bg-primary text-on-primary rounded-xl text-label-md hover:bg-primary-container transition-all shadow-md active:scale-95 flex items-center justify-center gap-2 disabled:opacity-50">
+            <button onClick={() => { setSlideOverOpen(false); setEditingCourse(null) }} className="flex-1 px-6 py-3 border border-outline rounded-xl text-label-md text-on-surface-variant hover:bg-surface-container-low transition-all">Cancel</button>
+            <button type="submit" form="course-form" disabled={createMutation.isPending || updateMutation.isPending} className="flex-1 px-6 py-3 bg-primary text-on-primary rounded-xl text-label-md hover:bg-primary-container transition-all shadow-md active:scale-95 flex items-center justify-center gap-2 disabled:opacity-50">
               <Save size={20} />
-              {createMutation.isPending ? "Saving..." : "Save"}
+              {createMutation.isPending || updateMutation.isPending ? "Saving..." : "Save"}
             </button>
           </div>
         }
       >
-        <CourseForm onSubmit={handleSubmit} />
+        <CourseForm
+          onSubmit={editingCourse ? handleUpdate : handleSubmit}
+          initialData={editingCourse ?? undefined}
+        />
       </SlideOver>
+
+      {deletingCourse && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 backdrop-blur-sm">
+          <div className="bg-white rounded-2xl shadow-xl p-6 max-w-sm w-full mx-4">
+            <h3 className="text-headline-md text-primary mb-2">Cursus Verwijderen</h3>
+            <p className="text-body-md text-on-surface-variant mb-6">
+              Weet je zeker dat je <strong>{deletingCourse.title}</strong> wilt verwijderen? Dit kan niet ongedaan worden gemaakt.
+            </p>
+            <div className="flex gap-3 justify-end">
+              <button
+                onClick={() => setDeletingCourse(null)}
+                className="px-5 py-2.5 rounded-xl border border-outline text-label-sm font-bold text-on-surface-variant hover:bg-surface-container transition-all"
+              >
+                Annuleren
+              </button>
+              <button
+                onClick={handleDelete}
+                disabled={deleteMutation.isPending}
+                className="px-5 py-2.5 rounded-xl bg-error text-white text-label-sm font-bold hover:bg-error/90 transition-all active:scale-95 disabled:opacity-50 flex items-center gap-2"
+              >
+                <Trash2 size={16} />
+                {deleteMutation.isPending ? "Verwijderen..." : "Verwijderen"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </section>
   )
 }

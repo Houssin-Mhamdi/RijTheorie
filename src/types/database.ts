@@ -21,6 +21,17 @@ export type Lesson = {
   updated_at: string
 }
 
+export type Course = {
+  id: string
+  title: string
+  icon_name: string
+  student_count: number
+  active: boolean
+  created_by: string | null
+  created_at: string
+  updated_at: string
+}
+
 export type LessonFormData = {
   title: string
   content: string

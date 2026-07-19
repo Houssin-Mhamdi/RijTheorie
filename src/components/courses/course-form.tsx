@@ -1,6 +1,7 @@
 "use client"
 
 import { useForm } from "react-hook-form"
+import { useEffect } from "react"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { courseSchema, type CourseInput } from "@/lib/auth-schemas"
 import { Form, FormField, FormItem, FormLabel, FormControl, FormMessage } from "@/components/ui/form"
@@ -18,13 +19,18 @@ const icons = [
 interface CourseFormProps {
   onSubmit: (data: CourseInput) => void
   isPending?: boolean
+  initialData?: CourseInput
 }
 
-export default function CourseForm({ onSubmit }: CourseFormProps) {
+export default function CourseForm({ onSubmit, initialData }: CourseFormProps) {
   const form = useForm<CourseInput>({
     resolver: zodResolver(courseSchema),
-    defaultValues: { title: "", icon_name: "Car", active: true },
+    defaultValues: initialData ?? { title: "", icon_name: "Car", active: true },
   })
+
+  useEffect(() => {
+    form.reset(initialData ?? { title: "", icon_name: "Car", active: true })
+  }, [initialData, form])
 
   return (
     <Form {...form}>
