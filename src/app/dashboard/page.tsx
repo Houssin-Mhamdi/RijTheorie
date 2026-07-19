@@ -4,7 +4,6 @@ import { useProfile } from "@/hooks/use-auth"
 import { supabase } from "@/lib/supabase"
 import { useSupabaseQuery } from "@/lib/supabase-queries"
 import { useTranslation } from "@/lib/i18n/translations"
-import { LanguageSwitcher } from "@/components/language-switcher"
 import type { Course, Profile } from "@/types/database"
 import { BookOpen, Users, FileText, GraduationCap, BarChart3, CheckCircle, XCircle, AlertCircle, Clock, TrendingUp } from "lucide-react"
 import {
@@ -236,7 +235,6 @@ export default function DashboardPage() {
     <div className="px-4 md:px-6 py-8">
       <div className="flex items-center justify-between mb-2">
         <h1 className="text-headline-lg text-primary">{t("dash.welcome")}, {profile?.name ?? "Admin"}</h1>
-        <LanguageSwitcher />
       </div>
       <p className="text-body-md text-on-surface-variant mb-8">{t("dash.subtitle")}</p>
 

@@ -13,6 +13,8 @@ interface SlideOverProps {
 }
 
 export default function SlideOver({ open, onClose, title, description, children, footer }: SlideOverProps) {
+  const isRtl = typeof document !== "undefined" && document.documentElement.dir === "rtl"
+
   useEffect(() => {
     if (open) {
       document.body.style.overflow = "hidden"
@@ -21,6 +23,9 @@ export default function SlideOver({ open, onClose, title, description, children,
     }
     return () => { document.body.style.overflow = "" }
   }, [open])
+
+  const positionClass = isRtl ? "left-0" : "right-0"
+  const closedClass = isRtl ? "-translate-x-full" : "translate-x-full"
 
   return (
     <>
@@ -32,8 +37,8 @@ export default function SlideOver({ open, onClose, title, description, children,
       />
 
       <div
-        className={`fixed top-0 right-0 h-screen w-full md:w-[600px] bg-surface shadow-2xl z-50 transform transition-transform duration-500 ease-in-out flex flex-col ${
-          open ? "translate-x-0" : "translate-x-full"
+        className={`fixed top-0 ${positionClass} h-screen w-full md:w-[600px] bg-surface shadow-2xl z-50 transform transition-transform duration-500 ease-in-out flex flex-col ${
+          open ? "translate-x-0" : closedClass
         }`}
       >
         <div className="p-6 border-b border-outline-variant flex justify-between items-center bg-surface-bright sticky top-0">

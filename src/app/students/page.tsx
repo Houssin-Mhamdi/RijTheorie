@@ -9,7 +9,6 @@ import DataTable from "@/components/ui/data-table"
 import type { Column } from "@/components/ui/data-table"
 import { supabase } from "@/lib/supabase"
 import { useTranslation } from "@/lib/i18n/translations"
-import { LanguageSwitcher } from "@/components/language-switcher"
 import type { Profile } from "@/types/database"
 
 const ITEMS_PER_PAGE = 5
@@ -286,7 +285,6 @@ export default function StudentsPage() {
           <h2 className="text-headline-lg text-primary">Student Overview</h2>
           <p className="text-body-md text-on-surface-variant mt-1">Manage all enrolled students and their progress.</p>
         </div>
-        <LanguageSwitcher />
       </div>
 
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-6">

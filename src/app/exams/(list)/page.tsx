@@ -6,7 +6,6 @@ import { useSupabaseQuery } from "@/lib/supabase-queries"
 import { supabase } from "@/lib/supabase"
 import { useProfile } from "@/hooks/use-auth"
 import { useTranslation } from "@/lib/i18n/translations"
-import { LanguageSwitcher } from "@/components/language-switcher"
 import { Button } from "@/components/ui/button"
 import {
   Loader2,
@@ -290,7 +289,6 @@ export default function ExamsPage() {
     <div className="flex flex-col min-h-full bg-surface">
       <div className="px-4 sm:px-6 pt-6 pb-2">
         <div className="flex items-center justify-between gap-3 mb-4">
-          <LanguageSwitcher />
           <div className="relative shrink-0" ref={dropdownRef}>
             <button
               onClick={() => setDropdownOpen(!dropdownOpen)}

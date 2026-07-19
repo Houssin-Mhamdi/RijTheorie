@@ -5,7 +5,6 @@ import { supabase } from "@/lib/supabase"
 import { Loader2, CheckCircle2, XCircle, BarChart3, FileText, Timer, Award } from "lucide-react"
 import { useSession } from "@/hooks/use-auth"
 import { useTranslation } from "@/lib/i18n/translations"
-import { LanguageSwitcher } from "@/components/language-switcher"
 
 export default function ResultsPage() {
   const { t } = useTranslation()
@@ -44,7 +43,6 @@ export default function ResultsPage() {
           <h1 className="text-headline-lg text-primary mb-2">{t("results.title")}</h1>
           <p className="text-body-lg text-on-surface-variant">{t("results.subtitle")}</p>
         </div>
-        <LanguageSwitcher />
       </div>
 
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-10">

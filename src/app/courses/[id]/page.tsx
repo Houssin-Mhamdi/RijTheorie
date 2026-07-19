@@ -5,7 +5,6 @@ import { useParams, useRouter } from "next/navigation"
 import { supabase } from "@/lib/supabase"
 import { Car, Motorbike, Bike, Truck, Ship, ChevronLeft, Loader2, FileText, ListOrdered, Timer, CheckCircle, XCircle, ArrowRight } from "lucide-react"
 import { useTranslation } from "@/lib/i18n/translations"
-import { LanguageSwitcher } from "@/components/language-switcher"
 
 const iconMap: Record<string, typeof Car> = { Car, Motorbike, Bike, Truck, Ship }
 
@@ -111,7 +110,6 @@ export default function CourseDetailPage() {
               </p>
             </div>
           </div>
-          <LanguageSwitcher />
         </div>
 
         {/* Progress card */}
