@@ -49,7 +49,7 @@ export default function DashboardShell({
   if (!session) return null
 
   return (
-    <div className="flex min-h-screen bg-background">
+    <div className="flex min-h-screen bg-background" dir="ltr">
       <aside
         className={`hidden md:flex h-screen sticky top-0 bg-surface shadow-[0px_4px_20px_rgba(26,60,110,0.05)] z-30 transition-[width] duration-300 ease-in-out shrink-0 ${
           collapsed ? "w-[64px]" : "w-[280px]"
