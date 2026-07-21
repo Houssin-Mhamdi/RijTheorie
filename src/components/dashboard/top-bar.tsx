@@ -167,7 +167,7 @@ export default function TopBar({ searchPlaceholder }: TopBarProps) {
   return (
     <>
     <header className="w-full h-16 sticky top-0 z-40 bg-surface shadow-[0px_4px_20px_rgba(26,60,110,0.05)]">
-      <div className="flex items-center px-4 md:px-6 h-full" dir="ltr">
+      <div className="flex justify-between items-center px-4 md:px-6 h-full" dir="ltr">
         <div className="flex items-center gap-4 flex-1 max-w-xl">
           <div className="relative w-full" ref={searchRef}>
             <div className="flex items-center bg-surface-container-low rounded-full px-4 py-1.5 gap-2 focus-within:ring-2 focus-within:ring-primary/20 focus-within:border-primary transition-all">
