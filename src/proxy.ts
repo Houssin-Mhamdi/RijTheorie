@@ -2,10 +2,10 @@ import { createServerClient } from "@supabase/ssr"
 import { NextResponse } from "next/server"
 import type { NextRequest } from "next/server"
 
-async function getRole(userId: string, accessToken: string): Promise<string | null> {
+async function getRole(userId: string, accessToken: string): Promise<{ role: string; can_access_exams: boolean } | null> {
   try {
     const res = await fetch(
-      `${process.env.NEXT_PUBLIC_SUPABASE_URL}/rest/v1/profiles?select=role&id=eq.${userId}`,
+      `${process.env.NEXT_PUBLIC_SUPABASE_URL}/rest/v1/profiles?select=role,can_access_exams&id=eq.${userId}`,
       {
         headers: {
           apikey: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
@@ -14,7 +14,7 @@ async function getRole(userId: string, accessToken: string): Promise<string | nu
       },
     )
     const profiles = await res.json()
-    return profiles?.[0]?.role ?? null
+    return profiles?.[0] ?? null
   } catch {
     return null
   }
@@ -59,13 +59,15 @@ export async function proxy(request: NextRequest) {
   if (user && (isAdminRoute || isStudentRoute)) {
     const { data: { session } } = await supabase.auth.getSession()
     if (session?.access_token) {
-      const role = await getRole(user.id, session.access_token)
+      const profile = await getRole(user.id, session.access_token)
+      const role = profile?.role ?? null
+      const canAccessExams = profile?.can_access_exams ?? false
 
       if (isAdminRoute && role !== "admin") {
         return NextResponse.redirect(new URL("/exams", request.url))
       }
 
-      if (isStudentRoute && role !== "student" && role !== "admin") {
+      if (isStudentRoute && role !== "student" && !(role === "admin" && canAccessExams)) {
         return NextResponse.redirect(new URL("/dashboard", request.url))
       }
     }

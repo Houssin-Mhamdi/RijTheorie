@@ -6,7 +6,7 @@ import { useSession, useProfile } from "@/hooks/use-auth"
 import { supabase } from "@/lib/supabase"
 import { Button } from "@/components/ui/button"
 import { useTranslation } from "@/lib/i18n/translations"
-import { Loader2, User, Key, Globe, Camera, Save, CheckCircle2, AlertCircle, Plus, X, Languages } from "lucide-react"
+import { Loader2, User, Key, Globe, Camera, Save, CheckCircle2, AlertCircle, Plus, X, Languages, FileText } from "lucide-react"
 
 export default function SettingsPage() {
   const { t } = useTranslation()
@@ -36,6 +36,10 @@ export default function SettingsPage() {
   const [savingLangs, setSavingLangs] = useState(false)
   const [langMessage, setLangMessage] = useState<string | null>(null)
 
+  const [canAccessExams, setCanAccessExams] = useState(true)
+  const [savingExamAccess, setSavingExamAccess] = useState(false)
+  const [examAccessMessage, setExamAccessMessage] = useState<string | null>(null)
+
   const [studentLang, setStudentLang] = useState("nl")
   const [savingStudentLang, setSavingStudentLang] = useState(false)
   const [studentLangMessage, setStudentLangMessage] = useState<string | null>(null)
@@ -49,6 +53,7 @@ export default function SettingsPage() {
     if (profile) {
       setName(profile.name || "")
       setStudentLang(profile.language || "nl")
+      setCanAccessExams(profile.can_access_exams ?? true)
       setSiteName("RijTheorie Pro")
     }
   }, [profile])
@@ -199,6 +204,21 @@ export default function SettingsPage() {
       }
     } finally {
       setSavingLangs(false)
+    }
+  }
+
+  const saveExamAccess = async () => {
+    setSavingExamAccess(true)
+    setExamAccessMessage(null)
+    try {
+      const { error } = await supabase.from("profiles").update({ can_access_exams: canAccessExams }).eq("id", session!.user!.id)
+      if (error) throw error
+      setExamAccessMessage("Opgeslagen!")
+      refetchProfile()
+    } catch (e) {
+      setExamAccessMessage(e instanceof Error ? e.message : "Fout bij opslaan")
+    } finally {
+      setSavingExamAccess(false)
     }
   }
 
@@ -491,6 +511,40 @@ export default function SettingsPage() {
           )}
           <Button onClick={saveLanguages} disabled={savingLangs} className="w-full sm:w-auto">
             {savingLangs ? t("common.loading") : t("settings.saveLangs")}
+            <Save size={16} />
+          </Button>
+        </div>
+      )}
+
+      {profile?.role === "admin" && (
+        <div className="bg-surface rounded-2xl border border-outline-variant/20 p-6 mt-6">
+          <div className="flex items-center gap-3 mb-6">
+            <div className="size-10 rounded-xl bg-primary-container/20 flex items-center justify-center">
+              <FileText size={22} className="text-primary" />
+            </div>
+            <div>
+              <h2 className="text-headline-md font-bold text-primary">{t("settings.examAccess")}</h2>
+              <p className="text-label-sm text-on-surface-variant">{t("settings.examAccessDesc")}</p>
+            </div>
+          </div>
+          <div className="flex items-center justify-between mb-4">
+            <span className="text-body-md text-on-surface">{t("settings.canAccessExams")}</span>
+            <button
+              type="button"
+              onClick={() => setCanAccessExams(!canAccessExams)}
+              className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${canAccessExams ? "bg-primary" : "bg-outline-variant"}`}
+            >
+              <span className={`inline-block size-4 rounded-full bg-white transition-transform ${canAccessExams ? "translate-x-6" : "translate-x-1"}`} />
+            </button>
+          </div>
+          {examAccessMessage && (
+            <div className="flex items-center gap-2 text-label-sm text-green-700 bg-green-50 rounded-xl px-4 py-3 mb-4">
+              <CheckCircle2 size={16} />
+              {examAccessMessage}
+            </div>
+          )}
+          <Button onClick={saveExamAccess} disabled={savingExamAccess} className="w-full sm:w-auto">
+            {savingExamAccess ? t("common.loading") : t("settings.save")}
             <Save size={16} />
           </Button>
         </div>

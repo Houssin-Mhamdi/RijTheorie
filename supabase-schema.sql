@@ -19,7 +19,8 @@ CREATE TABLE profiles (
   role TEXT NOT NULL DEFAULT 'student' CHECK (role IN ('admin', 'student')),
   created_at TIMESTAMPTZ DEFAULT NOW(),
   last_active_at TIMESTAMPTZ,
-  language TEXT DEFAULT 'nl'
+  language TEXT DEFAULT 'nl',
+  can_access_exams BOOLEAN DEFAULT true
 );
 
 ALTER TABLE profiles ENABLE ROW LEVEL SECURITY;

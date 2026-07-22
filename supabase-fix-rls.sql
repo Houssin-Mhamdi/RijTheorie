@@ -322,6 +322,8 @@ ALTER TABLE questions ADD COLUMN IF NOT EXISTS pause_at FLOAT DEFAULT 3.0;
 -- Add language column to profiles
 ALTER TABLE profiles ADD COLUMN IF NOT EXISTS language TEXT DEFAULT 'nl';
 
+ALTER TABLE profiles ADD COLUMN IF NOT EXISTS can_access_exams BOOLEAN DEFAULT true;
+
 -- Add languages column to site_settings
 ALTER TABLE site_settings ADD COLUMN IF NOT EXISTS languages JSONB DEFAULT '["nl"]'::jsonb;
 

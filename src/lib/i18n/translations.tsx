@@ -257,6 +257,10 @@ const translations: Record<LangCode, Record<string, string>> = {
     "settings.add": "Toevoegen",
     "settings.tryCreate": "Probeer aan te maken",
     "settings.saveLangs": "Talen opslaan",
+    "settings.examAccess": "Examentoegang",
+    "settings.examAccessDesc": "Bepaal of je als admin de studentenexamens kunt bekijken en testen.",
+    "settings.canAccessExams": "Examens bekijken als admin",
+    "settings.save": "Opslaan",
 
     // Question form
     "qform.fillLang": "(vul in voor elke ondersteunde taal)",
@@ -548,6 +552,10 @@ const translations: Record<LangCode, Record<string, string>> = {
     "settings.add": "Add",
     "settings.tryCreate": "Try to create",
     "settings.saveLangs": "Save languages",
+    "settings.examAccess": "Exam Access",
+    "settings.examAccessDesc": "Choose whether admins can view and test student exams.",
+    "settings.canAccessExams": "Allow admin to access exams",
+    "settings.save": "Save",
 
     // Question form
     "qform.fillLang": "(fill in for each supported language)",
@@ -839,6 +847,10 @@ const translations: Record<LangCode, Record<string, string>> = {
     "settings.add": "إضافة",
     "settings.tryCreate": "حاول إنشاء",
     "settings.saveLangs": "حفظ اللغات",
+    "settings.examAccess": "الوصول للامتحانات",
+    "settings.examAccessDesc": "حدد ما إذا كان المشرف يمكنه مشاهدة واختبار امتحانات الطلاب.",
+    "settings.canAccessExams": "السماح للمشرف بالوصول للامتحانات",
+    "settings.save": "حفظ",
 
     // Question form
     "qform.fillLang": "(املأ لكل لغة مدعومة)",

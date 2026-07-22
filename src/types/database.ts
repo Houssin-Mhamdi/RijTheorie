@@ -7,6 +7,7 @@ export type Profile = {
   last_active_at: string | null
   avatar_url: string | null
   language: string
+  can_access_exams: boolean
 }
 
 export type Lesson = {
