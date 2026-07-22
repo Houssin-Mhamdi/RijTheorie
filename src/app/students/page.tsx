@@ -1,9 +1,9 @@
 "use client"
 
-import { useState, useMemo } from "react"
-import { useQuery } from "@tanstack/react-query"
+import { useState, useMemo, useEffect, useRef, useCallback } from "react"
+import { useQuery, keepPreviousData } from "@tanstack/react-query"
 import { useRouter } from "next/navigation"
-import { Users, BadgeCheck, TrendingUp, ChevronLeft, ChevronRight, MoreHorizontal, FileText } from "lucide-react"
+import { Users, BadgeCheck, TrendingUp, ChevronLeft, ChevronRight, MoreHorizontal, FileText, Search, Loader2, X } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import DataTable from "@/components/ui/data-table"
 import type { Column } from "@/components/ui/data-table"
@@ -11,21 +11,14 @@ import { supabase } from "@/lib/supabase"
 import { useTranslation } from "@/lib/i18n/translations"
 import type { Profile } from "@/types/database"
 
-const ITEMS_PER_PAGE = 5
+const ITEMS_PER_PAGE = 20
+const DEBOUNCE_MS = 300
 
 function Avatar({ initials, className }: { initials: string; className?: string }) {
   return (
     <div className={`size-9 rounded-full bg-primary-container/20 flex items-center justify-center text-primary font-bold text-sm shrink-0 ${className ?? ""}`}>
       {initials}
     </div>
-  )
-}
-
-function Badge({ children }: { children: React.ReactNode }) {
-  return (
-    <span className="px-3 py-1 bg-surface-variant text-primary text-label-sm font-bold rounded-full whitespace-nowrap">
-      {children}
-    </span>
   )
 }
 
@@ -55,27 +48,43 @@ function Pagination({ currentPage, totalPages, totalItems, onPageChange }: {
   const from = (currentPage - 1) * ITEMS_PER_PAGE + 1
   const to = Math.min(currentPage * ITEMS_PER_PAGE, totalItems)
 
+  const pages: (number | "...")[] = []
+  if (totalPages <= 7) {
+    for (let i = 1; i <= totalPages; i++) pages.push(i)
+  } else {
+    pages.push(1)
+    if (currentPage > 3) pages.push("...")
+    for (let i = Math.max(2, currentPage - 1); i <= Math.min(totalPages - 1, currentPage + 1); i++) pages.push(i)
+    if (currentPage < totalPages - 2) pages.push("...")
+    pages.push(totalPages)
+  }
+
   return (
     <div className="flex items-center justify-between gap-4">
       <span className="text-label-md text-on-surface-variant">
-        Showing {from} to {to} of {totalItems} students
+        {from}–{to} van {totalItems}
       </span>
-      <div className="flex items-center gap-2">
-        <Button variant="outline" size="icon" disabled={currentPage <= 1} onClick={() => onPageChange(currentPage - 1)}>
-          <ChevronLeft size={18} />
+      <div className="flex items-center gap-1">
+        <Button variant="outline" size="icon" className="size-8" disabled={currentPage <= 1} onClick={() => onPageChange(currentPage - 1)}>
+          <ChevronLeft size={16} />
         </Button>
-        {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => (
-          <Button
-            key={page}
-            variant={page === currentPage ? "default" : "outline"}
-            size="icon"
-            onClick={() => onPageChange(page)}
-          >
-            {page}
-          </Button>
-        ))}
-        <Button variant="outline" size="icon" disabled={currentPage >= totalPages} onClick={() => onPageChange(currentPage + 1)}>
-          <ChevronRight size={18} />
+        {pages.map((page, i) =>
+          page === "..." ? (
+            <span key={`e${i}`} className="px-1 text-on-surface-variant"><MoreHorizontal size={14} /></span>
+          ) : (
+            <Button
+              key={page}
+              variant={page === currentPage ? "default" : "outline"}
+              size="icon"
+              className="size-8"
+              onClick={() => onPageChange(page)}
+            >
+              {page}
+            </Button>
+          )
+        )}
+        <Button variant="outline" size="icon" className="size-8" disabled={currentPage >= totalPages} onClick={() => onPageChange(currentPage + 1)}>
+          <ChevronRight size={16} />
         </Button>
       </div>
     </div>
@@ -86,7 +95,7 @@ function getInitials(name: string): string {
   return name.split(" ").map(n => n[0]).filter(Boolean).join("").toUpperCase().slice(0, 2) || "?"
 }
 
-type StudentWithProgress = Pick<Profile, "id" | "email" | "name" | "created_at" | "last_active_at"> & { progress: number }
+type StudentRow = Pick<Profile, "id" | "email" | "name" | "created_at" | "last_active_at">
 
 function timeAgo(dateStr: string | null): string {
   if (!dateStr) return "Never"
@@ -103,23 +112,58 @@ function timeAgo(dateStr: string | null): string {
   return new Date(dateStr).toLocaleDateString("nl-NL", { day: "numeric", month: "short", year: "numeric" })
 }
 
+function useDebounce<T>(value: T, delay: number): T {
+  const [debounced, setDebounced] = useState(value)
+  useEffect(() => {
+    const timer = setTimeout(() => setDebounced(value), delay)
+    return () => clearTimeout(timer)
+  }, [value, delay])
+  return debounced
+}
+
 export default function StudentsPage() {
   const { t } = useTranslation()
   const router = useRouter()
   const [currentPage, setCurrentPage] = useState(1)
+  const [searchInput, setSearchInput] = useState("")
+  const searchQuery = useDebounce(searchInput, DEBOUNCE_MS)
+  const abortRef = useRef<AbortController | null>(null)
 
-  const { data: students = [], isLoading: studentsLoading } = useQuery({
-    queryKey: ["students"],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from("profiles")
-        .select("id, email, name, created_at, last_active_at")
-        .eq("role", "student")
-        .order("created_at", { ascending: false })
-      if (error) throw error
-      return data as Pick<Profile, "id" | "email" | "name" | "created_at" | "last_active_at">[]
-    },
+  useEffect(() => {
+    setCurrentPage(1)
+  }, [searchQuery])
+
+  const from = (currentPage - 1) * ITEMS_PER_PAGE
+  const to = from + ITEMS_PER_PAGE - 1
+
+  const fetchStudents = useCallback(async ({ signal }: { signal?: AbortSignal }) => {
+    let query = supabase
+      .from("profiles")
+      .select("id, email, name, created_at, last_active_at", { count: "exact" })
+      .eq("role", "student")
+      .order("created_at", { ascending: false })
+
+    if (searchQuery.trim()) {
+      const q = `%${searchQuery.trim()}%`
+      query = query.or(`name.ilike.${q},email.ilike.${q}`)
+    }
+
+    query = query.range(from, to)
+
+    const { data, error, count } = await query.abortSignal(signal ?? new AbortController().signal)
+    if (error) throw error
+    return { data: (data ?? []) as StudentRow[], total: count ?? 0 }
+  }, [searchQuery, from, to])
+
+  const { data: studentsData, isLoading: studentsLoading, isPlaceholderData } = useQuery({
+    queryKey: ["students", searchQuery, currentPage],
+    queryFn: ({ signal }) => fetchStudents({ signal }),
+    placeholderData: keepPreviousData,
+    staleTime: 30_000,
   })
+
+  const students = studentsData?.data ?? []
+  const totalStudents = studentsData?.total ?? 0
 
   const { data: totalExams = 0 } = useQuery({
     queryKey: ["exams-count"],
@@ -174,6 +218,18 @@ export default function StudentsPage() {
   const newSubscriptions = subscriptions?.filter((s) => new Date(s.start_date) >= new Date(thirtyDaysAgo)).length ?? 0
   const expiredSubscriptions = subscriptions?.filter((s) => !s.is_active || new Date(s.end_date) < new Date()).length ?? 0
 
+  const { data: allStudentsForStats = [] } = useQuery({
+    queryKey: ["students-all-stats"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("profiles")
+        .select("id, name, email")
+        .eq("role", "student")
+      if (error) throw error
+      return data as Pick<Profile, "id" | "name" | "email">[]
+    },
+  })
+
   const mostActiveStudent = useMemo(() => {
     const counts: Record<string, { id: string; name: string; count: number }> = {}
     for (const a of allExamAttempts) {
@@ -182,12 +238,12 @@ export default function StudentsPage() {
     }
     const sorted = Object.values(counts).sort((a, b) => b.count - a.count)
     if (sorted.length === 0) return null
-    const student = students.find((s) => s.id === sorted[0].id)
+    const student = allStudentsForStats.find((s) => s.id === sorted[0].id)
     if (student) sorted[0].name = student.name || student.email
     return sorted[0]
-  }, [allExamAttempts, students])
+  }, [allExamAttempts, allStudentsForStats])
 
-  const studentsWithProgress: StudentWithProgress[] = useMemo(() => {
+  const studentsWithProgress = useMemo(() => {
     if (totalExams === 0) return students.map((s) => ({ ...s, progress: 0 }))
     const passedExams: Record<string, Set<string>> = {}
     for (const a of allExamAttempts) {
@@ -214,22 +270,32 @@ export default function StudentsPage() {
   const totalAttempts = allExamAttempts.length
   const totalPassed = allExamAttempts.filter((a) => a.passed).length
 
-  const totalStudents = students.length
-  const avgProgress = totalStudents > 0
-    ? Math.round(studentsWithProgress.reduce((sum, s) => sum + s.progress, 0) / totalStudents)
-    : 0
-  const fullyPassed = studentsWithProgress.filter((s) => s.progress >= 100).length
+  const avgProgress = useMemo(() => {
+    const totalStudentsForAvg = allStudentsForStats.length
+    if (totalStudentsForAvg === 0 || totalExams === 0) return 0
+    const passedExams: Record<string, Set<string>> = {}
+    for (const a of allExamAttempts) {
+      if (!a.passed) continue
+      if (!passedExams[a.user_id]) passedExams[a.user_id] = new Set()
+      passedExams[a.user_id].add(a.exam_id)
+    }
+    const sum = allStudentsForStats.reduce((s, st) => s + Math.min(100, Math.round(((passedExams[st.id]?.size ?? 0) / totalExams) * 100)), 0)
+    return Math.round(sum / totalStudentsForAvg)
+  }, [allStudentsForStats, allExamAttempts, totalExams])
 
-  const isLoading = studentsLoading
+  const fullyPassed = useMemo(() => {
+    const passedExams: Record<string, Set<string>> = {}
+    for (const a of allExamAttempts) {
+      if (!a.passed) continue
+      if (!passedExams[a.user_id]) passedExams[a.user_id] = new Set()
+      passedExams[a.user_id].add(a.exam_id)
+    }
+    return allStudentsForStats.filter((s) => Math.min(100, Math.round(((passedExams[s.id]?.size ?? 0) / totalExams) * 100)) >= 100).length
+  }, [allStudentsForStats, allExamAttempts, totalExams])
 
-  const filteredStudents = studentsWithProgress
-  const totalPages = Math.ceil(filteredStudents.length / ITEMS_PER_PAGE)
-  const paginatedStudents = filteredStudents.slice(
-    (currentPage - 1) * ITEMS_PER_PAGE,
-    currentPage * ITEMS_PER_PAGE,
-  )
+  const totalPages = Math.ceil(totalStudents / ITEMS_PER_PAGE)
 
-  const columns: Column<StudentWithProgress>[] = [
+  const columns: Column<StudentRow & { progress: number }>[] = [
     {
       header: "Name",
       accessor: "name",
@@ -293,7 +359,7 @@ export default function StudentsPage() {
             <Users size={20} />
           </div>
           <p className="text-label-md text-on-surface-variant">Total Students</p>
-          <h3 className="text-headline-md text-primary mt-1">{totalStudents}</h3>
+          <h3 className="text-headline-md text-primary mt-1">{allStudentsForStats.length}</h3>
         </div>
         <div className="bg-surface-container-lowest p-6 rounded-2xl shadow-[0px_4px_20px_rgba(26,60,110,0.05)] border border-surface-container">
           <div className="p-2 bg-secondary-container/10 text-secondary rounded-lg inline-flex mb-4">
@@ -355,28 +421,51 @@ export default function StudentsPage() {
       </div>
 
       <div className="bg-surface-container-lowest rounded-2xl shadow-[0px_4px_20px_rgba(26,60,110,0.05)] border border-surface-container overflow-hidden">
-        <div className="p-6 border-b border-outline-variant/30 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-          <h3 className="text-headline-md text-primary">Student List</h3>
-          <div className="flex items-center gap-3 w-full sm:w-auto">
-            <span className="text-label-md text-on-surface-variant">{totalStudents} students</span>
-            <Button variant="outline" size="icon" className="p-2 border border-outline-variant rounded-xl">
-              <MoreHorizontal size={16} />
-            </Button>
+        <div className="p-6 border-b border-outline-variant/30">
+          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+            <h3 className="text-headline-md text-primary">Student List</h3>
+            <div className="relative w-full sm:w-80">
+              <Search size={18} className="absolute left-3 top-1/2 -translate-y-1/2 text-on-surface-variant" />
+              <input
+                type="text"
+                value={searchInput}
+                onChange={(e) => setSearchInput(e.target.value)}
+                placeholder={t("students.searchPlaceholder") || "Zoek op naam of email..."}
+                className="w-full pl-10 pr-10 py-2.5 rounded-xl border border-outline-variant/50 bg-surface text-body-md text-on-surface focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all"
+              />
+              {searchInput && (
+                <button
+                  onClick={() => setSearchInput("")}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-on-surface-variant hover:text-on-surface"
+                >
+                  <X size={16} />
+                </button>
+              )}
+            </div>
           </div>
+          {searchQuery && (
+            <p className="text-label-sm text-on-surface-variant mt-2">
+              {isPlaceholderData ? (
+                <span className="flex items-center gap-1.5"><Loader2 size={12} className="animate-spin" /> Zoeken...</span>
+              ) : (
+                <>{totalStudents} resultaten voor &ldquo;{searchQuery}&rdquo;</>
+              )}
+            </p>
+          )}
         </div>
 
         <DataTable
           columns={columns}
-          data={paginatedStudents}
+          data={studentsWithProgress}
           keyFn={(row) => row.id}
-          isLoading={isLoading}
+          isLoading={studentsLoading}
         />
 
         <div className="p-6 border-t border-outline-variant/30">
           <Pagination
             currentPage={currentPage}
             totalPages={totalPages}
-            totalItems={filteredStudents.length}
+            totalItems={totalStudents}
             onPageChange={setCurrentPage}
           />
         </div>
