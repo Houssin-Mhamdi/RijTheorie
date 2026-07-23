@@ -1,11 +1,12 @@
 "use client"
 
-import { Plus, Filter, TrendingUp, Info, Save, Trash2, Search, X, ChevronDown } from "lucide-react"
+import { Plus, Filter, TrendingUp, Info, Save, Trash2, Search, X, ChevronDown, Upload } from "lucide-react"
 import StatsCard from "@/components/dashboard/stats-card"
 import QuestionsTable from "@/components/dashboard/questions-table"
 import Pagination from "@/components/dashboard/pagination"
 import SlideOver from "@/components/ui/slide-over"
 import QuestionForm from "@/components/questions/question-form"
+import ImportDialog from "@/components/questions/import-dialog"
 import { useState } from "react"
 import type { QuestionInput } from "@/lib/auth-schemas"
 import { supabase } from "@/lib/supabase"
@@ -37,6 +38,7 @@ export default function QuestionsPage() {
   const [deleteTarget, setDeleteTarget] = useState<{ id: string } | null>(null)
   const { data: session } = useSession()
   const [isUploading, setIsUploading] = useState(false)
+  const [importOpen, setImportOpen] = useState(false)
   const [searchQuery, setSearchQuery] = useState("")
   const [filterCategory, setFilterCategory] = useState("all")
   const [filterMedia, setFilterMedia] = useState<"all" | "with" | "without">("all")
@@ -187,13 +189,22 @@ export default function QuestionsPage() {
           <h2 className="text-headline-lg text-primary">Theory Questions</h2>
           <p className="text-body-md text-on-surface-variant">Manage the exam question database.</p>
         </div>
-        <button
-          onClick={() => { setEditId(null); setSlideOverOpen(true) }}
-          className="flex items-center gap-2 bg-secondary-container text-on-secondary-container px-6 py-3 rounded-xl font-label-md hover:opacity-90 active:scale-95 transition-all shadow-md"
-        >
-          <Plus size={20} />
-          <span>Add Question</span>
-        </button>
+        <div className="flex items-center gap-3">
+          <button
+            onClick={() => setImportOpen(true)}
+            className="flex items-center gap-2 px-5 py-3 border border-outline-variant text-on-surface-variant rounded-xl font-label-md hover:bg-surface-container-low transition-all active:scale-95"
+          >
+            <Upload size={18} />
+            <span className="hidden sm:inline">Import</span>
+          </button>
+          <button
+            onClick={() => { setEditId(null); setSlideOverOpen(true) }}
+            className="flex items-center gap-2 bg-secondary-container text-on-secondary-container px-6 py-3 rounded-xl font-label-md hover:opacity-90 active:scale-95 transition-all shadow-md"
+          >
+            <Plus size={20} />
+            <span>Add Question</span>
+          </button>
+        </div>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
@@ -365,6 +376,12 @@ export default function QuestionsPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <ImportDialog
+        open={importOpen}
+        onClose={() => setImportOpen(false)}
+        onImported={() => { setImportOpen(false) }}
+      />
     </section>
   )
 }

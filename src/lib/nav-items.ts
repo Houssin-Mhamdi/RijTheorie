@@ -1,4 +1,4 @@
-import { LayoutDashboard, ClipboardList, BookOpen, Users, FileText, Settings, BarChart3, CreditCard, Receipt } from "lucide-react"
+import { LayoutDashboard, ClipboardList, BookOpen, Users, FileText, Settings, BarChart3, CreditCard, Receipt, TrendingUp } from "lucide-react"
 import type { NavItem } from "@/components/dashboard/sidebar"
 
 export const dashboardNavItems: NavItem[] = [
@@ -12,6 +12,7 @@ export const dashboardNavItems: NavItem[] = [
 
 export const studentNavItems: NavItem[] = [
   { href: "/exams", label: "Exams", icon: FileText },
+  { href: "/progress", label: "Progress", icon: TrendingUp },
   { href: "/exams/statistics", label: "Statistieken", icon: BarChart3 },
 ]
 
@@ -28,5 +29,6 @@ export const mobileNavItems: NavItem[] = [
 
 export const studentMobileNavItems = [
   { href: "/exams", label: "Exams", icon: FileText },
+  { href: "/progress", label: "Progress", icon: TrendingUp },
   { href: "/exams/statistics", label: "Statistieken", icon: BarChart3 },
 ]

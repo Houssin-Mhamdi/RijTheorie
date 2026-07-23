@@ -22,6 +22,7 @@ import {
   TrendingUp,
   BookOpen,
   Lightbulb,
+  ShieldAlert,
 } from "lucide-react"
 import DOMPurify from "dompurify"
 import { useTranslation } from "@/lib/i18n/translations"
@@ -84,13 +85,19 @@ export default function ExamDetailPage() {
   const [showResults, setShowResults] = useState(false)
   const [saveError, setSaveError] = useState<string | null>(null)
   const [attemptNumber, setAttemptNumber] = useState(1)
+  const [violations, setViolations] = useState(0)
+  const [showTabWarning, setShowTabWarning] = useState(false)
+  const [examFinished, setExamFinished] = useState(false)
   const attemptCreated = useRef(false)
+  const timeUpHandled = useRef(false)
+  const examStartTime = useRef(Date.now())
   const { t, lang } = useTranslation()
 
   const currentQuestion = questions[currentIndex]
   const hasAnswered = submitted[currentQuestion?.id] ?? false
   const totalQuestions = questions.length
   const answeredCount = Object.keys(submitted).length
+  const examActive = !showResults && !examFinished && questions.length > 0
 
   useEffect(() => {
     const fetchExamData = async () => {
@@ -202,7 +209,7 @@ export default function ExamDetailPage() {
   }, [examId])
 
   useEffect(() => {
-    if (timeLeft <= 0) return
+    if (timeLeft <= 0 || !examActive) return
     const interval = setInterval(() => {
       setTimeLeft((prev) => {
         if (prev <= 1) {
@@ -213,7 +220,35 @@ export default function ExamDetailPage() {
       })
     }, 1000)
     return () => clearInterval(interval)
-  }, [timeLeft])
+  }, [timeLeft, examActive])
+
+  useEffect(() => {
+    if (!examActive) return
+    const onVisibilityChange = () => {
+      if (document.hidden) {
+        setViolations((v) => v + 1)
+        setShowTabWarning(true)
+      }
+    }
+    document.addEventListener("visibilitychange", onVisibilityChange)
+    return () => document.removeEventListener("visibilitychange", onVisibilityChange)
+  }, [examActive])
+
+  useEffect(() => {
+    if (!examActive) return
+    const prevent = (e: Event) => e.preventDefault()
+    const preventContext = (e: MouseEvent) => { e.preventDefault() }
+    document.addEventListener("copy", prevent)
+    document.addEventListener("cut", prevent)
+    document.addEventListener("paste", prevent)
+    document.addEventListener("contextmenu", preventContext)
+    return () => {
+      document.removeEventListener("copy", prevent)
+      document.removeEventListener("cut", prevent)
+      document.removeEventListener("paste", prevent)
+      document.removeEventListener("contextmenu", preventContext)
+    }
+  }, [examActive])
 
   const handleSelect = useCallback(
     async (optionIndex: number) => {
@@ -259,6 +294,7 @@ export default function ExamDetailPage() {
 
   const handleFinish = useCallback(() => {
     setShowResults(true)
+    setExamFinished(true)
     setSaveError(null)
     const correct = questions.filter((q) => {
       const r = answerResults[q.id]
@@ -303,6 +339,12 @@ export default function ExamDetailPage() {
       console.log("finish: fetch error", e)
     })
   }, [questions, answerResults, hotspotResults, examId, exam])
+
+  useEffect(() => {
+    if (timeLeft > 0 || !examActive || timeUpHandled.current) return
+    timeUpHandled.current = true
+    handleFinish()
+  }, [timeLeft, examActive, handleFinish])
 
   const handleHotspotSubmit = useCallback(async (positions: { x: number; y: number }[]) => {
     if (!currentQuestion?.id) return
@@ -705,14 +747,39 @@ export default function ExamDetailPage() {
         </div>
         <div className="flex items-center gap-3 shrink-0">
           <LanguageSwitcher />
-          <div className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full ${timeLeft < 300 ? "bg-red-50" : "bg-surface-container-high"}`}>
-            <span className="material-symbols-outlined text-primary" style={{ fontVariationSettings: "'FILL' 1", fontSize: "18px", lineHeight: 1 }}>timer</span>
+          {violations > 0 && (
+            <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-red-50 border border-red-200" title={t("exam.violationsWarning")}>
+              <ShieldAlert size={16} className="text-red-500" />
+              <span className="text-label-sm font-bold text-red-600">{violations}</span>
+            </div>
+          )}
+          <div className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full ${timeLeft < 300 ? "bg-red-50 animate-pulse" : "bg-surface-container-high"}`}>
+            <Clock size={18} className={timeLeft < 300 ? "text-red-500" : "text-primary"} />
             <span className={`text-label-md font-bold tabular-nums ${timeLeft < 300 ? "text-red-500" : "text-primary"}`}>
               {formatTime(timeLeft)}
             </span>
           </div>
         </div>
       </header>
+
+      {showTabWarning && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm px-4" onClick={() => setShowTabWarning(false)}>
+          <div className="bg-surface-container-lowest rounded-3xl p-8 max-w-md w-full text-center shadow-2xl border border-outline-variant/20" onClick={(e) => e.stopPropagation()}>
+            <div className="size-16 rounded-full bg-red-100 flex items-center justify-center mx-auto mb-5">
+              <ShieldAlert size={32} className="text-red-500" />
+            </div>
+            <h2 className="text-headline-md text-on-surface font-bold mb-2">{t("exam.tabSwitchTitle")}</h2>
+            <p className="text-body-md text-on-surface-variant mb-2">{t("exam.tabSwitchMessage")}</p>
+            <p className="text-label-sm text-red-500 font-bold mb-6">{t("exam.violationsCount")} {violations}</p>
+            <button
+              onClick={() => setShowTabWarning(false)}
+              className="bg-primary text-on-primary px-8 py-3 rounded-full font-label-md text-label-md hover:opacity-90 transition-all active:scale-[0.98]"
+            >
+              {t("exam.returnToExam")}
+            </button>
+          </div>
+        </div>
+      )}
 
       <div className="md:hidden w-full bg-surface-container h-1">
         <div className="bg-secondary-container h-full transition-all" style={{ width: `${progressPct}%` }} />

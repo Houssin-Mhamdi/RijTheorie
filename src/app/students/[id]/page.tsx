@@ -3,10 +3,51 @@
 import { useState, useMemo } from "react"
 import { useParams, useRouter } from "next/navigation"
 import { useQuery } from "@tanstack/react-query"
-import { ArrowLeft, Users, FileText, BadgeCheck, XCircle, TrendingUp, Clock, BookOpen, Lightbulb, AlertCircle, Eye, ChevronLeft, ChevronRight } from "lucide-react"
+import {
+  ArrowLeft,
+  Users,
+  FileText,
+  BadgeCheck,
+  XCircle,
+  TrendingUp,
+  TrendingDown,
+  Clock,
+  BookOpen,
+  Lightbulb,
+  AlertCircle,
+  Eye,
+  ChevronLeft,
+  ChevronRight,
+  Minus,
+} from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { supabase } from "@/lib/supabase"
 import type { Profile } from "@/types/database"
+import {
+  Chart as ChartJS,
+  CategoryScale,
+  LinearScale,
+  PointElement,
+  LineElement,
+  BarElement,
+  RadialLinearScale,
+  Filler,
+  Tooltip as ChartTooltip,
+  Legend,
+} from "chart.js"
+import { Line, Radar } from "react-chartjs-2"
+
+ChartJS.register(
+  CategoryScale,
+  LinearScale,
+  PointElement,
+  LineElement,
+  BarElement,
+  RadialLinearScale,
+  Filler,
+  ChartTooltip,
+  Legend,
+)
 
 type ExamAttempt = {
   id: string
@@ -22,24 +63,22 @@ type ExamAttempt = {
 }
 
 const ITEMS_PER_PAGE = 5
+const chartPalette = ["#6366f1", "#22c55e", "#f59e0b", "#ef4444", "#06b6d4", "#ec4899", "#8b5cf6"]
 
 const categoryIcons: Record<string, typeof TrendingUp> = {
   "Hazard Perception": AlertCircle,
   "Right of Way": TrendingUp,
   "Choose Images": Eye,
-  "Traffic": BookOpen,
-  "Lighting": Lightbulb,
+  Traffic: BookOpen,
+  Lighting: Lightbulb,
 }
 
 const categoryColors: Record<string, string> = {
   "Hazard Perception": "bg-red-100 text-red-700",
   "Right of Way": "bg-green-100 text-green-700",
   "Choose Images": "bg-blue-100 text-blue-700",
-  "Traffic": "bg-amber-100 text-amber-700",
+  Traffic: "bg-amber-100 text-amber-700",
   "Lighting": "bg-purple-100 text-purple-700",
-  "Priority": "bg-teal-100 text-teal-700",
-  "Driving": "bg-orange-100 text-orange-700",
-  "Parking": "bg-pink-100 text-pink-700",
 }
 
 function getInitials(name: string): string {
@@ -109,20 +148,6 @@ export default function StudentDetailPage() {
     enabled: !!id,
   })
 
-  function getTimeLeft(endDate: string): string {
-    const now = Date.now()
-    const end = new Date(endDate).getTime()
-    const diffMs = end - now
-    if (diffMs <= 0) return "Expired"
-    const days = Math.floor(diffMs / 86400000)
-    const hours = Math.floor((diffMs % 86400000) / 3600000)
-    return `${days}d ${hours}h remaining`
-  }
-
-  function getDurationDays(startDate: string, endDate: string): number {
-    return Math.round((new Date(endDate).getTime() - new Date(startDate).getTime()) / 86400000)
-  }
-
   const { data: attempts = [], isLoading: attemptsLoading } = useQuery({
     queryKey: ["student-attempts", id],
     queryFn: async () => {
@@ -138,14 +163,37 @@ export default function StudentDetailPage() {
     enabled: !!id,
   })
 
+  const { data: allAttempts = [] } = useQuery({
+    queryKey: ["all-student-attempts"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("exam_attempts")
+        .select("user_id, score, total_questions, passed, category_scores")
+        .not("completed_at", "is", null)
+      if (error) throw error
+      return (data as { user_id: string; score: number | null; total_questions: number | null; passed: boolean | null; category_scores: Record<string, { correct: number; total: number }> | null }[]) ?? []
+    },
+  })
+
+  function getTimeLeft(endDate: string): string {
+    const now = Date.now()
+    const end = new Date(endDate).getTime()
+    const diffMs = end - now
+    if (diffMs <= 0) return "Expired"
+    const days = Math.floor(diffMs / 86400000)
+    const hours = Math.floor((diffMs % 86400000) / 3600000)
+    return `${days}d ${hours}h remaining`
+  }
+
+  function getDurationDays(startDate: string, endDate: string): number {
+    return Math.round((new Date(endDate).getTime() - new Date(startDate).getTime()) / 86400000)
+  }
+
   const stats = useMemo(() => {
     const completed = attempts.filter((a) => a.completed_at)
     const total = completed.length
     const passed = completed.filter((a) => a.passed).length
     const failed = total - passed
-    const avgScore = total > 0
-      ? Math.round(completed.reduce((sum, a) => sum + (a.score ?? 0), 0) / total)
-      : 0
     const avgPct = total > 0
       ? Math.round(completed.reduce((sum, a) => {
           const pct = a.total_questions && a.total_questions > 0 ? ((a.score ?? 0) / a.total_questions) * 100 : 0
@@ -160,7 +208,7 @@ export default function StudentDetailPage() {
     }, 0)
     const avgHours = total > 0 ? Math.round((totalMs / total) / 3600000 * 10) / 10 : 0
     const totalHours = Math.round(totalMs / 3600000 * 10) / 10
-    return { total, passed, failed, avgScore, avgPct, totalHours, avgHours }
+    return { total, passed, failed, avgPct, totalHours, avgHours }
   }, [attempts])
 
   const categoryStats = useMemo(() => {
@@ -182,6 +230,113 @@ export default function StudentDetailPage() {
       }))
       .sort((a, b) => b.pct - a.pct)
   }, [attempts])
+
+  const classAvg = useMemo(() => {
+    const byStudent: Record<string, { total: number; sum: number }> = {}
+    for (const a of allAttempts) {
+      if (!a.total_questions || !a.score) continue
+      if (!byStudent[a.user_id]) byStudent[a.user_id] = { total: 0, sum: 0 }
+      byStudent[a.user_id].total++
+      byStudent[a.user_id].sum += (a.score / a.total_questions) * 100
+    }
+    const studentAvgs = Object.values(byStudent).map((s) => s.total > 0 ? s.sum / s.total : 0)
+    if (studentAvgs.length === 0) return 0
+    return Math.round(studentAvgs.reduce((a, b) => a + b, 0) / studentAvgs.length)
+  }, [allAttempts])
+
+  const classCategoryAvg = useMemo(() => {
+    const map: Record<string, { correct: number; total: number }> = {}
+    for (const a of allAttempts) {
+      if (!a.category_scores) continue
+      for (const [cat, s] of Object.entries(a.category_scores)) {
+        if (!map[cat]) map[cat] = { correct: 0, total: 0 }
+        map[cat].correct += s.correct
+        map[cat].total += s.total
+      }
+    }
+    const result: Record<string, number> = {}
+    for (const [cat, s] of Object.entries(map)) {
+      result[cat] = s.total > 0 ? Math.round((s.correct / s.total) * 100) : 0
+    }
+    return result
+  }, [allAttempts])
+
+  const improvement = useMemo(() => {
+    const sorted = [...attempts]
+      .filter((a) => a.completed_at && a.total_questions)
+      .sort((a, b) => new Date(a.completed_at!).getTime() - new Date(b.completed_at!).getTime())
+    if (sorted.length < 2) return { direction: "neutral" as const, pct: 0 }
+    const recentN = Math.min(5, Math.ceil(sorted.length / 2))
+    const olderN = Math.min(5, Math.floor(sorted.length / 2))
+    const recentAvg = sorted.slice(-recentN).reduce((s, a) => s + ((a.score ?? 0) / (a.total_questions ?? 1)) * 100, 0) / recentN
+    const olderAvg = sorted.slice(0, olderN).reduce((s, a) => s + ((a.score ?? 0) / (a.total_questions ?? 1)) * 100, 0) / olderN
+    const diff = Math.round(recentAvg - olderAvg)
+    return {
+      direction: diff > 3 ? "up" as const : diff < -3 ? "down" as const : "neutral" as const,
+      pct: Math.abs(diff),
+    }
+  }, [attempts])
+
+  const scoreTrendData = useMemo(() => {
+    const sorted = [...attempts]
+      .filter((a) => a.completed_at && a.total_questions)
+      .sort((a, b) => new Date(a.completed_at!).getTime() - new Date(b.completed_at!).getTime())
+
+    return {
+      labels: sorted.map((a) =>
+        new Date(a.completed_at!).toLocaleDateString("nl-NL", { day: "2-digit", month: "short" }),
+      ),
+      datasets: [
+        {
+          label: "Score %",
+          data: sorted.map((a) => Math.round(((a.score ?? 0) / (a.total_questions ?? 1)) * 100)),
+          borderColor: "#6366f1",
+          backgroundColor: "rgba(99,102,241,0.1)",
+          borderWidth: 2,
+          pointBackgroundColor: sorted.map((a) => (a.passed ? "#22c55e" : "#ef4444")),
+          pointBorderColor: "#fff",
+          pointBorderWidth: 2,
+          pointRadius: 5,
+          fill: true,
+          tension: 0.3,
+        },
+      ],
+    }
+  }, [attempts])
+
+  const radarData = useMemo(() => {
+    const cats = categoryStats.length > 0
+      ? categoryStats
+      : [{ name: "Geen data", pct: 0, correct: 0, total: 0 }]
+    return {
+      labels: cats.map((c) => c.name),
+      datasets: [
+        {
+          label: "Student",
+          data: cats.map((c) => c.pct),
+          backgroundColor: "rgba(99,102,241,0.2)",
+          borderColor: "#6366f1",
+          borderWidth: 2,
+          pointBackgroundColor: cats.map((_, i) => chartPalette[i % chartPalette.length]),
+          pointBorderColor: "#fff",
+          pointBorderWidth: 2,
+          pointRadius: 5,
+        },
+        {
+          label: "Gemiddelde",
+          data: cats.map((c) => classCategoryAvg[c.name] ?? 0),
+          backgroundColor: "rgba(239,68,68,0.1)",
+          borderColor: "#ef4444",
+          borderWidth: 2,
+          borderDash: [5, 5],
+          pointBackgroundColor: "#ef4444",
+          pointBorderColor: "#fff",
+          pointBorderWidth: 2,
+          pointRadius: 4,
+        },
+      ],
+    }
+  }, [categoryStats, classCategoryAvg])
 
   const totalPages = Math.ceil(attempts.length / ITEMS_PER_PAGE)
   const paginatedAttempts = attempts.slice(
@@ -257,9 +412,7 @@ export default function StudentDetailPage() {
       <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4 mb-8">
         <div className="bg-surface-container-lowest p-6 rounded-2xl shadow-[0px_4px_20px_rgba(26,60,110,0.05)] border border-surface-container">
           <div className="flex items-center justify-between mb-4">
-            <div className="p-2 bg-primary/10 text-primary rounded-lg">
-              <FileText size={20} />
-            </div>
+            <div className="p-2 bg-primary/10 text-primary rounded-lg"><FileText size={20} /></div>
           </div>
           <p className="text-label-md text-on-surface-variant">Exams Taken</p>
           <h3 className="text-headline-md text-primary mt-1">{stats.total}</h3>
@@ -267,9 +420,7 @@ export default function StudentDetailPage() {
 
         <div className="bg-surface-container-lowest p-6 rounded-2xl shadow-[0px_4px_20px_rgba(26,60,110,0.05)] border border-surface-container">
           <div className="flex items-center justify-between mb-4">
-            <div className="p-2 bg-green-100 text-green-700 rounded-lg">
-              <BadgeCheck size={20} />
-            </div>
+            <div className="p-2 bg-green-100 text-green-700 rounded-lg"><BadgeCheck size={20} /></div>
           </div>
           <p className="text-label-md text-on-surface-variant">Passed</p>
           <h3 className="text-headline-md text-primary mt-1">{stats.passed}</h3>
@@ -277,9 +428,7 @@ export default function StudentDetailPage() {
 
         <div className="bg-surface-container-lowest p-6 rounded-2xl shadow-[0px_4px_20px_rgba(26,60,110,0.05)] border border-surface-container">
           <div className="flex items-center justify-between mb-4">
-            <div className="p-2 bg-red-100 text-red-700 rounded-lg">
-              <XCircle size={20} />
-            </div>
+            <div className="p-2 bg-red-100 text-red-700 rounded-lg"><XCircle size={20} /></div>
           </div>
           <p className="text-label-md text-on-surface-variant">Failed</p>
           <h3 className="text-headline-md text-primary mt-1">{stats.failed}</h3>
@@ -287,19 +436,42 @@ export default function StudentDetailPage() {
 
         <div className="bg-surface-container-lowest p-6 rounded-2xl shadow-[0px_4px_20px_rgba(26,60,110,0.05)] border border-surface-container">
           <div className="flex items-center justify-between mb-4">
-            <div className="p-2 bg-secondary-container/10 text-secondary rounded-lg">
-              <TrendingUp size={20} />
-            </div>
+            <div className="p-2 bg-secondary-container/10 text-secondary rounded-lg"><TrendingUp size={20} /></div>
           </div>
           <p className="text-label-md text-on-surface-variant">Avg Score</p>
-          <h3 className="text-headline-md text-primary mt-1">{stats.avgScore}/{stats.total > 0 ? attempts[0]?.total_questions ?? "—" : "—"} ({stats.avgPct}%)</h3>
+          <div className="flex items-center gap-2 mt-1">
+            <h3 className="text-headline-md text-primary">{stats.avgPct}%</h3>
+            {improvement.direction === "up" && (
+              <span className="flex items-center gap-0.5 text-label-xs font-bold text-green-600 bg-green-50 px-2 py-0.5 rounded-full">
+                <TrendingUp size={12} /> +{improvement.pct}%
+              </span>
+            )}
+            {improvement.direction === "down" && (
+              <span className="flex items-center gap-0.5 text-label-xs font-bold text-red-600 bg-red-50 px-2 py-0.5 rounded-full">
+                <TrendingDown size={12} /> -{improvement.pct}%
+              </span>
+            )}
+            {improvement.direction === "neutral" && stats.total >= 2 && (
+              <span className="flex items-center gap-0.5 text-label-xs font-bold text-on-surface-variant bg-surface-container px-2 py-0.5 rounded-full">
+                <Minus size={12} /> Gelijk
+              </span>
+            )}
+          </div>
+          <p className="text-label-xs text-on-surface-variant mt-1">
+            vs klasgemiddelde: {classAvg}%
+            {stats.avgPct > classAvg ? (
+              <span className="text-green-600 font-bold"> (+{stats.avgPct - classAvg})</span>
+            ) : stats.avgPct < classAvg ? (
+              <span className="text-red-600 font-bold"> ({stats.avgPct - classAvg})</span>
+            ) : (
+              <span className="text-on-surface-variant"> (gelijk)</span>
+            )}
+          </p>
         </div>
 
         <div className="bg-surface-container-lowest p-6 rounded-2xl shadow-[0px_4px_20px_rgba(26,60,110,0.05)] border border-surface-container">
           <div className="flex items-center justify-between mb-4">
-            <div className="p-2 bg-blue-100 text-blue-700 rounded-lg">
-              <Clock size={20} />
-            </div>
+            <div className="p-2 bg-blue-100 text-blue-700 rounded-lg"><Clock size={20} /></div>
           </div>
           <p className="text-label-md text-on-surface-variant">Study Time</p>
           <h3 className="text-headline-md text-primary mt-1">{stats.totalHours}h</h3>
@@ -344,6 +516,60 @@ export default function StudentDetailPage() {
           </div>
         )}
       </div>
+
+      {attempts.length >= 2 && (
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
+          <div className="bg-surface-container-lowest rounded-2xl border border-surface-container p-6 shadow-[0px_4px_20px_rgba(26,60,110,0.05)]">
+            <h3 className="text-headline-sm text-primary mb-4">Score Verloop</h3>
+            <div className="h-56">
+              <Line
+                data={scoreTrendData}
+                options={{
+                  responsive: true,
+                  maintainAspectRatio: false,
+                  scales: {
+                    y: { beginAtZero: true, max: 100, ticks: { stepSize: 20, font: { size: 10 }, callback: (v: number | string) => `${v}%` }, grid: { color: "rgba(0,0,0,0.04)" } },
+                    x: { ticks: { font: { size: 9 }, maxRotation: 45 }, grid: { display: false } },
+                  },
+                  plugins: { legend: { display: false } },
+                }}
+              />
+            </div>
+          </div>
+
+          {categoryStats.length > 0 && (
+            <div className="bg-surface-container-lowest rounded-2xl border border-surface-container p-6 shadow-[0px_4px_20px_rgba(26,60,110,0.05)]">
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="text-headline-sm text-primary">Categorieën</h3>
+                <div className="flex items-center gap-3 text-label-xs">
+                  <span className="flex items-center gap-1"><span className="size-2 rounded-full bg-primary inline-block" /> Student</span>
+                  <span className="flex items-center gap-1"><span className="size-2 rounded-full bg-red-500 inline-block" /> Gemiddelde</span>
+                </div>
+              </div>
+              <div className="h-56">
+                <Radar
+                  data={radarData}
+                  options={{
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                      r: {
+                        beginAtZero: true,
+                        max: 100,
+                        ticks: { stepSize: 20, font: { size: 9 } },
+                        grid: { color: "rgba(0,0,0,0.06)" },
+                        angleLines: { color: "rgba(0,0,0,0.06)" },
+                        pointLabels: { font: { size: 10, weight: "bold" as const } },
+                      },
+                    },
+                    plugins: { legend: { display: false } },
+                  }}
+                />
+              </div>
+            </div>
+          )}
+        </div>
+      )}
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
         <div className="lg:col-span-2 bg-surface-container-lowest rounded-2xl shadow-[0px_4px_20px_rgba(26,60,110,0.05)] border border-surface-container overflow-hidden">
@@ -438,6 +664,8 @@ export default function StudentDetailPage() {
               {categoryStats.map((cat) => {
                 const Icon = categoryIcons[cat.name] || TrendingUp
                 const colorClass = categoryColors[cat.name] || "bg-surface-container text-primary"
+                const classAvgCat = classCategoryAvg[cat.name] ?? 0
+                const diff = cat.pct - classAvgCat
                 return (
                   <div key={cat.name}>
                     <div className="flex items-center gap-2 mb-1">
@@ -447,13 +675,26 @@ export default function StudentDetailPage() {
                       <span className="flex-1 text-body-md font-semibold text-primary">{cat.name}</span>
                       <span className="text-label-md font-bold text-secondary">{cat.pct}%</span>
                     </div>
-                    <div className="w-full h-2.5 bg-surface-container rounded-full overflow-hidden">
+                    <div className="w-full h-2.5 bg-surface-container rounded-full overflow-hidden relative">
                       <div
                         className="h-full bg-secondary-container rounded-full transition-all"
                         style={{ width: `${Math.min(cat.pct, 100)}%` }}
                       />
+                      {classAvgCat > 0 && (
+                        <div
+                          className="absolute top-0 h-full w-0.5 bg-red-500/60"
+                          style={{ left: `${Math.min(classAvgCat, 100)}%` }}
+                        />
+                      )}
                     </div>
-                    <p className="text-label-xs text-on-surface-variant mt-1">{cat.correct}/{cat.total} correct</p>
+                    <div className="flex items-center justify-between mt-1">
+                      <p className="text-label-xs text-on-surface-variant">{cat.correct}/{cat.total} correct</p>
+                      {classAvgCat > 0 && (
+                        <p className={`text-label-xs font-bold ${diff >= 0 ? "text-green-600" : "text-red-600"}`}>
+                          {diff >= 0 ? "+" : ""}{diff}% vs avg
+                        </p>
+                      )}
+                    </div>
                   </div>
                 )
               })}
