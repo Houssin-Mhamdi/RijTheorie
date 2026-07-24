@@ -6,7 +6,8 @@ import { supabase } from "@/lib/supabase"
 import { useSupabaseQuery } from "@/lib/supabase-queries"
 import { useTranslation } from "@/lib/i18n/translations"
 import type { Course, Profile } from "@/types/database"
-import { BookOpen, Users, FileText, GraduationCap, BarChart3, CheckCircle, AlertCircle, Clock, TrendingUp, Calendar, RotateCcw } from "lucide-react"
+import { CheckCircle, AlertCircle, Clock, TrendingUp, BarChart3, FileText, Users, BookOpen, GraduationCap, RotateCcw } from "lucide-react"
+import { AirbnbDateRange } from "@/components/ui/airbnb-date-range"
 import {
   Chart as ChartJS,
   CategoryScale,
@@ -271,11 +272,6 @@ export default function DashboardPage() {
     ],
   }
 
-  const resetDates = () => {
-    setDateFrom("")
-    setDateTo("")
-  }
-
   return (
     <div className="px-4 md:px-6 py-8">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-2">
@@ -283,30 +279,15 @@ export default function DashboardPage() {
           <h1 className="text-headline-lg text-primary">{t("dash.welcome")}, {profile?.name ?? "Admin"}</h1>
         </div>
         <div className="flex items-center gap-2">
-          <div className="flex items-center gap-1.5 bg-surface-container-low rounded-xl border border-outline-variant/30 px-1 py-1">
-            <div className="flex items-center gap-1.5 px-2">
-              <Calendar size={15} className="text-on-surface-variant/60 shrink-0" />
-              <input
-                type="date"
-                value={dateFrom}
-                onChange={(e) => setDateFrom(e.target.value)}
-                className="bg-transparent text-body-sm text-on-surface py-1.5 outline-none w-[130px] [color-scheme:light] cursor-pointer"
-              />
-            </div>
-            <span className="text-on-surface-variant/40 text-label-xs">—</span>
-            <div className="flex items-center gap-1.5 px-2">
-              <input
-                type="date"
-                value={dateTo}
-                onChange={(e) => setDateTo(e.target.value)}
-                min={dateFrom || undefined}
-                className="bg-transparent text-body-sm text-on-surface py-1.5 outline-none w-[130px] [color-scheme:light] cursor-pointer"
-              />
-            </div>
-          </div>
+          <AirbnbDateRange
+            dateFrom={dateFrom}
+            dateTo={dateTo}
+            onFromChange={setDateFrom}
+            onToChange={setDateTo}
+          />
           {isFiltered && (
             <button
-              onClick={resetDates}
+              onClick={() => { setDateFrom(""); setDateTo("") }}
               className="flex items-center gap-1.5 px-3 py-2.5 rounded-xl text-on-surface-variant hover:bg-surface-container-low transition-colors"
               title="Reset filter"
             >
