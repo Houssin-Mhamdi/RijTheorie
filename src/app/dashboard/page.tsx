@@ -1,11 +1,12 @@
 "use client"
 
+import { useState, useMemo } from "react"
 import { useProfile } from "@/hooks/use-auth"
 import { supabase } from "@/lib/supabase"
 import { useSupabaseQuery } from "@/lib/supabase-queries"
 import { useTranslation } from "@/lib/i18n/translations"
 import type { Course, Profile } from "@/types/database"
-import { BookOpen, Users, FileText, GraduationCap, BarChart3, CheckCircle, XCircle, AlertCircle, Clock, TrendingUp } from "lucide-react"
+import { BookOpen, Users, FileText, GraduationCap, BarChart3, CheckCircle, XCircle, AlertCircle, Clock, TrendingUp, Calendar, RotateCcw } from "lucide-react"
 import {
   Chart as ChartJS,
   CategoryScale,
@@ -19,12 +20,26 @@ import {
   Filler,
 } from "chart.js"
 import { Bar, Doughnut, Line } from "react-chartjs-2"
+import { DateRange, type Range, type RangeKeyDict } from "react-date-range"
+import { nl } from "date-fns/locale"
 
 ChartJS.register(CategoryScale, LinearScale, BarElement, ArcElement, PointElement, LineElement, Tooltip, Legend, Filler)
 
 export default function DashboardPage() {
   const { t } = useTranslation()
   const { data: profile } = useProfile()
+  const [showDatePicker, setShowDatePicker] = useState(false)
+  const [dateRange, setDateRange] = useState<Range[]>([
+    {
+      startDate: undefined,
+      endDate: undefined,
+      key: "selection",
+    },
+  ])
+
+  const dateFrom = dateRange[0]?.startDate
+  const dateTo = dateRange[0]?.endDate
+  const isFiltered = !!(dateFrom && dateTo)
 
   const { data: courses } = useSupabaseQuery<Course[]>(
     ["courses", "all"],
@@ -66,14 +81,31 @@ export default function DashboardPage() {
     },
   )
 
+  const allAttempts = (examAttempts as Record<string, unknown>[] | undefined) ?? []
+
+  const attempts = useMemo(() => {
+    if (!isFiltered) return allAttempts
+    return allAttempts.filter((a) => {
+      const d = a.started_at ? new Date(a.started_at as string) : null
+      if (!d) return false
+      return d >= dateFrom! && d <= dateTo!
+    })
+  }, [allAttempts, isFiltered, dateFrom, dateTo])
+
+  const totalStudents = useMemo(() => {
+    const students = (allProfiles ?? []).filter((p) => p.role === "student")
+    if (!isFiltered) return students.length
+    return students.filter((s) => {
+      const d = new Date(s.created_at)
+      return d >= dateFrom! && d <= dateTo!
+    }).length
+  }, [allProfiles, isFiltered, dateFrom, dateTo])
+
   const totalCourses = courses?.length ?? 0
   const activeCourses = courses?.filter((c) => c.active !== false).length ?? 0
-  const totalStudents = allProfiles?.filter((p) => p.role === "student").length ?? 0
   const totalExams = exams?.length ?? 0
-
   const activeStudentCount = activeSubscriptions?.length ?? 0
 
-  const attempts = (examAttempts as Record<string, unknown>[] | undefined) ?? []
   const passedAttempts = attempts.filter((a) => a.passed === true).length
   const failedAttempts = attempts.filter((a) => a.passed === false).length
   const pendingAttempts = attempts.filter((a) => a.passed == null).length
@@ -127,11 +159,13 @@ export default function DashboardPage() {
 
   const topProblemCategories = categoryIncorrectRanking.slice(0, 5)
 
-  const studentGrowth = (() => {
+  const studentGrowth = useMemo(() => {
     const students = (allProfiles ?? []).filter((p) => p.role === "student")
     const grouped: Record<string, number> = {}
     students.forEach((s) => {
-      const m = new Date(s.created_at).toLocaleDateString("nl-NL", { month: "short", year: "2-digit" })
+      const d = new Date(s.created_at)
+      if (isFiltered && (d < dateFrom! || d > dateTo!)) return
+      const m = d.toLocaleDateString("nl-NL", { month: "short", year: "2-digit" })
       grouped[m] = (grouped[m] || 0) + 1
     })
     const sorted = Object.entries(grouped).sort((a, b) => {
@@ -142,7 +176,7 @@ export default function DashboardPage() {
     })
     let cum = 0
     return sorted.map(([month, count]) => { cum += count; return { month, count: cum } })
-  })()
+  }, [allProfiles, isFiltered, dateFrom, dateTo])
 
   const studentGrowthData = {
     labels: studentGrowth.map((d) => d.month),
@@ -242,10 +276,76 @@ export default function DashboardPage() {
     ],
   }
 
+  const handleDateChange = (range: RangeKeyDict) => {
+    setDateRange([range.selection])
+  }
+
+  const resetDates = () => {
+    setDateRange([{ startDate: undefined, endDate: undefined, key: "selection" }])
+    setShowDatePicker(false)
+  }
+
+  const formatDateShort = (d: Date | undefined) => {
+    if (!d) return ""
+    return d.toLocaleDateString("nl-NL", { day: "2-digit", month: "short", year: "numeric" })
+  }
+
   return (
     <div className="px-4 md:px-6 py-8">
-      <div className="flex items-center justify-between mb-2">
-        <h1 className="text-headline-lg text-primary">{t("dash.welcome")}, {profile?.name ?? "Admin"}</h1>
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-2">
+        <div>
+          <h1 className="text-headline-lg text-primary">{t("dash.welcome")}, {profile?.name ?? "Admin"}</h1>
+        </div>
+        <div className="flex items-center gap-2 relative">
+          <button
+            onClick={() => setShowDatePicker(!showDatePicker)}
+            className={`flex items-center gap-2 px-4 py-2.5 rounded-xl border text-label-md transition-all ${
+              isFiltered
+                ? "bg-primary text-on-primary border-primary"
+                : "bg-surface border-outline-variant text-on-surface-variant hover:bg-surface-container-low"
+            }`}
+          >
+            <Calendar size={16} />
+            {isFiltered
+              ? `${formatDateShort(dateFrom)} — ${formatDateShort(dateTo)}`
+              : "Alle datums"}
+          </button>
+          {isFiltered && (
+            <button
+              onClick={resetDates}
+              className="flex items-center gap-1 px-3 py-2.5 rounded-xl border border-outline-variant text-on-surface-variant hover:bg-surface-container-low transition-colors"
+            >
+              <RotateCcw size={14} />
+            </button>
+          )}
+          {showDatePicker && (
+            <div className="absolute top-full right-0 mt-2 z-50 bg-surface-container-lowest rounded-2xl shadow-2xl border border-outline-variant/30 p-2">
+              <DateRange
+                onChange={handleDateChange}
+                moveRangeOnFirstSelection={false}
+                ranges={dateRange}
+                maxDate={new Date()}
+                rangeColors={["#6366f1"]}
+                dateDisplayFormat="dd MMM yyyy"
+                locale={nl}
+              />
+              <div className="flex justify-end gap-2 px-2 pb-1">
+                <button
+                  onClick={resetDates}
+                  className="px-3 py-1.5 text-label-sm text-on-surface-variant hover:bg-surface-container rounded-lg transition-colors"
+                >
+                  Reset
+                </button>
+                <button
+                  onClick={() => setShowDatePicker(false)}
+                  className="px-4 py-1.5 text-label-sm bg-primary text-on-primary rounded-lg hover:opacity-90 transition-opacity"
+                >
+                  Toepassen
+                </button>
+              </div>
+            </div>
+          )}
+        </div>
       </div>
       <p className="text-body-md text-on-surface-variant mb-8">{t("dash.subtitle")}</p>
 
