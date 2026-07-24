@@ -60,13 +60,13 @@ function CalendarMonth({ month, startDate, endDate, hoverDate, onDayClick, onDay
   const effectiveEnd = previewEnd || endDate
 
   return (
-    <div className="min-w-0">
-      <p className="text-center text-title-sm font-bold text-on-surface mb-4">
+    <div className="min-w-[280px]">
+      <p className="text-center text-title-md font-bold text-on-surface mb-5">
         {MONTHS_NL[m]} {year}
       </p>
-      <div className="grid grid-cols-7 gap-y-0.5">
+      <div className="grid grid-cols-7 gap-y-1">
         {WEEKDAYS.map((wd) => (
-          <div key={wd} className="text-center text-label-xs font-medium text-on-surface-variant/60 pb-2">{wd}</div>
+          <div key={wd} className="text-center text-label-sm font-semibold text-on-surface-variant/60 pb-3">{wd}</div>
         ))}
         {days.map((day, i) => {
           if (!day) return <div key={`empty-${i}`} />
@@ -78,25 +78,25 @@ function CalendarMonth({ month, startDate, endDate, hoverDate, onDayClick, onDay
           const inRange = effectiveStart && effectiveEnd && isBetween(day, effectiveStart, effectiveEnd)
 
           let bgClass = ""
-          if (isSelected) bgClass = "bg-primary text-on-primary font-bold"
-          else if (inRange) bgClass = "bg-primary/10 text-primary font-medium"
+          if (isSelected) bgClass = "bg-primary text-on-primary font-bold shadow-md"
+          else if (inRange) bgClass = "bg-primary/15 text-primary font-medium"
 
           return (
-            <div key={i} className="relative">
+            <div key={i} className="relative flex items-center justify-center">
               {inRange && !isSelected && (
-                <div className="absolute inset-0 bg-primary/10 -my-0.5" />
+                <div className="absolute inset-x-[-2px] inset-y-[-2px] bg-primary/10" />
               )}
               {isStart && !isEnd && effectiveEnd && (
-                <div className="absolute right-0 top-0 bottom-0 w-1/2 bg-primary/10 -my-0.5" />
+                <div className="absolute right-0 top-[-2px] bottom-[-2px] w-1/2 bg-primary/10" />
               )}
               {isEnd && !isStart && effectiveStart && (
-                <div className="absolute left-0 top-0 bottom-0 w-1/2 bg-primary/10 -my-0.5" />
+                <div className="absolute left-0 top-[-2px] bottom-[-2px] w-1/2 bg-primary/10" />
               )}
               <button
                 type="button"
                 onClick={() => onDayClick(day)}
                 onMouseEnter={() => onDayHover(day)}
-                className={`relative z-10 w-full h-9 rounded-full text-label-sm transition-all duration-100 ${bgClass} hover:bg-primary/20`}
+                className={`relative z-10 w-10 h-10 rounded-full text-body-sm transition-all duration-100 ${bgClass} hover:bg-primary/20 hover:scale-110 active:scale-95`}
               >
                 {day.getDate()}
               </button>
@@ -189,14 +189,14 @@ export function AirbnbDateRange({ dateFrom, dateTo, onFromChange, onToChange }: 
     <div ref={ref} className="relative">
       <button
         onClick={() => setOpen(!open)}
-        className={`flex items-center gap-3 px-4 py-2.5 rounded-2xl border transition-all duration-200 ${
+        className={`flex items-center gap-3 px-5 py-3 rounded-2xl border transition-all duration-200 ${
           isFiltered
             ? "bg-primary/10 border-primary/40 text-primary shadow-sm"
             : "bg-surface border-outline-variant/30 text-on-surface-variant hover:border-outline-variant/60 hover:shadow-sm"
         }`}
       >
-        <Calendar size={16} className="shrink-0" />
-        <div className="flex items-center gap-2 text-label-md">
+        <Calendar size={18} className="shrink-0" />
+        <div className="flex items-center gap-2.5 text-body-md">
           <span className={isFiltered ? "font-semibold" : ""}>
             {dateFrom ? formatDisplay(new Date(dateFrom)) : "Start datum"}
           </span>
@@ -208,14 +208,14 @@ export function AirbnbDateRange({ dateFrom, dateTo, onFromChange, onToChange }: 
       </button>
 
       {open && (
-        <div className="absolute top-full right-0 mt-3 z-50 bg-surface-container-lowest rounded-3xl shadow-[0_8px_40px_rgba(0,0,0,0.12)] border border-outline-variant/20 p-6 w-fit">
-          <div className="flex items-center justify-between mb-6">
+        <div className="absolute top-full right-0 mt-3 z-50 bg-surface-container-lowest rounded-3xl shadow-[0_12px_48px_rgba(0,0,0,0.15)] border border-outline-variant/20 p-8 w-fit">
+          <div className="flex items-center justify-between mb-8">
             <div>
-              <p className="text-title-sm font-bold text-on-surface">
+              <p className="text-title-lg font-bold text-on-surface">
                 {tempStart ? formatDisplay(tempStart) : "Wanneer?"}
                 {tempStart && tempEnd && ` — ${formatDisplay(tempEnd)}`}
               </p>
-              <p className="text-body-sm text-on-surface-variant mt-0.5">
+              <p className="text-body-md text-on-surface-variant mt-1">
                 {step === "start" ? "Selecteer startdatum" : tempEnd ? "Geselecteerd" : "Selecteer einddatum"}
               </p>
             </div>
@@ -225,23 +225,23 @@ export function AirbnbDateRange({ dateFrom, dateTo, onFromChange, onToChange }: 
                   const prev = addMonths(baseMonth, -1)
                   setBaseMonth(prev)
                 }}
-                className="p-2 rounded-lg hover:bg-surface-container-low transition-colors"
+                className="p-2.5 rounded-lg hover:bg-surface-container-low transition-colors"
               >
-                <ChevronLeft size={16} className="text-on-surface-variant" />
+                <ChevronLeft size={18} className="text-on-surface-variant" />
               </button>
               <button
                 onClick={() => {
                   const next = addMonths(baseMonth, 1)
                   setBaseMonth(next)
                 }}
-                className="p-2 rounded-lg hover:bg-surface-container-low transition-colors"
+                className="p-2.5 rounded-lg hover:bg-surface-container-low transition-colors"
               >
-                <ChevronRight size={16} className="text-on-surface-variant" />
+                <ChevronRight size={18} className="text-on-surface-variant" />
               </button>
             </div>
           </div>
 
-          <div className="flex gap-8">
+          <div className="flex gap-12">
             <CalendarMonth
               month={leftMonth}
               startDate={tempStart}
@@ -262,24 +262,24 @@ export function AirbnbDateRange({ dateFrom, dateTo, onFromChange, onToChange }: 
             />
           </div>
 
-          <div className="flex items-center justify-between mt-6 pt-4 border-t border-outline-variant/20">
+          <div className="flex items-center justify-between mt-8 pt-5 border-t border-outline-variant/20">
             <button
               onClick={clearSelection}
-              className="text-label-md text-on-surface-variant hover:text-on-surface underline underline-offset-2 transition-colors"
+              className="text-body-md text-on-surface-variant hover:text-on-surface underline underline-offset-2 transition-colors"
             >
               Wis alles
             </button>
-            <div className="flex gap-2">
+            <div className="flex gap-3">
               <button
                 onClick={() => setOpen(false)}
-                className="px-5 py-2.5 text-label-md text-on-surface-variant border border-outline-variant/30 rounded-xl hover:bg-surface-container-low transition-colors"
+                className="px-6 py-3 text-body-md text-on-surface-variant border border-outline-variant/30 rounded-xl hover:bg-surface-container-low transition-colors"
               >
                 Annuleer
               </button>
               <button
                 onClick={applySelection}
                 disabled={!tempStart || !tempEnd}
-                className="px-5 py-2.5 text-label-md bg-primary text-on-primary rounded-xl hover:opacity-90 transition-opacity disabled:opacity-40 disabled:cursor-not-allowed shadow-sm"
+                className="px-6 py-3 text-body-md bg-primary text-on-primary rounded-xl hover:opacity-90 transition-opacity disabled:opacity-40 disabled:cursor-not-allowed shadow-sm"
               >
                 Toepassen
               </button>
