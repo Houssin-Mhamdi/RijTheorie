@@ -1,8 +1,6 @@
 @import "tailwindcss";
 @import "tw-animate-css";
 @import "shadcn/tailwind.css";
-@import "react-date-range/dist/styles.css";
-@import "react-date-range/dist/theme/default.css";
 
 @custom-variant dark (&:is(.dark *));
 
