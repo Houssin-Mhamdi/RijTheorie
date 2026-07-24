@@ -169,12 +169,13 @@ export default function DashboardPage() {
   })()
 
   const attemptsOverTime = (() => {
-    const grouped: Record<string, { total: number; passed: number }> = {}
+    const grouped: Record<string, { total: number; passed: number; failed: number }> = {}
     attempts.forEach((a) => {
       const date = new Date(a.started_at as string).toLocaleDateString("nl-NL", { day: "2-digit", month: "2-digit" })
-      if (!grouped[date]) grouped[date] = { total: 0, passed: 0 }
+      if (!grouped[date]) grouped[date] = { total: 0, passed: 0, failed: 0 }
       grouped[date].total++
       if (a.passed) grouped[date].passed++
+      else grouped[date].failed++
     })
     const sorted = Object.entries(grouped).sort((a, b) => {
       const [dA, mA] = a[0].split("/").map(Number)
@@ -223,6 +224,16 @@ export default function DashboardPage() {
         data: attemptsOverTime.map(([, d]) => d.passed),
         borderColor: "#22c55e",
         backgroundColor: "rgba(34,197,94,0.1)",
+        fill: true,
+        tension: 0.4,
+        pointRadius: 4,
+        pointHoverRadius: 6,
+      },
+      {
+        label: "Gezakt",
+        data: attemptsOverTime.map(([, d]) => d.failed),
+        borderColor: "#ef4444",
+        backgroundColor: "rgba(239,68,68,0.1)",
         fill: true,
         tension: 0.4,
         pointRadius: 4,
