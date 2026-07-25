@@ -12,7 +12,7 @@ import { FixedSizeList as List } from "react-window"
 
 const DEBOUNCE_MS = 300
 const MIN_SEARCH_LENGTH = 2
-const ROW_HEIGHT = 52
+const ROW_HEIGHT = 64
 const PANEL_HEIGHT_OFFSET = 280
 
 function useDebounce<T>(value: T, delay: number): T {
@@ -42,6 +42,7 @@ export default function ExamDetailPage() {
     const q = filteredQuestions[index]
     if (!q) return null
     const isSelected = selectedQuestionIds.has(q.id as string)
+    const exams = questionExamMap.get(q.id as string)
 
     return (
       <div style={style} className="px-6">
@@ -52,8 +53,17 @@ export default function ExamDetailPage() {
           <div className={`size-5 rounded border-2 flex items-center justify-center transition-colors shrink-0 ${isSelected ? "bg-primary border-primary" : "border-outline-variant"}`}>
             {isSelected && <Check size={14} className="text-on-primary" />}
           </div>
-          <span className="text-label-sm bg-primary-container/30 text-primary px-2 py-0.5 rounded-md shrink-0">{q.category as string}</span>
-          <span className="text-body-md truncate">{q.question_text as string}</span>
+          <div className="min-w-0 flex-1">
+            <div className="flex items-center gap-2">
+              <span className="text-label-sm bg-primary-container/30 text-primary px-2 py-0.5 rounded-md shrink-0">{q.category as string}</span>
+              <span className="text-body-md truncate">{q.question_text as string}</span>
+            </div>
+            {exams && exams.length > 0 && (
+              <p className="text-label-xs text-on-surface-variant/50 mt-0.5 truncate">
+                {exams.map((e) => e.title).join(", ")}
+              </p>
+            )}
+          </div>
         </div>
       </div>
     )
@@ -92,6 +102,32 @@ export default function ExamDetailPage() {
     },
     { enabled: addOpen },
   )
+
+  const { data: allExamQuestions } = useSupabaseQuery(
+    ["all-exam-questions"],
+    async () => {
+      const { data, error } = await supabase
+        .from("exam_questions")
+        .select("question_id, exam:exams(id, title)")
+        .order("created_at", { ascending: false })
+      return { data, error }
+    },
+    { enabled: addOpen },
+  )
+
+  const questionExamMap = useMemo(() => {
+    const rows = (allExamQuestions as { question_id: string; exam: { id: string; title: string } | null }[] | undefined) || []
+    const map = new Map<string, { id: string; title: string }[]>()
+    rows.forEach((r) => {
+      if (!r.exam || r.exam.id === examId) return
+      const existing = map.get(r.question_id) || []
+      if (!existing.some((e) => e.id === r.exam!.id)) {
+        existing.push(r.exam!)
+        map.set(r.question_id, existing)
+      }
+    })
+    return map
+  }, [allExamQuestions, examId])
 
   const assignMutation = useSupabaseMutation(async (questionIds: string[]) => {
     const rows = questionIds.map((qid, i) => ({ exam_id: examId, question_id: qid, sort_order: i }))
