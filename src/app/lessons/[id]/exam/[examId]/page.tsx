@@ -1,20 +1,42 @@
 "use client"
 
-import { useState, useRef } from "react"
+import { useState, useRef, useEffect, useMemo, useCallback } from "react"
 import { useParams, useRouter } from "next/navigation"
 import { supabase } from "@/lib/supabase"
 import { useSupabaseQuery, useSupabaseMutation } from "@/lib/supabase-queries"
 import { toast } from "sonner"
-import { ArrowLeft, Plus, Check, X, Trash2, FileQuestion, BookOpen, GripVertical } from "lucide-react"
+import { ArrowLeft, Plus, Check, X, Trash2, FileQuestion, BookOpen, GripVertical, Search, Loader2 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Dialog, DialogTrigger, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter, DialogClose } from "@/components/ui/dialog"
+import { List } from "react-window"
+
+const DEBOUNCE_MS = 300
+const MIN_SEARCH_LENGTH = 2
+const ROW_HEIGHT = 52
+const PANEL_HEIGHT_OFFSET = 280
+
+function useDebounce<T>(value: T, delay: number): T {
+  const [debouncedValue, setDebouncedValue] = useState(value)
+  useEffect(() => {
+    const timer = setTimeout(() => setDebouncedValue(value), delay)
+    return () => clearTimeout(timer)
+  }, [value, delay])
+  return debouncedValue
+}
 
 export default function ExamDetailPage() {
   const { id: courseId, examId } = useParams<{ id: string; examId: string }>()
   const router = useRouter()
   const [addOpen, setAddOpen] = useState(false)
   const [selectedQuestionIds, setSelectedQuestionIds] = useState<Set<string>>(new Set())
+  const [searchQuery, setSearchQuery] = useState("")
+  const [panelHeight, setPanelHeight] = useState(600)
   const dragIndex = useRef<number | null>(null)
+  const abortRef = useRef<AbortController | null>(null)
+  const searchCacheRef = useRef<Map<string, Record<string, unknown>[]>>(new Map())
+  const listRef = useRef<List | null>(null)
+
+  const debouncedSearch = useDebounce(searchQuery, DEBOUNCE_MS)
 
   const { data: examData, isLoading: examLoading, refetch: refetchExam } = useSupabaseQuery(
     ["exam", examId],
@@ -35,9 +57,18 @@ export default function ExamDetailPage() {
     { enabled: !!examId },
   )
 
-  const { data: allQuestions } = useSupabaseQuery(
+  const { data: allQuestions, isLoading: questionsLoading } = useSupabaseQuery(
     ["all-questions"],
-    async () => { const { data, error } = await supabase.from("questions").select("*").order("created_at", { ascending: false }); return { data, error } },
+    async () => {
+      const controller = new AbortController()
+      abortRef.current = controller
+      const { data, error } = await supabase
+        .from("questions")
+        .select("*")
+        .order("created_at", { ascending: false })
+        .abortSignal(controller.signal)
+      return { data, error }
+    },
     { enabled: addOpen },
   )
 
@@ -62,7 +93,54 @@ export default function ExamDetailPage() {
   const assigned = (assignedRows as { id: string; sort_order: number; question: Record<string, unknown> }[] | undefined) || []
   const allQ = (allQuestions as Record<string, unknown>[] | undefined) || []
 
-  const assignedQuestionIds = new Set(assigned.map((r) => r.question.id))
+  const assignedQuestionIds = useMemo(() => new Set(assigned.map((r) => r.question.id)), [assigned])
+
+  useEffect(() => {
+    if (addOpen) {
+      setPanelHeight(window.innerHeight - 40)
+      const onResize = () => setPanelHeight(window.innerHeight - 40)
+      window.addEventListener("resize", onResize)
+      return () => window.removeEventListener("resize", onResize)
+    }
+  }, [addOpen])
+
+  useEffect(() => {
+    if (!addOpen && abortRef.current) {
+      abortRef.current.abort()
+      abortRef.current = null
+    }
+  }, [addOpen])
+
+  useEffect(() => {
+    listRef.current?.scrollToItem(0, "start")
+  }, [debouncedSearch])
+
+  const filteredQuestions = useMemo(() => {
+    const unassigned = allQ.filter((q) => !assignedQuestionIds.has(q.id as string))
+    const query = debouncedSearch.trim().toLowerCase()
+    if (query.length === 0) return unassigned
+
+    if (query.length < MIN_SEARCH_LENGTH) return unassigned
+
+    const cacheKey = query
+    if (searchCacheRef.current.has(cacheKey)) {
+      return searchCacheRef.current.get(cacheKey)!
+    }
+
+    const results = unassigned.filter((q) => {
+      const text = (q.question_text as string || "").toLowerCase()
+      const category = (q.category as string || "").toLowerCase()
+      return text.includes(query) || category.includes(query)
+    })
+
+    searchCacheRef.current.set(cacheKey, results)
+    if (searchCacheRef.current.size > 50) {
+      const firstKey = searchCacheRef.current.keys().next().value
+      if (firstKey) searchCacheRef.current.delete(firstKey)
+    }
+
+    return results
+  }, [allQ, assignedQuestionIds, debouncedSearch])
 
   function toggleSelect(qid: string) {
     setSelectedQuestionIds((prev) => {
@@ -80,6 +158,8 @@ export default function ExamDetailPage() {
       toast.success("Questions added to exam")
       setSelectedQuestionIds(new Set())
       setAddOpen(false)
+      setSearchQuery("")
+      searchCacheRef.current.clear()
       refetchAssigned()
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Failed to add questions")
@@ -125,9 +205,41 @@ export default function ExamDetailPage() {
     refetchAssigned()
   }
 
-  if (examLoading) return <div className="px-4 md:px-6 py-8"><div className="animate-pulse h-8 w-48 bg-surface-container-highest rounded-xl" /></div>
+  const handleAddOpen = useCallback(() => {
+    setSearchQuery("")
+    searchCacheRef.current.clear()
+    setSelectedQuestionIds(new Set())
+    setAddOpen(true)
+  }, [])
 
-  const unassignedQuestions = allQ.filter((q) => !assignedQuestionIds.has(q.id as string))
+  const handleAddClose = useCallback(() => {
+    setAddOpen(false)
+    setSearchQuery("")
+    searchCacheRef.current.clear()
+  }, [])
+
+  const QuestionRow = useCallback(({ index, style }: { index: number; style: React.CSSProperties }) => {
+    const q = filteredQuestions[index]
+    if (!q) return null
+    const isSelected = selectedQuestionIds.has(q.id as string)
+
+    return (
+      <div style={style} className="px-6">
+        <div
+          className={`flex items-center gap-3 p-3 rounded-xl transition-colors cursor-pointer ${isSelected ? "bg-primary/10 border border-primary/30" : "hover:bg-surface-container-higher border border-transparent"}`}
+          onClick={() => toggleSelect(q.id as string)}
+        >
+          <div className={`size-5 rounded border-2 flex items-center justify-center transition-colors shrink-0 ${isSelected ? "bg-primary border-primary" : "border-outline-variant"}`}>
+            {isSelected && <Check size={14} className="text-on-primary" />}
+          </div>
+          <span className="text-label-sm bg-primary-container/30 text-primary px-2 py-0.5 rounded-md shrink-0">{q.category as string}</span>
+          <span className="text-body-md truncate">{q.question_text as string}</span>
+        </div>
+      </div>
+    )
+  }, [filteredQuestions, selectedQuestionIds])
+
+  if (examLoading) return <div className="px-4 md:px-6 py-8"><div className="animate-pulse h-8 w-48 bg-surface-container-highest rounded-xl" /></div>
 
   return (
     <section className="px-4 md:px-6 py-8">
@@ -157,7 +269,7 @@ export default function ExamDetailPage() {
 
       <div className="flex justify-between items-center mb-4">
         <h3 className="text-headline-sm text-primary">Questions</h3>
-        <Button className="flex items-center gap-2" onClick={() => setAddOpen(true)}>
+        <Button className="flex items-center gap-2" onClick={handleAddOpen}>
           <Plus size={18} />
           Add Questions
         </Button>
@@ -239,34 +351,89 @@ export default function ExamDetailPage() {
 
       {addOpen && (
         <div className="fixed inset-0 z-50 flex justify-end">
-          <div className="absolute inset-0 bg-black/30 backdrop-blur-sm" onClick={() => setAddOpen(false)} />
-          <div className="relative w-full max-w-lg bg-surface-container-low shadow-xl h-full overflow-y-auto">
-            <div className="sticky top-0 bg-surface-container-low z-10 flex items-center justify-between p-6 border-b border-outline-variant/30">
-              <div>
-                <h3 className="text-headline-sm text-primary">Add Questions</h3>
-                <p className="text-body-sm text-on-surface-variant">Select questions to add to this exam</p>
-              </div>
-              <button onClick={() => setAddOpen(false)} className="p-2 rounded-xl hover:bg-surface-container-higher transition-colors"><X size={20} /></button>
-            </div>
+          <div className="absolute inset-0 bg-black/30 backdrop-blur-sm" onClick={handleAddClose} />
+          <div className="relative w-full max-w-lg bg-surface-container-low shadow-xl h-full flex flex-col">
 
-            <div className="p-6 space-y-2">
-              {unassignedQuestions.length === 0 && (
-                <p className="text-center py-12 text-on-surface-variant text-body-md">All questions are already in this exam</p>
-              )}
-              {unassignedQuestions.map((q) => (
-                <div key={q.id as string} className="flex items-center gap-3 p-3 rounded-xl hover:bg-surface-container-higher transition-colors cursor-pointer" onClick={() => toggleSelect(q.id as string)}>
-                  <div className={`size-5 rounded border-2 flex items-center justify-center transition-colors shrink-0 ${selectedQuestionIds.has(q.id as string) ? "bg-primary border-primary" : "border-outline-variant"}`}>
-                    {selectedQuestionIds.has(q.id as string) && <Check size={14} className="text-on-primary" />}
-                  </div>
-                  <span className="text-label-sm bg-primary-container/30 text-primary px-2 py-0.5 rounded-md shrink-0">{q.category as string}</span>
-                  <span className="text-body-md truncate">{q.question_text as string}</span>
+            <div className="shrink-0 p-6 border-b border-outline-variant/30 space-y-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h3 className="text-headline-sm text-primary">Add Questions</h3>
+                  <p className="text-body-sm text-on-surface-variant">
+                    {filteredQuestions.length} question{filteredQuestions.length !== 1 ? "s" : ""} available
+                  </p>
                 </div>
-              ))}
+                <button onClick={handleAddClose} className="p-2 rounded-xl hover:bg-surface-container-higher transition-colors"><X size={20} /></button>
+              </div>
+
+              <div className="relative">
+                <Search size={18} className="absolute left-3 top-1/2 -translate-y-1/2 text-on-surface-variant/50" />
+                <input
+                  type="text"
+                  placeholder={`Zoek op vraag of categorie (min. ${MIN_SEARCH_LENGTH} tekens)...`}
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="w-full pl-10 pr-10 py-3 bg-surface-container-highest rounded-xl text-body-md text-on-surface placeholder:text-on-surface-variant/40 outline-none border border-outline-variant/30 focus:border-primary/50 focus:ring-2 focus:ring-primary/10 transition-all"
+                />
+                {searchQuery.length > 0 && (
+                  <button
+                    onClick={() => { setSearchQuery(""); listRef.current?.scrollToItem(0, "start") }}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 p-1 rounded-full hover:bg-surface-container-higher transition-colors"
+                  >
+                    <X size={16} className="text-on-surface-variant/50" />
+                  </button>
+                )}
+              </div>
+
+              {searchQuery.length > 0 && searchQuery.trim().length < MIN_SEARCH_LENGTH && (
+                <p className="text-label-sm text-on-surface-variant/60 flex items-center gap-1.5">
+                  <Loader2 size={13} className="animate-spin" />
+                  Typ minstens {MIN_SEARCH_LENGTH} tekens om te zoeken
+                </p>
+              )}
             </div>
 
-            <div className="sticky bottom-0 border-t border-outline-variant/30 p-6 bg-surface-container-low">
+            <div className="flex-1 min-h-0">
+              {questionsLoading && (
+                <div className="flex flex-col items-center justify-center h-full text-on-surface-variant">
+                  <Loader2 size={32} className="animate-spin mb-3 opacity-40" />
+                  <p className="text-body-md">Vragen laden...</p>
+                </div>
+              )}
+
+              {!questionsLoading && filteredQuestions.length === 0 && (
+                <div className="flex flex-col items-center justify-center h-full text-on-surface-variant px-6">
+                  {searchQuery.trim().length >= MIN_SEARCH_LENGTH ? (
+                    <>
+                      <Search size={40} className="opacity-30 mb-3" />
+                      <p className="text-body-md text-center">Geen vragen gevonden voor &quot;{searchQuery}&quot;</p>
+                      <p className="text-body-sm text-center mt-1 opacity-60">Probeer een andere zoekterm</p>
+                    </>
+                  ) : (
+                    <>
+                      <FileQuestion size={40} className="opacity-30 mb-3" />
+                      <p className="text-body-md">Alle vragen zitten al in dit examen</p>
+                    </>
+                  )}
+                </div>
+              )}
+
+              {!questionsLoading && filteredQuestions.length > 0 && (
+                <List
+                  ref={listRef}
+                  height={panelHeight - PANEL_HEIGHT_OFFSET}
+                  itemCount={filteredQuestions.length}
+                  itemSize={ROW_HEIGHT}
+                  width="100%"
+                  overscanCount={10}
+                >
+                  {QuestionRow}
+                </List>
+              )}
+            </div>
+
+            <div className="shrink-0 border-t border-outline-variant/30 p-6 bg-surface-container-low">
               <div className="flex gap-4">
-                <button onClick={() => setAddOpen(false)} className="flex-1 px-6 py-3 border border-outline rounded-xl text-label-md text-on-surface-variant hover:bg-surface-container-low transition-all">Cancel</button>
+                <button onClick={handleAddClose} className="flex-1 px-6 py-3 border border-outline rounded-xl text-label-md text-on-surface-variant hover:bg-surface-container-low transition-all">Cancel</button>
                 <button
                   onClick={handleAssign}
                   disabled={selectedQuestionIds.size === 0 || assignMutation.isPending}
