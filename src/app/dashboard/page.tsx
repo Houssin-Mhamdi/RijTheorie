@@ -278,7 +278,7 @@ export default function DashboardPage() {
         <div>
           <h1 className="text-headline-lg text-primary">{t("dash.welcome")}, {profile?.name ?? "Admin"}</h1>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 flex-wrap">
           <AirbnbDateRange
             dateFrom={dateFrom}
             dateTo={dateTo}

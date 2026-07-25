@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useRef, useEffect } from "react"
-import { Calendar, ChevronLeft, ChevronRight } from "lucide-react"
+import { Calendar, ChevronLeft, ChevronRight, X } from "lucide-react"
 
 function startOfMonth(d: Date) {
   return new Date(d.getFullYear(), d.getMonth(), 1)
@@ -60,7 +60,7 @@ function CalendarMonth({ month, startDate, endDate, hoverDate, onDayClick, onDay
   const effectiveEnd = previewEnd || endDate
 
   return (
-    <div className="min-w-[280px]">
+    <div className="w-full">
       <p className="text-center text-title-md font-bold text-on-surface mb-5">
         {MONTHS_NL[m]} {year}
       </p>
@@ -96,7 +96,7 @@ function CalendarMonth({ month, startDate, endDate, hoverDate, onDayClick, onDay
                 type="button"
                 onClick={() => onDayClick(day)}
                 onMouseEnter={() => onDayHover(day)}
-                className={`relative z-10 w-10 h-10 rounded-full text-body-sm transition-all duration-100 ${bgClass} hover:bg-primary/20 hover:scale-110 active:scale-95`}
+                className={`relative z-10 w-9 h-9 sm:w-10 sm:h-10 rounded-full text-body-sm transition-all duration-100 ${bgClass} hover:bg-primary/20 hover:scale-110 active:scale-95`}
               >
                 {day.getDate()}
               </button>
@@ -120,6 +120,7 @@ export function AirbnbDateRange({ dateFrom, dateTo, onFromChange, onToChange }: 
   const [tempEnd, setTempEnd] = useState<Date | null>(dateTo ? new Date(dateTo) : null)
   const [hoverDate, setHoverDate] = useState<Date | null>(null)
   const [baseMonth, setBaseMonth] = useState(() => startOfMonth(new Date()))
+  const [mobilePage, setMobilePage] = useState<"left" | "right">("left")
 
   const ref = useRef<HTMLDivElement>(null)
 
@@ -136,6 +137,7 @@ export function AirbnbDateRange({ dateFrom, dateTo, onFromChange, onToChange }: 
       setTempStart(dateFrom ? new Date(dateFrom) : null)
       setTempEnd(dateTo ? new Date(dateTo) : null)
       setStep("start")
+      setMobilePage("left")
       if (dateFrom) {
         const d = new Date(dateFrom)
         setBaseMonth(startOfMonth(d))
@@ -144,6 +146,15 @@ export function AirbnbDateRange({ dateFrom, dateTo, onFromChange, onToChange }: 
       }
     }
   }, [open, dateFrom, dateTo])
+
+  useEffect(() => {
+    if (open) {
+      document.body.style.overflow = "hidden"
+    } else {
+      document.body.style.overflow = ""
+    }
+    return () => { document.body.style.overflow = "" }
+  }, [open])
 
   const maxDate = new Date()
 
@@ -189,14 +200,14 @@ export function AirbnbDateRange({ dateFrom, dateTo, onFromChange, onToChange }: 
     <div ref={ref} className="relative">
       <button
         onClick={() => setOpen(!open)}
-        className={`flex items-center gap-3 px-5 py-3 rounded-2xl border transition-all duration-200 ${
+        className={`flex items-center gap-2.5 px-3 py-2.5 sm:px-5 sm:py-3 rounded-2xl border transition-all duration-200 ${
           isFiltered
             ? "bg-primary/10 border-primary/40 text-primary shadow-sm"
             : "bg-surface border-outline-variant/30 text-on-surface-variant hover:border-outline-variant/60 hover:shadow-sm"
         }`}
       >
         <Calendar size={18} className="shrink-0" />
-        <div className="flex items-center gap-2.5 text-body-md">
+        <div className="hidden sm:flex items-center gap-2.5 text-body-md">
           <span className={isFiltered ? "font-semibold" : ""}>
             {dateFrom ? formatDisplay(new Date(dateFrom)) : "Start datum"}
           </span>
@@ -205,87 +216,148 @@ export function AirbnbDateRange({ dateFrom, dateTo, onFromChange, onToChange }: 
             {dateTo ? formatDisplay(new Date(dateTo)) : "Eind datum"}
           </span>
         </div>
+        <div className="flex sm:hidden items-center gap-1.5 text-label-md">
+          <span className={isFiltered ? "font-semibold" : ""}>
+            {dateFrom ? new Date(dateFrom).toLocaleDateString("nl-NL", { day: "numeric", month: "short" }) : "Start"}
+          </span>
+          <span className="text-on-surface-variant/40">—</span>
+          <span className={isFiltered ? "font-semibold" : ""}>
+            {dateTo ? new Date(dateTo).toLocaleDateString("nl-NL", { day: "numeric", month: "short" }) : "Eind"}
+          </span>
+        </div>
       </button>
 
       {open && (
-        <div className="absolute top-full right-0 mt-3 z-50 bg-surface-container-lowest rounded-3xl shadow-[0_12px_48px_rgba(0,0,0,0.15)] border border-outline-variant/20 p-8 w-fit">
-          <div className="flex items-center justify-between mb-8">
-            <div>
-              <p className="text-title-lg font-bold text-on-surface">
-                {tempStart ? formatDisplay(tempStart) : "Wanneer?"}
-                {tempStart && tempEnd && ` — ${formatDisplay(tempEnd)}`}
-              </p>
-              <p className="text-body-md text-on-surface-variant mt-1">
-                {step === "start" ? "Selecteer startdatum" : tempEnd ? "Geselecteerd" : "Selecteer einddatum"}
-              </p>
-            </div>
-            <div className="flex items-center gap-1 bg-surface-container rounded-xl p-1">
-              <button
-                onClick={() => {
-                  const prev = addMonths(baseMonth, -1)
-                  setBaseMonth(prev)
-                }}
-                className="p-2.5 rounded-lg hover:bg-surface-container-low transition-colors"
-              >
-                <ChevronLeft size={18} className="text-on-surface-variant" />
-              </button>
-              <button
-                onClick={() => {
-                  const next = addMonths(baseMonth, 1)
-                  setBaseMonth(next)
-                }}
-                className="p-2.5 rounded-lg hover:bg-surface-container-low transition-colors"
-              >
-                <ChevronRight size={18} className="text-on-surface-variant" />
-              </button>
-            </div>
-          </div>
+        <>
+          <div className="fixed inset-0 bg-black/30 z-40 sm:hidden" onClick={() => setOpen(false)} />
 
-          <div className="flex gap-12">
-            <CalendarMonth
-              month={leftMonth}
-              startDate={tempStart}
-              endDate={tempEnd}
-              hoverDate={hoverDate}
-              onDayClick={handleDayClick}
-              onDayHover={handleDayHover}
-              maxDate={maxDate}
-            />
-            <CalendarMonth
-              month={rightMonth}
-              startDate={tempStart}
-              endDate={tempEnd}
-              hoverDate={hoverDate}
-              onDayClick={handleDayClick}
-              onDayHover={handleDayHover}
-              maxDate={maxDate}
-            />
-          </div>
+          <div className="fixed inset-x-0 bottom-0 z-50 sm:z-50 sm:absolute sm:top-full sm:right-0 sm:mt-3 sm:w-fit bg-surface-container-lowest sm:rounded-3xl rounded-t-3xl shadow-[0_-8px_40px_rgba(0,0,0,0.15)] border border-outline-variant/20 sm:p-8 p-5 sm:max-w-none max-h-[90vh] overflow-y-auto">
 
-          <div className="flex items-center justify-between mt-8 pt-5 border-t border-outline-variant/20">
-            <button
-              onClick={clearSelection}
-              className="text-body-md text-on-surface-variant hover:text-on-surface underline underline-offset-2 transition-colors"
-            >
-              Wis alles
-            </button>
-            <div className="flex gap-3">
+            <div className="flex items-center justify-between mb-6 sm:mb-8">
+              <div className="min-w-0">
+                <p className="text-title-lg font-bold text-on-surface truncate">
+                  {tempStart ? formatDisplay(tempStart) : "Wanneer?"}
+                  {tempStart && tempEnd && (
+                    <span className="hidden sm:inline"> — {formatDisplay(tempEnd)}</span>
+                  )}
+                  {tempStart && tempEnd && (
+                    <span className="sm:hidden"><br />{formatDisplay(tempEnd)}</span>
+                  )}
+                </p>
+                <p className="text-body-md text-on-surface-variant mt-1">
+                  {step === "start" ? "Selecteer startdatum" : tempEnd ? "Geselecteerd" : "Selecteer einddatum"}
+                </p>
+              </div>
+              <div className="flex items-center gap-2 shrink-0 ml-3">
+                <button
+                  onClick={() => setOpen(false)}
+                  className="p-2.5 rounded-xl hover:bg-surface-container-low transition-colors sm:hidden"
+                >
+                  <X size={20} className="text-on-surface-variant" />
+                </button>
+                <div className="flex items-center gap-1 bg-surface-container rounded-xl p-1">
+                  <button
+                    onClick={() => {
+                      if (mobilePage === "right") {
+                        setMobilePage("left")
+                      } else {
+                        setBaseMonth(addMonths(baseMonth, -1))
+                      }
+                    }}
+                    className="p-2.5 rounded-lg hover:bg-surface-container-low transition-colors"
+                  >
+                    <ChevronLeft size={18} className="text-on-surface-variant" />
+                  </button>
+                  <button
+                    onClick={() => {
+                      if (mobilePage === "left") {
+                        setMobilePage("right")
+                      } else {
+                        setBaseMonth(addMonths(baseMonth, 1))
+                      }
+                    }}
+                    className="p-2.5 rounded-lg hover:bg-surface-container-low transition-colors"
+                  >
+                    <ChevronRight size={18} className="text-on-surface-variant" />
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            <div className="flex gap-12 sm:flex-row flex-col sm:gap-12 gap-6">
+              <div className="sm:block hidden">
+                <CalendarMonth
+                  month={leftMonth}
+                  startDate={tempStart}
+                  endDate={tempEnd}
+                  hoverDate={hoverDate}
+                  onDayClick={handleDayClick}
+                  onDayHover={handleDayHover}
+                  maxDate={maxDate}
+                />
+              </div>
+              <div className="sm:block hidden">
+                <CalendarMonth
+                  month={rightMonth}
+                  startDate={tempStart}
+                  endDate={tempEnd}
+                  hoverDate={hoverDate}
+                  onDayClick={handleDayClick}
+                  onDayHover={handleDayHover}
+                  maxDate={maxDate}
+                />
+              </div>
+
+              <div className="sm:hidden block">
+                {mobilePage === "left" ? (
+                  <CalendarMonth
+                    month={leftMonth}
+                    startDate={tempStart}
+                    endDate={tempEnd}
+                    hoverDate={hoverDate}
+                    onDayClick={handleDayClick}
+                    onDayHover={handleDayHover}
+                    maxDate={maxDate}
+                  />
+                ) : (
+                  <CalendarMonth
+                    month={rightMonth}
+                    startDate={tempStart}
+                    endDate={tempEnd}
+                    hoverDate={hoverDate}
+                    onDayClick={handleDayClick}
+                    onDayHover={handleDayHover}
+                    maxDate={maxDate}
+                  />
+                )}
+              </div>
+            </div>
+
+            <div className="flex items-center justify-between mt-6 sm:mt-8 pt-4 sm:pt-5 border-t border-outline-variant/20">
               <button
-                onClick={() => setOpen(false)}
-                className="px-6 py-3 text-body-md text-on-surface-variant border border-outline-variant/30 rounded-xl hover:bg-surface-container-low transition-colors"
+                onClick={clearSelection}
+                className="text-body-md text-on-surface-variant hover:text-on-surface underline underline-offset-2 transition-colors"
               >
-                Annuleer
+                Wis alles
               </button>
-              <button
-                onClick={applySelection}
-                disabled={!tempStart || !tempEnd}
-                className="px-6 py-3 text-body-md bg-primary text-on-primary rounded-xl hover:opacity-90 transition-opacity disabled:opacity-40 disabled:cursor-not-allowed shadow-sm"
-              >
-                Toepassen
-              </button>
+              <div className="flex gap-2 sm:gap-3">
+                <button
+                  onClick={() => setOpen(false)}
+                  className="px-4 sm:px-6 py-2.5 sm:py-3 text-body-md text-on-surface-variant border border-outline-variant/30 rounded-xl hover:bg-surface-container-low transition-colors"
+                >
+                  Annuleer
+                </button>
+                <button
+                  onClick={applySelection}
+                  disabled={!tempStart || !tempEnd}
+                  className="px-4 sm:px-6 py-2.5 sm:py-3 text-body-md bg-primary text-on-primary rounded-xl hover:opacity-90 transition-opacity disabled:opacity-40 disabled:cursor-not-allowed shadow-sm"
+                >
+                  Toepassen
+                </button>
+              </div>
             </div>
           </div>
-        </div>
+        </>
       )}
     </div>
   )
