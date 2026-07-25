@@ -390,6 +390,34 @@ export default function ExamDetailPage() {
                   Typ minstens {MIN_SEARCH_LENGTH} tekens om te zoeken
                 </p>
               )}
+
+              {filteredQuestions.length > 0 && (
+                <button
+                  onClick={() => {
+                    const allSelected = filteredQuestions.every((q) => selectedQuestionIds.has(q.id as string))
+                    if (allSelected) {
+                      setSelectedQuestionIds((prev) => {
+                        const next = new Set(prev)
+                        filteredQuestions.forEach((q) => next.delete(q.id as string))
+                        return next
+                      })
+                    } else {
+                      setSelectedQuestionIds((prev) => {
+                        const next = new Set(prev)
+                        filteredQuestions.forEach((q) => next.add(q.id as string))
+                        return next
+                      })
+                    }
+                  }}
+                  className={`text-label-sm px-3 py-1.5 rounded-lg border transition-colors ${
+                    filteredQuestions.length > 0 && filteredQuestions.every((q) => selectedQuestionIds.has(q.id as string))
+                      ? "bg-primary/10 border-primary/30 text-primary"
+                      : "border-outline-variant/30 text-on-surface-variant hover:bg-surface-container-higher"
+                  }`}
+                >
+                  {filteredQuestions.every((q) => selectedQuestionIds.has(q.id as string)) ? "Alles deselecteren" : "Alles selecteren"}
+                </button>
+              )}
             </div>
 
             <div className="flex-1 min-h-0">
