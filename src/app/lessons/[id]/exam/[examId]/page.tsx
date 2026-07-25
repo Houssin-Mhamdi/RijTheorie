@@ -8,7 +8,7 @@ import { toast } from "sonner"
 import { ArrowLeft, Plus, Check, X, Trash2, FileQuestion, BookOpen, GripVertical, Search, Loader2 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Dialog, DialogTrigger, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter, DialogClose } from "@/components/ui/dialog"
-import { List } from "react-window"
+import { FixedSizeList as List } from "react-window"
 
 const DEBOUNCE_MS = 300
 const MIN_SEARCH_LENGTH = 2
