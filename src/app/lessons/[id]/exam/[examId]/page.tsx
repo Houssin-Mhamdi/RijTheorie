@@ -384,7 +384,7 @@ export default function ExamDetailPage() {
                         })
                       }
                     }}
-                    className={`shrink-0 size-9 rounded-xl border-2 flex items-center justify-center transition-colors ${
+                    className={`shrink-0 size-7 rounded-lg border-2 flex items-center justify-center transition-colors ${
                       filteredQuestions.every((q) => selectedQuestionIds.has(q.id as string))
                         ? "bg-primary border-primary"
                         : "border-outline-variant hover:border-primary/50"
