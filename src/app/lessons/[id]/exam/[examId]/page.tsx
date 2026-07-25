@@ -365,21 +365,51 @@ export default function ExamDetailPage() {
                 <button onClick={handleAddClose} className="p-2 rounded-xl hover:bg-surface-container-higher transition-colors"><X size={20} /></button>
               </div>
 
-              <div className="relative">
-                <Search size={18} className="absolute left-3 top-1/2 -translate-y-1/2 text-on-surface-variant/50" />
-                <input
-                  type="text"
-                  placeholder={`Zoek op vraag of categorie (min. ${MIN_SEARCH_LENGTH} tekens)...`}
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  className="w-full pl-10 pr-10 py-3 bg-surface-container-highest rounded-xl text-body-md text-on-surface placeholder:text-on-surface-variant/40 outline-none border border-outline-variant/30 focus:border-primary/50 focus:ring-2 focus:ring-primary/10 transition-all"
-                />
-                {searchQuery.length > 0 && (
+              <div className="flex items-center gap-2">
+                <div className="relative flex-1 min-w-0">
+                  <Search size={18} className="absolute left-3 top-1/2 -translate-y-1/2 text-on-surface-variant/50" />
+                  <input
+                    type="text"
+                    placeholder={`Zoek op vraag of categorie (min. ${MIN_SEARCH_LENGTH} tekens)...`}
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    className="w-full pl-10 pr-10 py-3 bg-surface-container-highest rounded-xl text-body-md text-on-surface placeholder:text-on-surface-variant/40 outline-none border border-outline-variant/30 focus:border-primary/50 focus:ring-2 focus:ring-primary/10 transition-all"
+                  />
+                  {searchQuery.length > 0 && (
+                    <button
+                      onClick={() => { setSearchQuery(""); listRef.current?.scrollToItem(0, "start") }}
+                      className="absolute right-3 top-1/2 -translate-y-1/2 p-1 rounded-full hover:bg-surface-container-higher transition-colors"
+                    >
+                      <X size={16} className="text-on-surface-variant/50" />
+                    </button>
+                  )}
+                </div>
+
+                {filteredQuestions.length > 0 && (
                   <button
-                    onClick={() => { setSearchQuery(""); listRef.current?.scrollToItem(0, "start") }}
-                    className="absolute right-3 top-1/2 -translate-y-1/2 p-1 rounded-full hover:bg-surface-container-higher transition-colors"
+                    onClick={() => {
+                      const allSelected = filteredQuestions.every((q) => selectedQuestionIds.has(q.id as string))
+                      if (allSelected) {
+                        setSelectedQuestionIds((prev) => {
+                          const next = new Set(prev)
+                          filteredQuestions.forEach((q) => next.delete(q.id as string))
+                          return next
+                        })
+                      } else {
+                        setSelectedQuestionIds((prev) => {
+                          const next = new Set(prev)
+                          filteredQuestions.forEach((q) => next.add(q.id as string))
+                          return next
+                        })
+                      }
+                    }}
+                    className={`shrink-0 text-label-sm px-3 py-3 rounded-xl border transition-colors whitespace-nowrap ${
+                      filteredQuestions.length > 0 && filteredQuestions.every((q) => selectedQuestionIds.has(q.id as string))
+                        ? "bg-primary/10 border-primary/30 text-primary"
+                        : "border-outline-variant/30 text-on-surface-variant hover:bg-surface-container-higher"
+                    }`}
                   >
-                    <X size={16} className="text-on-surface-variant/50" />
+                    {filteredQuestions.every((q) => selectedQuestionIds.has(q.id as string)) ? "Alles deselecteren" : "Alles selecteren"}
                   </button>
                 )}
               </div>
@@ -389,34 +419,6 @@ export default function ExamDetailPage() {
                   <Loader2 size={13} className="animate-spin" />
                   Typ minstens {MIN_SEARCH_LENGTH} tekens om te zoeken
                 </p>
-              )}
-
-              {filteredQuestions.length > 0 && (
-                <button
-                  onClick={() => {
-                    const allSelected = filteredQuestions.every((q) => selectedQuestionIds.has(q.id as string))
-                    if (allSelected) {
-                      setSelectedQuestionIds((prev) => {
-                        const next = new Set(prev)
-                        filteredQuestions.forEach((q) => next.delete(q.id as string))
-                        return next
-                      })
-                    } else {
-                      setSelectedQuestionIds((prev) => {
-                        const next = new Set(prev)
-                        filteredQuestions.forEach((q) => next.add(q.id as string))
-                        return next
-                      })
-                    }
-                  }}
-                  className={`text-label-sm px-3 py-1.5 rounded-lg border transition-colors ${
-                    filteredQuestions.length > 0 && filteredQuestions.every((q) => selectedQuestionIds.has(q.id as string))
-                      ? "bg-primary/10 border-primary/30 text-primary"
-                      : "border-outline-variant/30 text-on-surface-variant hover:bg-surface-container-higher"
-                  }`}
-                >
-                  {filteredQuestions.every((q) => selectedQuestionIds.has(q.id as string)) ? "Alles deselecteren" : "Alles selecteren"}
-                </button>
               )}
             </div>
 
