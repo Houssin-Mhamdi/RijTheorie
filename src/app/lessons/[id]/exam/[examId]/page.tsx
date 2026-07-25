@@ -59,7 +59,7 @@ export default function ExamDetailPage() {
               <span className="text-body-md truncate">{q.question_text as string}</span>
             </div>
             {exams && exams.length > 0 && (
-              <p className="text-[11px] leading-tight text-on-surface-variant/40 mt-0.5 truncate">
+              <p className="text-[11px] leading-tight text-on-surface/60 mt-0.5 truncate">
                 {exams.map((e) => e.title).join(", ")}
               </p>
             )}
