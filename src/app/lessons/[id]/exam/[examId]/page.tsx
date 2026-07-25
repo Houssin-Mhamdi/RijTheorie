@@ -38,6 +38,27 @@ export default function ExamDetailPage() {
 
   const debouncedSearch = useDebounce(searchQuery, DEBOUNCE_MS)
 
+  function QuestionRow({ index, style }: { index: number; style: React.CSSProperties }) {
+    const q = filteredQuestions[index]
+    if (!q) return null
+    const isSelected = selectedQuestionIds.has(q.id as string)
+
+    return (
+      <div style={style} className="px-6">
+        <div
+          className={`flex items-center gap-3 p-3 rounded-xl transition-colors cursor-pointer ${isSelected ? "bg-primary/10 border border-primary/30" : "hover:bg-surface-container-higher border border-transparent"}`}
+          onClick={() => toggleSelect(q.id as string)}
+        >
+          <div className={`size-5 rounded border-2 flex items-center justify-center transition-colors shrink-0 ${isSelected ? "bg-primary border-primary" : "border-outline-variant"}`}>
+            {isSelected && <Check size={14} className="text-on-primary" />}
+          </div>
+          <span className="text-label-sm bg-primary-container/30 text-primary px-2 py-0.5 rounded-md shrink-0">{q.category as string}</span>
+          <span className="text-body-md truncate">{q.question_text as string}</span>
+        </div>
+      </div>
+    )
+  }
+
   const { data: examData, isLoading: examLoading, refetch: refetchExam } = useSupabaseQuery(
     ["exam", examId],
     async () => { const { data, error } = await supabase.from("exams").select("*, course:courses(title, icon_name)").eq("id", examId).single(); return { data, error } },
@@ -217,27 +238,6 @@ export default function ExamDetailPage() {
     setSearchQuery("")
     searchCacheRef.current.clear()
   }, [])
-
-  const QuestionRow = useCallback(({ index, style }: { index: number; style: React.CSSProperties }) => {
-    const q = filteredQuestions[index]
-    if (!q) return null
-    const isSelected = selectedQuestionIds.has(q.id as string)
-
-    return (
-      <div style={style} className="px-6">
-        <div
-          className={`flex items-center gap-3 p-3 rounded-xl transition-colors cursor-pointer ${isSelected ? "bg-primary/10 border border-primary/30" : "hover:bg-surface-container-higher border border-transparent"}`}
-          onClick={() => toggleSelect(q.id as string)}
-        >
-          <div className={`size-5 rounded border-2 flex items-center justify-center transition-colors shrink-0 ${isSelected ? "bg-primary border-primary" : "border-outline-variant"}`}>
-            {isSelected && <Check size={14} className="text-on-primary" />}
-          </div>
-          <span className="text-label-sm bg-primary-container/30 text-primary px-2 py-0.5 rounded-md shrink-0">{q.category as string}</span>
-          <span className="text-body-md truncate">{q.question_text as string}</span>
-        </div>
-      </div>
-    )
-  }, [filteredQuestions, selectedQuestionIds])
 
   if (examLoading) return <div className="px-4 md:px-6 py-8"><div className="animate-pulse h-8 w-48 bg-surface-container-highest rounded-xl" /></div>
 

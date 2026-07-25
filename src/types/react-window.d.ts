@@ -1,33 +1,36 @@
 declare module "react-window" {
-  import { ComponentType, CSSProperties, Ref } from "react"
+  import { Component, CSSProperties, ComponentType } from "react"
 
-  interface ListChildComponentProps {
+  export interface ListChildComponentProps {
     index: number
     style: CSSProperties
+    data: any
+    isScrolling?: boolean
   }
 
-  interface ListProps {
-    children?: ComponentType<ListChildComponentProps>
+  export interface ListProps {
+    children: ComponentType<ListChildComponentProps>
     className?: string
-    defaultHeight?: number
     height: number | string
     itemCount: number
     itemSize: number
-    listRef?: Ref<List>
+    width: number | string
+    overscanCount?: number
+    initialScrollOffset?: number
     onItemsRendered?: (props: {
       overscanStartIndex: number
       overscanStopIndex: number
       visibleStartIndex: number
       visibleStopIndex: number
     }) => void
-    overscanCount?: number
     style?: CSSProperties
-    width: number | string
+    itemData?: any
+    useIsScrolling?: boolean
   }
 
-  class List extends React.Component<ListProps> {
+  export class List extends Component<ListProps> {
     scrollToItem(index: number, align?: string): void
   }
 
-  export { List, List as FixedSizeList }
+  export { List as FixedSizeList }
 }
