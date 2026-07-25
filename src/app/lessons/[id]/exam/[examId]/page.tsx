@@ -12,7 +12,7 @@ import { FixedSizeList as List } from "react-window"
 
 const DEBOUNCE_MS = 300
 const MIN_SEARCH_LENGTH = 2
-const ROW_HEIGHT = 64
+const ROW_HEIGHT = 60
 const PANEL_HEIGHT_OFFSET = 280
 
 function useDebounce<T>(value: T, delay: number): T {
@@ -59,7 +59,7 @@ export default function ExamDetailPage() {
               <span className="text-body-md truncate">{q.question_text as string}</span>
             </div>
             {exams && exams.length > 0 && (
-              <p className="text-label-xs text-on-surface-variant/50 mt-0.5 truncate">
+              <p className="text-[11px] leading-tight text-on-surface-variant/40 mt-0.5 truncate">
                 {exams.map((e) => e.title).join(", ")}
               </p>
             )}
