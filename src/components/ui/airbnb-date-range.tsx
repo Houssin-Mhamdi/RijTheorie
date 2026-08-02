@@ -238,7 +238,7 @@ export function AirbnbDateRange({ dateFrom, dateTo, onFromChange, onToChange }: 
         <>
           <div className="fixed inset-0 bg-black/30 z-40 sm:hidden" onClick={() => setOpen(false)} />
 
-          <div className="fixed inset-x-0 bottom-0 z-50 sm:z-50 sm:absolute sm:top-full sm:right-0 sm:mt-3 sm:w-fit bg-surface-container-lowest sm:rounded-3xl rounded-t-3xl shadow-[0_-8px_40px_rgba(0,0,0,0.15)] border border-outline-variant/20 sm:p-8 p-5 sm:max-w-none max-h-[90vh] overflow-y-auto">
+          <div className="fixed inset-x-0 bottom-0 z-50 sm:absolute sm:inset-auto sm:top-full sm:right-0 sm:mt-3 sm:w-fit bg-surface-container-lowest sm:rounded-3xl rounded-t-3xl shadow-[0_-8px_40px_rgba(0,0,0,0.15)] border border-outline-variant/20 sm:p-8 p-5 sm:max-w-none max-h-[90vh] overflow-y-auto">
 
             <div className="flex items-center justify-between mb-6 sm:mb-8">
               <div className="min-w-0">
