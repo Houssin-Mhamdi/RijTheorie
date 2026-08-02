@@ -60,7 +60,7 @@ function CalendarMonth({ month, startDate, endDate, hoverDate, onDayClick, onDay
   const effectiveEnd = previewEnd || endDate
 
   return (
-    <div className="w-full">
+    <div className="w-[280px] sm:w-[300px]">
       <p className="text-center text-title-md font-bold text-on-surface mb-5">
         {MONTHS_NL[m]} {year}
       </p>
@@ -291,8 +291,8 @@ export function AirbnbDateRange({ dateFrom, dateTo, onFromChange, onToChange }: 
               </div>
             </div>
 
-            <div className="flex gap-12 sm:flex-row flex-col sm:gap-12 gap-6">
-              <div className="sm:block hidden">
+            <div className="flex gap-8 sm:gap-12 flex-col sm:flex-row">
+              <div className="hidden sm:block">
                 <CalendarMonth
                   month={leftMonth}
                   startDate={tempStart}
@@ -303,7 +303,7 @@ export function AirbnbDateRange({ dateFrom, dateTo, onFromChange, onToChange }: 
                   maxDate={maxDate}
                 />
               </div>
-              <div className="sm:block hidden">
+              <div className="hidden sm:block">
                 <CalendarMonth
                   month={rightMonth}
                   startDate={tempStart}
