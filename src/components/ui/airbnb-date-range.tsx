@@ -200,23 +200,30 @@ export function AirbnbDateRange({ dateFrom, dateTo, onFromChange, onToChange }: 
     <div ref={ref} className="relative">
       <button
         onClick={() => setOpen(!open)}
-        className={`flex items-center gap-2.5 px-3 py-2.5 sm:px-5 sm:py-3 rounded-2xl border transition-all duration-200 ${
+        className={`flex items-center rounded-2xl border transition-all duration-200 overflow-hidden ${
           isFiltered
             ? "bg-primary/10 border-primary/40 text-primary shadow-sm"
             : "bg-surface border-outline-variant/30 text-on-surface-variant hover:border-outline-variant/60 hover:shadow-sm"
         }`}
       >
-        <Calendar size={18} className="shrink-0" />
-        <div className="hidden sm:flex items-center gap-2.5 text-body-md">
-          <span className={isFiltered ? "font-semibold" : ""}>
-            {dateFrom ? formatDisplay(new Date(dateFrom)) : "Start datum"}
+        <span className="flex items-center gap-2 px-4 py-3">
+          <Calendar size={18} className="shrink-0 text-on-surface-variant/70" />
+        </span>
+        <div className="hidden sm:flex items-stretch divide-x divide-outline-variant/20">
+          <span className="flex flex-col items-start gap-0.5 px-4 py-2 min-w-[130px]">
+            <span className="text-label-xs uppercase tracking-wide text-on-surface-variant/60">Start datum</span>
+            <span className={`text-body-sm ${isFiltered ? "font-semibold" : ""}`}>
+              {dateFrom ? formatDisplay(new Date(dateFrom)) : "Wanneer?"}
+            </span>
           </span>
-          <span className="text-on-surface-variant/40">—</span>
-          <span className={isFiltered ? "font-semibold" : ""}>
-            {dateTo ? formatDisplay(new Date(dateTo)) : "Eind datum"}
+          <span className="flex flex-col items-start gap-0.5 px-4 py-2 min-w-[130px]">
+            <span className="text-label-xs uppercase tracking-wide text-on-surface-variant/60">Eind datum</span>
+            <span className={`text-body-sm ${isFiltered ? "font-semibold" : ""}`}>
+              {dateTo ? formatDisplay(new Date(dateTo)) : "Wanneer?"}
+            </span>
           </span>
         </div>
-        <div className="flex sm:hidden items-center gap-1.5 text-label-md">
+        <span className="flex sm:hidden items-center gap-1.5 px-3 py-3 text-label-md">
           <span className={isFiltered ? "font-semibold" : ""}>
             {dateFrom ? new Date(dateFrom).toLocaleDateString("nl-NL", { day: "numeric", month: "short" }) : "Start"}
           </span>
@@ -224,7 +231,7 @@ export function AirbnbDateRange({ dateFrom, dateTo, onFromChange, onToChange }: 
           <span className={isFiltered ? "font-semibold" : ""}>
             {dateTo ? new Date(dateTo).toLocaleDateString("nl-NL", { day: "numeric", month: "short" }) : "Eind"}
           </span>
-        </div>
+        </span>
       </button>
 
       {open && (
