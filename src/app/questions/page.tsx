@@ -356,7 +356,7 @@ export default function QuestionsPage() {
           </div>
         }
       >
-        <QuestionForm onSubmit={handleSubmit} initialData={initialData ?? null} userId={session?.user?.id} onUploadingChange={setIsUploading} />
+        <QuestionForm key={editId ?? "new-question"} onSubmit={handleSubmit} initialData={initialData ?? null} userId={session?.user?.id} onUploadingChange={setIsUploading} />
       </SlideOver>
 
       <Dialog open={!!deleteTarget} onOpenChange={(open) => { if (!open) setDeleteTarget(null) }}>
