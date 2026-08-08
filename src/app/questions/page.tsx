@@ -7,7 +7,7 @@ import Pagination from "@/components/dashboard/pagination"
 import SlideOver from "@/components/ui/slide-over"
 import QuestionForm from "@/components/questions/question-form"
 import ImportDialog from "@/components/questions/import-dialog"
-import { useState } from "react"
+import { useState, useMemo } from "react"
 import type { QuestionInput } from "@/lib/auth-schemas"
 import { supabase } from "@/lib/supabase"
 import { useSupabaseQuery, useSupabaseMutation } from "@/lib/supabase-queries"
@@ -143,23 +143,27 @@ export default function QuestionsPage() {
     ? ((questionsData as Record<string, unknown>[])?.find((q) => q.id === editId) as Record<string, unknown>)
     : null
 
-  const initialData: QuestionInput | undefined = editQuestion
-    ? {
-        category: editQuestion.category as string,
-        questionText: editQuestion.question_text as string,
-        media: (editQuestion.media as string) || undefined,
-        pauseAt: (editQuestion.pause_at as number) ?? 3,
-        answerOptions: (editQuestion.answer_options as Array<{ text: string; isCorrect: boolean; x?: number; y?: number }>) || [],
-        explanation: (editQuestion.explanation as string) || undefined,
-        translations: Object.entries((editQuestion.translations as Record<string, { question_text: string; answer_options?: { text: string }[]; explanation?: string; active?: boolean }>) || {}).map(([lang, t]) => ({
-          lang,
-          questionText: t.question_text,
-          answerOptions: t.answer_options?.map(o => ({ text: o.text })),
-          explanation: t.explanation || undefined,
-          active: t.active ?? true,
-        })),
-      }
-    : undefined
+  const initialData: QuestionInput | undefined = useMemo(
+    () =>
+      editQuestion
+        ? {
+            category: editQuestion.category as string,
+            questionText: editQuestion.question_text as string,
+            media: (editQuestion.media as string) || undefined,
+            pauseAt: (editQuestion.pause_at as number) ?? 3,
+            answerOptions: (editQuestion.answer_options as Array<{ text: string; isCorrect: boolean; x?: number; y?: number }>) || [],
+            explanation: (editQuestion.explanation as string) || undefined,
+            translations: Object.entries((editQuestion.translations as Record<string, { question_text: string; answer_options?: { text: string }[]; explanation?: string; active?: boolean }>) || {}).map(([lang, t]) => ({
+              lang,
+              questionText: t.question_text,
+              answerOptions: t.answer_options?.map(o => ({ text: o.text })),
+              explanation: t.explanation || undefined,
+              active: t.active ?? true,
+            })),
+          }
+        : undefined,
+    [editQuestion],
+  )
 
   const questions = (questionsData as Record<string, unknown>[] | undefined)?.map(mapQuestion) || []
 
