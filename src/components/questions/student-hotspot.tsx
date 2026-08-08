@@ -4,6 +4,7 @@ import { useRef, useState, useCallback, useEffect } from "react"
 import { Play, CheckCircle, XCircle } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { useVideoPoster } from "@/hooks/use-video-poster"
+import { useTranslation } from "@/lib/i18n/translations"
 
 interface HotspotOption {
   text: string
@@ -31,6 +32,7 @@ function isWithin(a: number, b: number, tol: number) {
 }
 
 export default function StudentHotspot({ media, mediaMime, correctOptions, onComplete, initialPositions, initialSubmitted, validationResults, pauseAt = 3, optionLabels }: StudentHotspotProps) {
+  const { t } = useTranslation()
   const containerRef = useRef<HTMLDivElement>(null)
   const videoRef = useRef<HTMLVideoElement>(null)
   const dragging = useRef<{ index: number } | null>(null)
@@ -304,11 +306,11 @@ export default function StudentHotspot({ media, mediaMime, correctOptions, onCom
                 </div>
                 <span className="flex-1 text-body-md text-on-surface">{optionLabels?.[i] ?? opt.text}</span>
                 {state === "wrong" && (
-                  <span className="text-label-sm text-red-600">Afstand: {dist}%</span>
+                  <span className="text-label-sm text-red-600">{t("exam.distance", { d: dist })}</span>
                 )}
                 {state === "correct" && (
                   <span className="text-label-sm font-bold text-green-600 bg-green-50 px-2 py-0.5 rounded">
-                    CORRECT
+                    {t("exam.correct")}
                   </span>
                 )}
               </div>

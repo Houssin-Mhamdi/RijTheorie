@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react"
 import { useRouter } from "next/navigation"
 import { supabase } from "@/lib/supabase"
+import { useTranslation } from "@/lib/i18n/translations"
 import {
   Chart as ChartJS,
   RadialLinearScale,
@@ -72,6 +73,7 @@ const chartColors = [
 
 export default function StatisticsPage() {
   const router = useRouter()
+  const { t } = useTranslation()
   const [attempts, setAttempts] = useState<Attempt[]>([])
   const [loading, setLoading] = useState(true)
   const [fetchError, setFetchError] = useState<string | null>(null)
@@ -286,7 +288,7 @@ export default function StatisticsPage() {
                           </div>
                           <div>
                             <p className="text-label-sm font-bold text-primary">{cat}</p>
-                            <p className="text-label-xs text-on-surface-variant">{s.correct}/{s.total} correct</p>
+                            <p className="text-label-xs text-on-surface-variant">{t("exam.correctCount", { c: s.correct, t: s.total })}</p>
                           </div>
                         </div>
                         <span className="text-label-sm font-bold text-primary">{percent}%</span>

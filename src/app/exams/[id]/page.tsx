@@ -661,7 +661,7 @@ export default function ExamDetailPage() {
                               <div key={oi} className={`relative rounded-xl overflow-hidden border-2 ${borderColor} ${isCorrectOpt ? "bg-green-50" : isSelected ? "bg-red-50" : ""}`}>
                                 {opt.imageUrl && <img src={opt.imageUrl} alt="" className="w-full aspect-square object-cover" />}
                                 {isCorrectOpt && (
-                                  <div className="absolute top-2 right-2 bg-green-500 text-white text-label-xs font-bold px-2 py-0.5 rounded">CORRECT</div>
+                                  <div className="absolute top-2 right-2 bg-green-500 text-white text-label-xs font-bold px-2 py-0.5 rounded">{t("exam.correct")}</div>
                                 )}
                                 {isSelected && !isCorrectOpt && (
                                   <div className="absolute top-2 right-2 bg-red-500 text-white text-label-xs font-bold px-2 py-0.5 rounded">{t("exam.yourChoice")}</div>
@@ -687,7 +687,7 @@ export default function ExamDetailPage() {
                                 </div>
                                 <span className="text-body-md flex-1">{opt.text}</span>
                                 {isCorrectOpt && (
-                                  <span className="text-label-xs font-bold text-green-700 bg-green-100 px-2 py-0.5 rounded shrink-0 ml-2">CORRECT</span>
+                                  <span className="text-label-xs font-bold text-green-700 bg-green-100 px-2 py-0.5 rounded shrink-0 ml-2">{t("exam.correct")}</span>
                                 )}
                                 {isSelected && !isCorrectOpt && (
                                   <span className="text-label-xs font-bold text-red-700 bg-red-100 px-2 py-0.5 rounded shrink-0 ml-2">{t("exam.yourChoice")}</span>
@@ -857,7 +857,7 @@ export default function ExamDetailPage() {
                     return (
                       <div key={idx} className="relative rounded-xl overflow-hidden border-2 border-green-500 bg-green-50">
                         {option.imageUrl && <img src={option.imageUrl} alt="" className="w-full aspect-square object-cover" />}
-                        <div className="absolute top-2 right-2 bg-green-500 text-white text-label-xs font-bold px-2 py-1 rounded-md">CORRECT</div>
+                        <div className="absolute top-2 right-2 bg-green-500 text-white text-label-xs font-bold px-2 py-1 rounded-md">{t("exam.correct")}</div>
                       </div>
                     )
                   }
@@ -907,7 +907,7 @@ export default function ExamDetailPage() {
                           <CheckCircle size={24} className="fill-green-500 text-white" />
                         </div>
                         <span className="text-body-lg font-medium text-green-900 flex-grow">{optionText}</span>
-                        <span className="text-label-xs font-bold text-green-700 bg-green-100 px-2 py-1 rounded-md shrink-0 ml-2">CORRECT</span>
+                        <span className="text-label-xs font-bold text-green-700 bg-green-100 px-2 py-1 rounded-md shrink-0 ml-2">{t("exam.correct")}</span>
                       </div>
                     )
                   }
@@ -931,7 +931,7 @@ export default function ExamDetailPage() {
                           <CheckCircle size={24} className="fill-green-500 text-white" />
                         </div>
                         <span className="text-body-lg font-medium text-green-900 flex-grow">{optionText}</span>
-                        <span className="text-label-xs font-bold text-green-700 bg-green-100 px-2 py-1 rounded-md shrink-0 ml-2">CORRECT</span>
+                        <span className="text-label-xs font-bold text-green-700 bg-green-100 px-2 py-1 rounded-md shrink-0 ml-2">{t("exam.correct")}</span>
                       </div>
                     )
                   }
