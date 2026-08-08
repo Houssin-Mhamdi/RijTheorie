@@ -27,6 +27,7 @@ import {
 import DOMPurify from "dompurify"
 import { useTranslation } from "@/lib/i18n/translations"
 import { LanguageSwitcher } from "@/components/language-switcher"
+import SmartImage from "@/components/ui/smart-image"
 
 type AnswerOption = {
   text: string
@@ -644,9 +645,9 @@ export default function ExamDetailPage() {
                       {q.media && !qIsHotspot && !qIsChooseImages && (
                         <div className="rounded-xl overflow-hidden aspect-video border border-outline-variant/30 bg-surface-container">
                           {q.mediaMime?.startsWith("video/") ? (
-                            <video src={q.media} controls preload="auto" className="w-full h-full object-cover" />
+                            <video src={q.media} controls preload="metadata" className="w-full h-full object-cover" />
                           ) : (
-                            <img src={q.media} alt="" className="w-full h-full object-cover" />
+                            <SmartImage src={q.media} alt="" className="w-full h-full object-cover" />
                           )}
                         </div>
                       )}
@@ -659,7 +660,7 @@ export default function ExamDetailPage() {
                             const borderColor = isCorrectOpt ? "border-green-500" : isSelected && !isCorrectOpt ? "border-red-500" : "border-outline-variant/30"
                             return (
                               <div key={oi} className={`relative rounded-xl overflow-hidden border-2 ${borderColor} ${isCorrectOpt ? "bg-green-50" : isSelected ? "bg-red-50" : ""}`}>
-                                {opt.imageUrl && <img src={opt.imageUrl} alt="" className="w-full aspect-square object-cover" />}
+                                {opt.imageUrl && <SmartImage src={opt.imageUrl} alt="" className="w-full aspect-square object-cover" />}
                                 {isCorrectOpt && (
                                   <div className="absolute top-2 right-2 bg-green-500 text-white text-label-xs font-bold px-2 py-0.5 rounded">{t("exam.correct")}</div>
                                 )}
@@ -796,9 +797,9 @@ export default function ExamDetailPage() {
                   {currentQuestion.media && !isHotspot && !isChooseImages && (
                     <div className="relative rounded-xl overflow-hidden aspect-video bg-surface-container">
                       {currentQuestion.mediaMime?.startsWith("video/") ? (
-                        <video src={currentQuestion.media} controls preload="auto" className="w-full h-full object-cover" />
+                        <video src={currentQuestion.media} controls preload="metadata" className="w-full h-full object-cover" />
                       ) : (
-                        <img src={currentQuestion.media} alt="Traffic situation" className="w-full h-full object-cover" />
+                        <SmartImage src={currentQuestion.media} alt="Traffic situation" lazy={false} className="w-full h-full object-cover" />
                       )}
                     </div>
                   )}
@@ -849,14 +850,14 @@ export default function ExamDetailPage() {
                       <button key={idx} type="button" onClick={() => handleSelect(idx)}
                         className="relative rounded-xl overflow-hidden border-2 border-outline-variant/50 transition-all active:scale-[0.97] hover:border-primary hover:shadow-sm cursor-pointer bg-surface"
                       >
-                        {option.imageUrl && <img src={option.imageUrl} alt="" className="w-full aspect-square object-cover" />}
+                        {option.imageUrl && <SmartImage src={option.imageUrl} alt="" lazy={false} className="w-full aspect-square object-cover" />}
                       </button>
                     )
                   }
                   if (state === "correct-selected" || state === "correct-unselected") {
                     return (
                       <div key={idx} className="relative rounded-xl overflow-hidden border-2 border-green-500 bg-green-50">
-                        {option.imageUrl && <img src={option.imageUrl} alt="" className="w-full aspect-square object-cover" />}
+                        {option.imageUrl && <SmartImage src={option.imageUrl} alt="" lazy={false} className="w-full aspect-square object-cover" />}
                         <div className="absolute top-2 right-2 bg-green-500 text-white text-label-xs font-bold px-2 py-1 rounded-md">{t("exam.correct")}</div>
                       </div>
                     )
@@ -864,14 +865,14 @@ export default function ExamDetailPage() {
                   if (state === "wrong-selected") {
                     return (
                       <div key={idx} className="relative rounded-xl overflow-hidden border-2 border-red-500 bg-red-50">
-                        {option.imageUrl && <img src={option.imageUrl} alt="" className="w-full aspect-square object-cover" />}
+                        {option.imageUrl && <SmartImage src={option.imageUrl} alt="" lazy={false} className="w-full aspect-square object-cover" />}
                         <div className="absolute top-2 right-2 bg-red-500 text-white text-label-xs font-bold px-2 py-1 rounded-md">{t("exam.yourChoice")}</div>
                       </div>
                     )
                   }
                   return (
                     <div key={idx} className="relative rounded-xl overflow-hidden border-2 border-outline-variant opacity-40 bg-surface-container-lowest">
-                      {option.imageUrl && <img src={option.imageUrl} alt="" className="w-full aspect-square object-cover" />}
+                      {option.imageUrl && <SmartImage src={option.imageUrl} alt="" lazy={false} className="w-full aspect-square object-cover" />}
                     </div>
                   )
                 })}

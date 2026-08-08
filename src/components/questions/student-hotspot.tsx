@@ -5,6 +5,7 @@ import { Play, CheckCircle, XCircle } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { useVideoPoster } from "@/hooks/use-video-poster"
 import { useTranslation } from "@/lib/i18n/translations"
+import SmartImage from "@/components/ui/smart-image"
 
 interface HotspotOption {
   text: string
@@ -221,7 +222,7 @@ export default function StudentHotspot({ media, mediaMime, correctOptions, onCom
             )}
           </>
         ) : (
-          <img src={media} alt="Hotspot" className="w-full h-auto block pointer-events-none" draggable={false} />
+          <SmartImage src={media} alt="Hotspot" lazy={false} className="w-full h-auto block pointer-events-none" />
         )}
 
         {!showOverlay && (
