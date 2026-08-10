@@ -9,12 +9,13 @@ import { cn } from "@/lib/utils"
 interface ExamFormProps {
   onSubmit: (data: ExamInput) => void
   isPending?: boolean
+  initialData?: ExamInput | null
 }
 
-export default function ExamForm({ onSubmit, isPending }: ExamFormProps) {
+export default function ExamForm({ onSubmit, isPending, initialData }: ExamFormProps) {
   const form = useForm<ExamInput>({
     resolver: zodResolver(examSchema),
-    defaultValues: { title: "", description: "", is_free: false, duration_minutes: 45, pass_type: "percentage", pass_threshold: 80, pass_count: 30 },
+    defaultValues: initialData ?? { title: "", description: "", is_free: false, duration_minutes: 45, pass_type: "percentage", pass_threshold: 80, pass_count: 30 },
   })
   const passType = form.watch("pass_type")
 

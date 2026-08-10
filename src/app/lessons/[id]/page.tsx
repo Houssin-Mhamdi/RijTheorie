@@ -5,7 +5,7 @@ import { useParams, useRouter } from "next/navigation"
 import { supabase } from "@/lib/supabase"
 import { useSupabaseQuery, useSupabaseMutation } from "@/lib/supabase-queries"
 import { toast } from "sonner"
-import { ArrowLeft, Plus, Car, Motorbike, Bike, Truck, Ship, FileQuestion, Save, Trash2, BookOpen } from "lucide-react"
+import { ArrowLeft, Plus, Car, Motorbike, Bike, Truck, Ship, FileQuestion, Save, Trash2, BookOpen, Pencil } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import SlideOver from "@/components/ui/slide-over"
 import ExamForm from "@/components/courses/exam-form"
@@ -18,6 +18,7 @@ export default function CourseDetailPage() {
   const { id } = useParams<{ id: string }>()
   const router = useRouter()
   const [slideOverOpen, setSlideOverOpen] = useState(false)
+  const [editingExam, setEditingExam] = useState<Record<string, unknown> | null>(null)
 
   const { data: courseData, isLoading: courseLoading } = useSupabaseQuery(
     ["course", id],
@@ -36,6 +37,11 @@ export default function CourseDetailPage() {
     return { data, error }
   })
 
+  const updateMutation = useSupabaseMutation<ExamInput, unknown>(async (values) => {
+    const { data, error } = await supabase.from("exams").update(values).eq("id", editingExam?.id).select().single()
+    return { data, error }
+  })
+
   const deleteMutation = useSupabaseMutation(async (examId: string) => {
     const { error } = await supabase.from("exams").delete().eq("id", examId)
     return { data: null, error }
@@ -51,13 +57,29 @@ export default function CourseDetailPage() {
 
   async function handleSubmit(data: ExamInput) {
     try {
-      await createMutation.mutateAsync({ ...data, course_id: id })
-      toast.success("Exam created")
+      if (editingExam) {
+        await updateMutation.mutateAsync(data)
+        toast.success("Exam updated")
+      } else {
+        await createMutation.mutateAsync({ ...data, course_id: id })
+        toast.success("Exam created")
+      }
       setSlideOverOpen(false)
+      setEditingExam(null)
       refetchExams()
     } catch (e) {
-      toast.error(e instanceof Error ? e.message : "Failed to create exam")
+      toast.error(e instanceof Error ? e.message : "Failed to save exam")
     }
+  }
+
+  function openCreate() {
+    setEditingExam(null)
+    setSlideOverOpen(true)
+  }
+
+  function openEdit(exam: Record<string, unknown>) {
+    setEditingExam(exam)
+    setSlideOverOpen(true)
   }
 
   async function handleDelete(examId: string) {
@@ -103,7 +125,7 @@ export default function CourseDetailPage() {
 
       <div className="flex justify-between items-center mb-4">
         <h3 className="text-headline-sm text-primary">Exams</h3>
-        <Button className="flex items-center gap-2" onClick={() => setSlideOverOpen(true)}>
+        <Button className="flex items-center gap-2" onClick={openCreate}>
           <Plus size={18} />
           New Exam
         </Button>
@@ -136,11 +158,15 @@ export default function CourseDetailPage() {
                 <div className="size-10 rounded-xl bg-primary-container/30 flex items-center justify-center group-hover:scale-105 transition-transform">
                   <BookOpen size={20} className="text-primary" />
                 </div>
-                <Dialog>
-                  <DialogTrigger render={<button className="p-1.5 rounded-lg text-on-surface-variant opacity-0 group-hover:opacity-100 hover:text-error hover:bg-error/10 transition-all" />} onClick={(e: React.MouseEvent) => e.stopPropagation()}>
-                    <Trash2 size={15} />
-                  </DialogTrigger>
-                  <DialogContent>
+                <div className="flex items-center gap-1">
+                  <button className="p-1.5 rounded-lg text-on-surface-variant hover:text-primary hover:bg-primary/10 transition-all" onClick={(e) => { e.stopPropagation(); openEdit(exam) }}>
+                    <Pencil size={15} />
+                  </button>
+                  <Dialog>
+                    <DialogTrigger render={<button className="p-1.5 rounded-lg text-on-surface-variant hover:text-error hover:bg-error/10 transition-all" />} onClick={(e: React.MouseEvent) => e.stopPropagation()}>
+                      <Trash2 size={15} />
+                    </DialogTrigger>
+                    <DialogContent>
                     <DialogHeader>
                       <DialogTitle>Delete Exam</DialogTitle>
                       <DialogDescription>Are you sure you want to delete &quot;{exam.title as string}&quot;? Questions in this exam will not be deleted.</DialogDescription>
@@ -154,6 +180,7 @@ export default function CourseDetailPage() {
                   </DialogContent>
                 </Dialog>
               </div>
+            </div>
               <h4 className="text-headline-sm text-primary mb-1">{exam.title as string}</h4>
               {(exam.description as string | undefined) && (
                 <p className="text-body-sm text-on-surface-variant mb-3 line-clamp-2">{exam.description as string}</p>
@@ -175,20 +202,33 @@ export default function CourseDetailPage() {
 
       <SlideOver
         open={slideOverOpen}
-        onClose={() => setSlideOverOpen(false)}
-        title="New Exam"
-        description="Create a new exam for this course"
+        onClose={() => { setSlideOverOpen(false); setEditingExam(null) }}
+        title={editingExam ? "Edit Exam" : "New Exam"}
+        description={editingExam ? `Edit "${editingExam.title as string}"` : "Create a new exam for this course"}
         footer={
           <div className="flex gap-4">
-            <button onClick={() => setSlideOverOpen(false)} className="flex-1 px-6 py-3 border border-outline rounded-xl text-label-md text-on-surface-variant hover:bg-surface-container-low transition-all">Cancel</button>
-            <button type="submit" form="exam-form" disabled={createMutation.isPending} className="flex-1 px-6 py-3 bg-primary text-on-primary rounded-xl text-label-md hover:bg-primary-container transition-all shadow-md active:scale-95 flex items-center justify-center gap-2 disabled:opacity-50">
+            <button onClick={() => { setSlideOverOpen(false); setEditingExam(null) }} className="flex-1 px-6 py-3 border border-outline rounded-xl text-label-md text-on-surface-variant hover:bg-surface-container-low transition-all">Cancel</button>
+            <button type="submit" form="exam-form" disabled={createMutation.isPending || updateMutation.isPending} className="flex-1 px-6 py-3 bg-primary text-on-primary rounded-xl text-label-md hover:bg-primary-container transition-all shadow-md active:scale-95 flex items-center justify-center gap-2 disabled:opacity-50">
               <Save size={20} />
-              {createMutation.isPending ? "Saving..." : "Save"}
+              {createMutation.isPending || updateMutation.isPending ? "Saving..." : "Save"}
             </button>
           </div>
         }
       >
-        <ExamForm onSubmit={handleSubmit} />
+        <ExamForm
+          key={(editingExam?.id as string) ?? "new-exam"}
+          onSubmit={handleSubmit}
+          isPending={createMutation.isPending || updateMutation.isPending}
+          initialData={editingExam ? {
+            title: editingExam.title as string,
+            description: (editingExam.description as string | null) ?? "",
+            is_free: !!editingExam.is_free,
+            duration_minutes: (editingExam.duration_minutes as number) ?? 45,
+            pass_type: (editingExam.pass_type as "percentage" | "count") ?? "percentage",
+            pass_threshold: (editingExam.pass_threshold as number) ?? 80,
+            pass_count: (editingExam.pass_count as number) ?? 30,
+          } : null}
+        />
       </SlideOver>
     </section>
   )
