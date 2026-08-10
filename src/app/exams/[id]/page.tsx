@@ -132,9 +132,9 @@ export default function ExamDetailPage() {
       const { data: attemptCheck, error: attemptErr } = await supabase
         .rpc("can_attempt_exam", { p_exam_id: examId })
       if (!attemptErr && attemptCheck && typeof attemptCheck === "object") {
-        const check = attemptCheck as { allowed: boolean; reason?: string; attempts?: number; max_attempts?: number }
+        const check = attemptCheck as { allowed: boolean; reason?: string; remaining_attempts?: number; max_attempts?: number }
         if (!check.allowed && check.reason === "limit_reached") {
-          setAttemptBlocked({ attempts: check.attempts ?? 0, max_attempts: check.max_attempts ?? 0 })
+          setAttemptBlocked({ attempts: check.remaining_attempts ?? 0, max_attempts: check.max_attempts ?? 0 })
           setLoading(false)
           return
         }

@@ -132,14 +132,19 @@ export default function ExamForm({ onSubmit, isPending, initialData }: ExamFormP
           <FormItem>
             <FormLabel>Max attempts (optional)</FormLabel>
             <FormControl>
-              <input
-                type="number"
-                min={1} max={1000}
-                value={field.value ?? ""}
-                onChange={(e) => field.onChange(e.target.value === "" ? null : parseInt(e.target.value, 10))}
-                placeholder="e.g. 20 — leave empty for unlimited"
-                className="w-full h-12 bg-white border border-outline-variant rounded-xl px-4 focus:ring-2 focus:ring-primary focus:border-primary text-body-md"
-              />
+              <div className="relative">
+                <input
+                  type="number"
+                  min={1} max={1000}
+                  value={field.value ?? ""}
+                  onChange={(e) => field.onChange(e.target.value === "" ? null : parseInt(e.target.value, 10))}
+                  placeholder="e.g. 20"
+                  className="w-full h-12 bg-white border border-outline-variant rounded-xl px-4 pr-11 focus:ring-2 focus:ring-primary focus:border-primary text-body-md"
+                />
+                <span className={`absolute inset-y-0 end-3 flex items-center text-xl text-primary ${field.value ? "opacity-30" : "opacity-100"}`} title="Unlimited">
+                  &#8734;
+                </span>
+              </div>
             </FormControl>
             <p className="text-body-sm text-on-surface-variant">Limit how often a student can take this exam. After the limit they must buy a subscription.</p>
             <FormMessage />

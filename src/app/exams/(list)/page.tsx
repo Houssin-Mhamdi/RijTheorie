@@ -20,7 +20,15 @@ import {
   LogOut,
   X,
   Lock,
+  Infinity as InfinityIcon,
 } from "lucide-react"
+
+type AttemptLimit = {
+  max_attempts: number | null
+  used_attempts: number | null
+  remaining_attempts: number | null
+  is_locked: boolean
+}
 
 export default function ExamsPage() {
   const router = useRouter()
@@ -28,6 +36,7 @@ export default function ExamsPage() {
   const { t } = useTranslation()
   const [authorized, setAuthorized] = useState<boolean | null>(null)
   const [attemptData, setAttemptData] = useState<Record<string, { count: number; passedCount: number; passed: boolean | null }>>({})
+  const [attemptLimits, setAttemptLimits] = useState<Record<string, AttemptLimit>>({})
   const [subscription, setSubscription] = useState<{ plan: { name: string; features: string[] }; end_date: string } | null>(null)
   const [plans, setPlans] = useState<{ id: string; name: string; description: string; price: number; duration_days: number; features: string[] }[]>([])
   const [subLoading, setSubLoading] = useState(true)
@@ -180,6 +189,28 @@ export default function ExamsPage() {
     fetchAttempts()
   }, [exams])
 
+  useEffect(() => {
+    if (!exams) return
+    const examIds = (exams as Record<string, unknown>[]).map((e) => e.id as string)
+    if (examIds.length === 0) return
+    const fetchLimits = async () => {
+      try {
+        const { data, error } = await supabase
+          .rpc("get_exam_attempt_status", { p_exam_ids: examIds })
+        if (error) throw error
+        const map: Record<string, AttemptLimit> = {}
+        ;(data as unknown[]).forEach((row) => {
+          const r = row as AttemptLimit & { exam_id: string }
+          map[r.exam_id] = { max_attempts: r.max_attempts, used_attempts: r.used_attempts, remaining_attempts: r.remaining_attempts, is_locked: r.is_locked }
+        })
+        setAttemptLimits(map)
+      } catch (e) {
+        console.error("Failed to fetch attempt limits:", e)
+      }
+    }
+    fetchLimits()
+  }, [exams])
+
   if (authorized === null) {
     return (
       <div className="flex h-screen items-center justify-center bg-surface">
@@ -189,6 +220,8 @@ export default function ExamsPage() {
   }
 
   if (authorized === false) return null
+
+  const anyLocked = Object.values(attemptLimits).some((l) => l.is_locked)
 
   const handleSubscribe = async (planId: string) => {
     setSubscribing(planId)
@@ -211,21 +244,63 @@ export default function ExamsPage() {
     }
   }
 
+  const renderPlanCard = (plan: { id: string; name: string; price: number; features: string[] }) => (
+    <div key={plan.id} className="bg-surface rounded-xl border border-outline-variant/30 p-5 text-left">
+      <h3 className="text-headline-sm font-bold text-primary mb-1">{plan.name}</h3>
+      <p className="text-headline-lg font-bold text-primary mb-3">&euro;{plan.price.toFixed(2)}</p>
+      <div className="space-y-1.5 mb-5">
+        {(plan.features as string[]).map((f, i) => (
+          <div key={i} className="flex items-center gap-2 text-label-sm text-on-surface-variant">
+            <span className="size-1.5 rounded-full bg-primary shrink-0" />
+            {f}
+          </div>
+        ))}
+      </div>
+      <button
+        onClick={() => handleSubscribe(plan.id)}
+        disabled={subscribing === plan.id}
+        className="w-full py-2.5 rounded-xl bg-primary text-on-primary text-label-md font-bold hover:opacity-90 transition-all active:scale-[0.97] disabled:opacity-50 disabled:active:scale-100"
+      >
+        {subscribing === plan.id ? (
+          <span className="flex items-center justify-center gap-2">
+            <Loader2 size={16} className="animate-spin" />
+            {t("exams.loadingShort")}
+          </span>
+        ) : (
+          t("exams.subscribe")
+        )}
+      </button>
+    </div>
+  )
+
+  const renderPlansGrid = () =>
+    plans.length > 0 && (
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 max-w-3xl mx-auto">
+        {plans.map(renderPlanCard)}
+      </div>
+    )
+
   const renderExamCard = (examData: Record<string, unknown>) => {
     const courseData = examData.course as Record<string, unknown> | undefined
     const questionCount = (examData.exam_questions as { count: number }[] | undefined)?.[0]?.count ?? 0
     const examId = examData.id as string
     const att = attemptData[examId]
+    const limit = attemptLimits[examId]
     const hasStarted = att && att.count > 0
     const hasPassed = att?.passed === true
     const isComplete = att?.passed !== null
+    const isLocked = limit?.is_locked === true
+    const remaining = limit?.remaining_attempts ?? null
+    const max = limit?.max_attempts ?? null
     const statusLabel = hasPassed ? t("exams.passed") : hasStarted && isComplete ? t("exams.failed") : hasStarted ? t("exams.inProgress") : t("exams.notStarted")
     const statusClass = hasPassed ? "bg-green-100 text-green-700" : hasStarted && isComplete ? "bg-red-100 text-red-700" : hasStarted ? "bg-primary-container/10 text-primary" : "bg-surface-container-low text-on-surface-variant"
 
     return (
       <div
         key={examId}
-        className="bg-surface-container-lowest rounded-2xl border border-outline-variant/40 overflow-hidden active:scale-[0.98] md:active:scale-[0.99] transition-transform"
+        className={`bg-surface-container-lowest rounded-2xl border border-outline-variant/40 overflow-hidden active:scale-[0.98] md:active:scale-[0.99] transition-transform ${
+          isLocked ? "opacity-60 grayscale" : ""
+        }`}
       >
         <div className="p-5 md:p-6">
           <div className="flex items-start justify-between mb-3">
@@ -234,6 +309,16 @@ export default function ExamsPage() {
                 <span className={`px-1.5 py-0.5 md:px-3 md:py-1 rounded-full text-[10px] md:text-sm font-bold ${statusClass}`}>
                   {statusLabel}
                 </span>
+                {max != null ? (
+                  <span className={`px-1.5 py-0.5 md:px-3 md:py-1 rounded-full text-[10px] md:text-sm font-bold ${(remaining ?? 0) > 0 ? "bg-primary-container/10 text-primary" : "bg-gray-200 text-gray-500"}`}>
+                    {t("exams.attemptsLeft", { n: remaining ?? 0 })}
+                  </span>
+                ) : (
+                  <span className="px-1.5 py-0.5 md:px-3 md:py-1 rounded-full text-[10px] md:text-sm font-bold bg-primary-container/10 text-primary flex items-center gap-1">
+                    <InfinityIcon size={12} />
+                    {t("exams.unlimited")}
+                  </span>
+                )}
                 {hasStarted && (
                   <span className="px-1.5 py-0.5 md:px-3 md:py-1 rounded-full text-[10px] md:text-sm font-bold bg-primary-container/10 text-primary">
                     {t("exams.attempt", { n: att!.count })}
@@ -273,13 +358,25 @@ export default function ExamsPage() {
             </div>
           </div>
 
-          <Button
-            className="w-full h-12 md:h-11 rounded-xl text-label-md font-bold"
-            variant="secondary"
-            onClick={() => router.push(`/exams/${examData.id}`)}
-          >
-            Start Exam
-          </Button>
+            {isLocked ? (
+              <Button
+                className="w-full h-12 md:h-11 rounded-xl text-label-md font-bold bg-primary text-on-primary"
+                onClick={() => router.push("/subscriptions")}
+              >
+                <span className="flex items-center justify-center gap-2">
+                  <Lock size={16} />
+                  {t("exam.buySubscription")}
+                </span>
+              </Button>
+            ) : (
+              <Button
+                className="w-full h-12 md:h-11 rounded-xl text-label-md font-bold"
+                variant="secondary"
+                onClick={() => router.push(`/exams/${examData.id}`)}
+              >
+                {t("exams.start")}
+              </Button>
+            )}
         </div>
       </div>
     )
@@ -384,9 +481,21 @@ export default function ExamsPage() {
                       {showPaid ? t("exams.all") : t("exams.premium")}
                     </h2>
                     {showPaid ? (
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6">
-                        {paidExams.map((exam) => renderExamCard(exam))}
-                      </div>
+                      <>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6">
+                          {paidExams.map((exam) => renderExamCard(exam))}
+                        </div>
+                        {anyLocked && (
+                          <div className="bg-surface-container-lowest rounded-2xl border border-outline-variant/40 p-8 text-center">
+                            <Lock size={36} className="text-outline-variant mx-auto mb-3" />
+                            <p className="text-body-lg text-primary font-semibold mb-1">{t("exams.attemptsUsedTitle")}</p>
+                            <p className="text-body-md text-on-surface-variant mb-6 max-w-md mx-auto">
+                              {t("exams.attemptsUsedDesc")}
+                            </p>
+                            {renderPlansGrid()}
+                          </div>
+                        )}
+                      </>
                     ) : (
                       <div className="bg-surface-container-lowest rounded-2xl border border-outline-variant/40 p-8 text-center">
                         <Lock size={36} className="text-outline-variant mx-auto mb-3" />
@@ -399,38 +508,7 @@ export default function ExamsPage() {
                             {t("exams.freeAvailable")}
                           </p>
                         )}
-                        {plans.length > 0 && (
-                          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 max-w-3xl mx-auto">
-                            {plans.map((plan) => (
-                              <div key={plan.id} className="bg-surface rounded-xl border border-outline-variant/30 p-5 text-left">
-                                <h3 className="text-headline-sm font-bold text-primary mb-1">{plan.name}</h3>
-                                <p className="text-headline-lg font-bold text-primary mb-3">&euro;{plan.price.toFixed(2)}</p>
-                                <div className="space-y-1.5 mb-5">
-                                  {(plan.features as string[]).map((f, i) => (
-                                    <div key={i} className="flex items-center gap-2 text-label-sm text-on-surface-variant">
-                                      <span className="size-1.5 rounded-full bg-primary shrink-0" />
-                                      {f}
-                                    </div>
-                                  ))}
-                                </div>
-                                <button
-                                  onClick={() => handleSubscribe(plan.id)}
-                                  disabled={subscribing === plan.id}
-                                  className="w-full py-2.5 rounded-xl bg-primary text-on-primary text-label-md font-bold hover:opacity-90 transition-all active:scale-[0.97] disabled:opacity-50 disabled:active:scale-100"
-                                >
-                                  {subscribing === plan.id ? (
-                                    <span className="flex items-center justify-center gap-2">
-                                      <Loader2 size={16} className="animate-spin" />
-                                      {t("exams.loadingShort")}
-                                    </span>
-                                  ) : (
-                                    t("exams.subscribe")
-                                  )}
-                                </button>
-                              </div>
-                            ))}
-                          </div>
-                        )}
+                        {renderPlansGrid()}
                       </div>
                     )}
                   </>

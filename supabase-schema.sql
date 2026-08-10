@@ -717,6 +717,9 @@ END;
 $$;
 
 -- 25. CAN ATTEMPT EXAM RPC — enforces max attempts per exam (NULL = unlimited)
+-- Attempts are counted from the student's last subscription purchase.
+-- Every entry into the exam (started_at) counts as an attempt. Buying a new
+-- subscription resets the counter. An active subscription does NOT bypass the limit.
 CREATE OR REPLACE FUNCTION public.can_attempt_exam(p_exam_id UUID)
 RETURNS JSONB
 LANGUAGE plpgsql SECURITY DEFINER
@@ -724,8 +727,9 @@ SET search_path = ''
 AS $$
 DECLARE
   v_max_attempts INTEGER;
-  v_attempts INTEGER;
-  v_has_sub BOOLEAN;
+  v_last_purchase TIMESTAMPTZ;
+  v_used INTEGER;
+  v_remaining INTEGER;
 BEGIN
   SELECT max_attempts INTO v_max_attempts FROM public.exams WHERE id = p_exam_id;
   IF NOT FOUND THEN
@@ -733,37 +737,96 @@ BEGIN
   END IF;
 
   IF public.is_admin() THEN
-    RETURN jsonb_build_object('allowed', true);
+    RETURN jsonb_build_object('allowed', true, 'remaining_attempts', NULL, 'max_attempts', v_max_attempts);
   END IF;
 
   IF v_max_attempts IS NULL THEN
-    RETURN jsonb_build_object('allowed', true);
+    RETURN jsonb_build_object('allowed', true, 'remaining_attempts', NULL, 'max_attempts', NULL);
   END IF;
 
-  SELECT EXISTS (
-    SELECT 1 FROM public.user_subscriptions
-    WHERE user_id = auth.uid() AND is_active = true AND end_date > NOW()
-  ) INTO v_has_sub;
+  SELECT COALESCE(MAX(start_date), '-infinity'::timestamptz)
+  INTO v_last_purchase
+  FROM public.user_subscriptions
+  WHERE user_id = auth.uid();
 
-  -- Subscribers get unlimited practice
-  IF v_has_sub THEN
-    RETURN jsonb_build_object('allowed', true);
-  END IF;
-
-  SELECT COUNT(*) INTO v_attempts
+  SELECT COUNT(*) INTO v_used
   FROM public.exam_attempts
-  WHERE user_id = auth.uid() AND exam_id = p_exam_id;
+  WHERE user_id = auth.uid()
+    AND exam_id = p_exam_id
+    AND started_at >= v_last_purchase;
 
-  IF v_attempts >= v_max_attempts THEN
+  v_remaining := v_max_attempts - v_used;
+  IF v_remaining <= 0 THEN
     RETURN jsonb_build_object(
       'allowed', false,
       'reason', 'limit_reached',
-      'attempts', v_attempts,
-      'max_attempts', v_max_attempts,
-      'has_subscription', false
+      'remaining_attempts', 0,
+      'max_attempts', v_max_attempts
     );
   END IF;
 
-  RETURN jsonb_build_object('allowed', true, 'attempts', v_attempts, 'max_attempts', v_max_attempts);
+  RETURN jsonb_build_object('allowed', true, 'remaining_attempts', v_remaining, 'max_attempts', v_max_attempts);
+END;
+$$;
+
+-- 26. GET EXAM ATTEMPT STATUS — per-exam remaining attempts for the student list view
+CREATE OR REPLACE FUNCTION public.get_exam_attempt_status(p_exam_ids UUID[])
+RETURNS TABLE (
+  exam_id UUID,
+  max_attempts INTEGER,
+  used_attempts INTEGER,
+  remaining_attempts INTEGER,
+  is_locked BOOLEAN
+)
+LANGUAGE plpgsql SECURITY DEFINER
+SET search_path = ''
+AS $$
+DECLARE
+  v_last_purchase TIMESTAMPTZ;
+  v_exam_id UUID;
+  v_max INTEGER;
+  v_used INTEGER;
+BEGIN
+  SELECT COALESCE(MAX(start_date), '-infinity'::timestamptz)
+  INTO v_last_purchase
+  FROM public.user_subscriptions
+  WHERE user_id = auth.uid();
+
+  FOREACH v_exam_id IN ARRAY p_exam_ids
+  LOOP
+    IF public.is_admin() THEN
+      exam_id := v_exam_id;
+      max_attempts := NULL;
+      used_attempts := NULL;
+      remaining_attempts := NULL;
+      is_locked := false;
+      RETURN NEXT;
+      CONTINUE;
+    END IF;
+
+    SELECT max_attempts INTO v_max FROM public.exams WHERE id = v_exam_id;
+
+    IF v_max IS NULL THEN
+      exam_id := v_exam_id;
+      max_attempts := NULL;
+      used_attempts := NULL;
+      remaining_attempts := NULL;
+      is_locked := false;
+      RETURN NEXT;
+      CONTINUE;
+    END IF;
+
+    SELECT COUNT(*) INTO v_used
+    FROM public.exam_attempts
+    WHERE user_id = auth.uid() AND exam_id = v_exam_id AND started_at >= v_last_purchase;
+
+    exam_id := v_exam_id;
+    max_attempts := v_max;
+    used_attempts := v_used;
+    remaining_attempts := GREATEST(v_max - v_used, 0);
+    is_locked := (v_max - v_used) <= 0;
+    RETURN NEXT;
+  END LOOP;
+  RETURN;
 END;
 $$;
