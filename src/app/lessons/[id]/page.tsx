@@ -223,10 +223,11 @@ export default function CourseDetailPage() {
             title: editingExam.title as string,
             description: (editingExam.description as string | null) ?? "",
             is_free: !!editingExam.is_free,
-            duration_minutes: (editingExam.duration_minutes as number) ?? 45,
+            duration_minutes: (editingExam.duration_minutes as number) || 45,
             pass_type: (editingExam.pass_type as "percentage" | "count") ?? "percentage",
-            pass_threshold: (editingExam.pass_threshold as number) ?? 80,
-            pass_count: (editingExam.pass_count as number) ?? 30,
+            pass_threshold: (editingExam.pass_threshold as number) || 80,
+            pass_count: (editingExam.pass_count as number) || 30,
+            max_attempts: (editingExam.max_attempts as number | null | undefined) ?? null,
           } : null}
         />
       </SlideOver>

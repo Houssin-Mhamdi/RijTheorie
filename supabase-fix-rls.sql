@@ -474,3 +474,58 @@ BEGIN
   RETURN v_has_sub;
 END;
 $$;
+
+-- 24. EXAM ATTEMPT LIMIT: max_attempts column (NULL = unlimited)
+ALTER TABLE public.exams ADD COLUMN IF NOT EXISTS max_attempts INTEGER;
+
+-- 25. CAN ATTEMPT EXAM RPC — enforces max attempts per exam (NULL = unlimited)
+CREATE OR REPLACE FUNCTION public.can_attempt_exam(p_exam_id UUID)
+RETURNS JSONB
+LANGUAGE plpgsql SECURITY DEFINER
+SET search_path = ''
+AS $$
+DECLARE
+  v_max_attempts INTEGER;
+  v_attempts INTEGER;
+  v_has_sub BOOLEAN;
+BEGIN
+  SELECT max_attempts INTO v_max_attempts FROM public.exams WHERE id = p_exam_id;
+  IF NOT FOUND THEN
+    RETURN jsonb_build_object('allowed', false, 'reason', 'not_found');
+  END IF;
+
+  IF public.is_admin() THEN
+    RETURN jsonb_build_object('allowed', true);
+  END IF;
+
+  IF v_max_attempts IS NULL THEN
+    RETURN jsonb_build_object('allowed', true);
+  END IF;
+
+  SELECT EXISTS (
+    SELECT 1 FROM public.user_subscriptions
+    WHERE user_id = auth.uid() AND is_active = true AND end_date > NOW()
+  ) INTO v_has_sub;
+
+  -- Subscribers get unlimited practice
+  IF v_has_sub THEN
+    RETURN jsonb_build_object('allowed', true);
+  END IF;
+
+  SELECT COUNT(*) INTO v_attempts
+  FROM public.exam_attempts
+  WHERE user_id = auth.uid() AND exam_id = p_exam_id;
+
+  IF v_attempts >= v_max_attempts THEN
+    RETURN jsonb_build_object(
+      'allowed', false,
+      'reason', 'limit_reached',
+      'attempts', v_attempts,
+      'max_attempts', v_max_attempts,
+      'has_subscription', false
+    );
+  END IF;
+
+  RETURN jsonb_build_object('allowed', true, 'attempts', v_attempts, 'max_attempts', v_max_attempts);
+END;
+$$;

@@ -89,6 +89,7 @@ export default function ExamDetailPage() {
   const [violations, setViolations] = useState(0)
   const [showTabWarning, setShowTabWarning] = useState(false)
   const [examFinished, setExamFinished] = useState(false)
+  const [attemptBlocked, setAttemptBlocked] = useState<{ attempts: number; max_attempts: number } | null>(null)
   const attemptCreated = useRef(false)
   const timeUpHandled = useRef(false)
   const examStartTime = useRef(Date.now())
@@ -126,6 +127,17 @@ export default function ExamDetailPage() {
       if (accessErr || canAccess === false) {
         router.push("/exams?subscription=required")
         return
+      }
+
+      const { data: attemptCheck, error: attemptErr } = await supabase
+        .rpc("can_attempt_exam", { p_exam_id: examId })
+      if (!attemptErr && attemptCheck && typeof attemptCheck === "object") {
+        const check = attemptCheck as { allowed: boolean; reason?: string; attempts?: number; max_attempts?: number }
+        if (!check.allowed && check.reason === "limit_reached") {
+          setAttemptBlocked({ attempts: check.attempts ?? 0, max_attempts: check.max_attempts ?? 0 })
+          setLoading(false)
+          return
+        }
       }
 
       const { data: rpcData, error: rpcErr } = await supabase
@@ -387,6 +399,30 @@ export default function ExamDetailPage() {
         <Button variant="outline" onClick={() => router.push("/exams")}>
           {t("common.back")}
         </Button>
+      </div>
+    )
+  }
+
+  if (attemptBlocked) {
+    return (
+      <div className="flex h-screen flex-col items-center justify-center gap-4 px-6 text-center">
+        <div className="size-16 rounded-full bg-secondary-container/40 flex items-center justify-center">
+          <ShieldAlert size={32} className="text-secondary" />
+        </div>
+        <h2 className="text-headline-md text-primary">
+          {t("exam.attemptLimitTitle")}
+        </h2>
+        <p className="text-body-md text-on-surface-variant max-w-md">
+          {t("exam.attemptLimitDesc", { attempts: attemptBlocked.attempts, max: attemptBlocked.max_attempts })}
+        </p>
+        <div className="flex flex-col sm:flex-row gap-3 mt-2">
+          <Button onClick={() => router.push("/subscriptions")}>
+            {t("exam.buySubscription")}
+          </Button>
+          <Button variant="outline" onClick={() => router.push("/exams")}>
+            {t("common.back")}
+          </Button>
+        </div>
       </div>
     )
   }

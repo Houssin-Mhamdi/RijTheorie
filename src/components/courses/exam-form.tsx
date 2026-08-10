@@ -15,7 +15,7 @@ interface ExamFormProps {
 export default function ExamForm({ onSubmit, isPending, initialData }: ExamFormProps) {
   const form = useForm<ExamInput>({
     resolver: zodResolver(examSchema),
-    defaultValues: initialData ?? { title: "", description: "", is_free: false, duration_minutes: 45, pass_type: "percentage", pass_threshold: 80, pass_count: 30 },
+    defaultValues: initialData ?? { title: "", description: "", is_free: false, duration_minutes: 45, pass_type: "percentage", pass_threshold: 80, pass_count: 30, max_attempts: null },
   })
   const passType = form.watch("pass_type")
 
@@ -126,6 +126,23 @@ export default function ExamForm({ onSubmit, isPending, initialData }: ExamFormP
               </FormControl>
             </div>
             <p className="text-body-sm text-on-surface-variant">Students can take this exam without payment</p>
+          </FormItem>
+        )} />
+        <FormField control={form.control} name="max_attempts" render={({ field }) => (
+          <FormItem>
+            <FormLabel>Max attempts (optional)</FormLabel>
+            <FormControl>
+              <input
+                type="number"
+                min={1} max={1000}
+                value={field.value ?? ""}
+                onChange={(e) => field.onChange(e.target.value === "" ? null : parseInt(e.target.value, 10))}
+                placeholder="e.g. 20 — leave empty for unlimited"
+                className="w-full h-12 bg-white border border-outline-variant rounded-xl px-4 focus:ring-2 focus:ring-primary focus:border-primary text-body-md"
+              />
+            </FormControl>
+            <p className="text-body-sm text-on-surface-variant">Limit how often a student can take this exam. After the limit they must buy a subscription.</p>
+            <FormMessage />
           </FormItem>
         )} />
       </form>

@@ -61,13 +61,14 @@ export const courseSchema = z.object({
 export type CourseInput = z.infer<typeof courseSchema>
 
 export const examSchema = z.object({
-  title: z.string().min(1, "Title is required"),
-  description: z.string().optional(),
-  is_free: z.boolean(),
-  duration_minutes: z.number().min(1, "Duration must be at least 1 minute"),
-  pass_type: z.enum(["percentage", "count"]),
-  pass_threshold: z.number().min(1).max(100, "Threshold must be between 1 and 100"),
-  pass_count: z.number().min(1, "Minimum correct answers must be at least 1"),
-})
+    title: z.string().min(1, "Title is required"),
+    description: z.string().optional(),
+    is_free: z.boolean(),
+    duration_minutes: z.number().min(1, "Duration must be at least 1 minute"),
+    pass_type: z.enum(["percentage", "count"]),
+    pass_threshold: z.number().min(1).max(100, "Threshold must be between 1 and 100"),
+    pass_count: z.number().min(1, "Minimum correct answers must be at least 1"),
+    max_attempts: z.number().int().min(1).max(1000).nullable().optional(),
+  })
 
 export type ExamInput = z.infer<typeof examSchema>
