@@ -23,6 +23,9 @@ import {
   BookOpen,
   Lightbulb,
   ShieldAlert,
+  Volume2,
+  Play,
+  Pause,
 } from "lucide-react"
 import DOMPurify from "dompurify"
 import { useTranslation } from "@/lib/i18n/translations"
@@ -63,6 +66,7 @@ type Question = {
   answerOptions: AnswerOption[]
   explanation: string | null
   translations?: Record<string, Translation>
+  audioTranslations?: Record<string, string>
 }
 
 export default function ExamDetailPage() {
@@ -93,6 +97,8 @@ export default function ExamDetailPage() {
   const attemptCreated = useRef(false)
   const timeUpHandled = useRef(false)
   const examStartTime = useRef(Date.now())
+  const audioRef = useRef<HTMLAudioElement | null>(null)
+  const [audioPlaying, setAudioPlaying] = useState(false)
   const { t, lang } = useTranslation()
 
   const currentQuestion = questions[currentIndex]
@@ -167,6 +173,7 @@ export default function ExamDetailPage() {
           answerOptions: (q.answer_options as AnswerOption[]) ?? [],
           explanation: null,
           translations,
+          audioTranslations: ((q as Record<string, unknown>).audio_translations as Record<string, string> | null | undefined) ?? {},
         }
       })
 
@@ -234,6 +241,21 @@ export default function ExamDetailPage() {
     }, 1000)
     return () => clearInterval(interval)
   }, [timeLeft, examActive])
+
+  useEffect(() => {
+    const el = audioRef.current
+    if (!el || !currentQuestion) return
+    const audio = currentQuestion.audioTranslations
+    const url = (audio && (audio[lang] || audio["nl"])) || null
+    if (!url) {
+      el.removeAttribute("src")
+      el.load()
+      setAudioPlaying(false)
+      return
+    }
+    el.src = url
+    el.play().catch(() => setAudioPlaying(false))
+  }, [currentQuestion?.id, lang, showResults])
 
   useEffect(() => {
     if (!examActive) return
@@ -827,8 +849,41 @@ export default function ExamDetailPage() {
           <div className="lg:col-span-7 flex flex-col gap-6">
             <section key={currentQuestion.id}>
               <div className="bg-surface-container-lowest rounded-2xl overflow-hidden border border-outline-variant/10 p-6 md:p-8" style={{ boxShadow: "0px 4px 20px rgba(26,60,110,0.05)" }}>
+                <audio
+                  ref={audioRef}
+                  className="hidden"
+                  onPlay={() => setAudioPlaying(true)}
+                  onPause={() => setAudioPlaying(false)}
+                  onEnded={() => setAudioPlaying(false)}
+                />
                 <div className="flex flex-col gap-6">
                   <h1 className="text-headline-md md:text-headline-xl text-on-surface leading-tight">{qText}</h1>
+
+                  {(() => {
+                    const audio = currentQuestion.audioTranslations
+                    const audioUrl = (audio && (audio[lang] || audio["nl"])) || null
+                    if (!audioUrl) return null
+                    return (
+                      <div className="flex items-center gap-3 bg-surface-container rounded-xl px-3 py-2 w-fit">
+                        <button
+                          onClick={() => {
+                            const el = audioRef.current
+                            if (!el) return
+                            if (audioPlaying) {
+                              el.pause()
+                            } else {
+                              el.play().catch(() => {})
+                            }
+                          }}
+                          className="size-10 rounded-full bg-primary text-on-primary flex items-center justify-center active:scale-95 transition-transform shrink-0"
+                          aria-label={audioPlaying ? "Pause audio" : "Play audio"}
+                        >
+                          {audioPlaying ? <Pause size={18} /> : <Play size={18} />}
+                        </button>
+                        <span className="text-label-sm font-bold text-primary">{t("exam.questionAudio")}</span>
+                      </div>
+                    )
+                  })()}
 
                   {currentQuestion.media && !isHotspot && !isChooseImages && (
                     <div className="relative rounded-xl overflow-hidden aspect-video bg-surface-container">

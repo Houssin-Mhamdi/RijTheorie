@@ -115,6 +115,7 @@ CREATE TABLE questions (
   answer_options JSONB NOT NULL DEFAULT '[]'::jsonb,
   explanation TEXT,
   translations JSONB DEFAULT '{}'::jsonb,
+  audio_translations JSONB DEFAULT '{}'::jsonb,
   created_by UUID REFERENCES profiles(id),
   created_at TIMESTAMPTZ DEFAULT NOW(),
   updated_at TIMESTAMPTZ DEFAULT NOW()
@@ -325,6 +326,7 @@ BEGIN
       ),
       'explanation', NULL,
       'translations', q.translations,
+      'audio_translations', q.audio_translations,
       'pause_at', q.pause_at
     )
     ORDER BY eq.sort_order

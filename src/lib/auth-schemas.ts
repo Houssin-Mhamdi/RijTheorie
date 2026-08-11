@@ -32,6 +32,8 @@ const translationEntrySchema = z.object({
   active: z.boolean().optional().default(true),
 })
 
+const audioTranslationsSchema = z.record(z.string(), z.string()).optional()
+
 export const questionSchema = z.object({
   category: z.string().min(1, "Category is required"),
   questionText: z.string().min(1, "Question text is required"),
@@ -45,6 +47,7 @@ export const questionSchema = z.object({
     }),
   explanation: z.string().optional(),
   translations: z.array(translationEntrySchema).optional(),
+  audioTranslations: audioTranslationsSchema,
 })
 
 export type LoginInput = { email: string; password: string }

@@ -6,7 +6,7 @@ import { zodResolver } from "@hookform/resolvers/zod"
 import { questionSchema, type QuestionInput } from "@/lib/auth-schemas"
 import { type Resolver } from "react-hook-form"
 import { Form, FormField, FormItem, FormLabel, FormControl, FormMessage } from "@/components/ui/form"
-import { Upload, Plus, Trash2, ChevronDown, X, FileVideo, FileImage, Loader2, Languages } from "lucide-react"
+import { Upload, Plus, Trash2, ChevronDown, X, FileVideo, FileImage, Loader2, Languages, Volume2 } from "lucide-react"
 import { cn } from "@/lib/utils"
 import TipTapEditor from "@/components/ui/tip-tap-editor"
 import ImageHotspot from "@/components/questions/image-hotspot"
@@ -20,6 +20,52 @@ interface QuestionFormProps {
   initialData?: QuestionInput | null
   userId?: string
   onUploadingChange?: (uploading: boolean) => void
+}
+
+interface AudioFieldProps {
+  lang: string
+  value?: string
+  disabled?: boolean
+  onSelect: (e: React.ChangeEvent<HTMLInputElement>) => void
+  onRemove: () => void
+}
+
+function AudioField({ lang, value, disabled, onSelect, onRemove }: AudioFieldProps) {
+  const audioInputRef = useRef<HTMLInputElement>(null)
+  return (
+    <div className="flex items-center gap-3 flex-wrap">
+      <button
+        type="button"
+        onClick={() => audioInputRef.current?.click()}
+        disabled={disabled}
+        className="flex items-center gap-2 px-3 py-2 rounded-xl border border-outline-variant text-label-sm font-bold text-primary hover:bg-surface-container-low transition-colors disabled:opacity-50"
+      >
+        <Volume2 size={16} />
+        {value ? "Vervang audio" : "Voeg audio toe"}
+      </button>
+      <input
+        ref={audioInputRef}
+        type="file"
+        accept="audio/*"
+        className="hidden"
+        onChange={onSelect}
+        disabled={disabled}
+      />
+      {value && (
+        <>
+          <audio src={value} controls className="h-10 max-w-[220px]" />
+          <button
+            type="button"
+            onClick={onRemove}
+            className="p-1.5 text-outline hover:text-error transition-colors"
+            title={`Verwijder audio (${lang})`}
+          >
+            <Trash2 size={16} />
+          </button>
+        </>
+      )}
+    </div>
+  )
 }
 
 export default function QuestionForm({ onSubmit, isPending, initialData, userId, onUploadingChange }: QuestionFormProps) {
@@ -47,13 +93,14 @@ export default function QuestionForm({ onSubmit, isPending, initialData, userId,
   const [mediaPreview, setMediaPreview] = useState<string | null>(null)
   const [mediaMime, setMediaMime] = useState<string>("")
   const [isUploading, setIsUploading] = useState(false)
+  const [isAudioUploading, setIsAudioUploading] = useState(false)
   const [storedMediaUrl, setStoredMediaUrl] = useState<string>("")
   const fileInputRef = useRef<HTMLInputElement>(null)
   const imageInputRef = useRef<HTMLInputElement>(null)
 
   useEffect(() => {
-    onUploadingChange?.(isUploading)
-  }, [isUploading, onUploadingChange])
+    onUploadingChange?.(isUploading || isAudioUploading)
+  }, [isUploading, isAudioUploading, onUploadingChange])
 
   const category = form.watch("category")
   const hasMedia = !!mediaPreview
@@ -148,6 +195,54 @@ export default function QuestionForm({ onSubmit, isPending, initialData, userId,
       }
     }
     if (imageInputRef.current) imageInputRef.current.value = ""
+  }
+
+  async function uploadAudioFile(file: File): Promise<string | null> {
+    if (!userId) {
+      toast.error("You must be logged in to upload files")
+      return null
+    }
+    const ext = file.name.split(".").pop() || "mp3"
+    const filePath = `${userId}/${crypto.randomUUID()}.${ext}`
+    setIsAudioUploading(true)
+    try {
+      const { error } = await supabase.storage.from("question-media").upload(filePath, file, {
+        cacheControl: "3600",
+        upsert: false,
+      })
+      if (error) throw error
+      const { data: urlData } = supabase.storage.from("question-media").getPublicUrl(filePath)
+      return urlData.publicUrl
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Failed to upload audio")
+      return null
+    } finally {
+      setIsAudioUploading(false)
+    }
+  }
+
+  async function handleAudioSelect(lang: string, e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0]
+    e.target.value = ""
+    if (!file) return
+    const publicUrl = await uploadAudioFile(file)
+    if (publicUrl) {
+      form.setValue(`audioTranslations.${lang}`, publicUrl, { shouldDirty: true })
+    }
+  }
+
+  async function removeAudio(lang: string) {
+    const current = form.getValues("audioTranslations") || {}
+    const url = current[lang]
+    if (url) {
+      const path = url.split("/question-media/")[1]
+      if (path) {
+        await supabase.storage.from("question-media").remove([path]).catch(() => {})
+      }
+    }
+    const next = { ...current }
+    delete next[lang]
+    form.setValue("audioTranslations", next, { shouldDirty: true })
   }
 
   function handleHotspotChange(index: number, x: number, y: number) {
@@ -249,6 +344,17 @@ export default function QuestionForm({ onSubmit, isPending, initialData, userId,
             <FormMessage />
           </FormItem>
         )} />
+
+        <div className="space-y-2">
+          <FormLabel>Audio <span className="text-on-surface-variant font-normal">(Nederlands, speelt automatisch in het examen)</span></FormLabel>
+          <AudioField
+            lang="nl"
+            value={form.watch("audioTranslations")?.["nl"]}
+            disabled={isAudioUploading}
+            onSelect={(e) => handleAudioSelect("nl", e)}
+            onRemove={() => removeAudio("nl")}
+          />
+        </div>
 
         {!isChooseImages && (
         <FormField control={form.control} name="media" render={() => (
@@ -553,6 +659,18 @@ export default function QuestionForm({ onSubmit, isPending, initialData, userId,
                         rows={3}
                         className="w-full bg-white border border-outline-variant rounded-xl px-4 py-3 focus:ring-2 focus:ring-primary focus:border-primary text-body-md resize-y min-h-[80px]"
                         placeholder={`Translated question text (${tf.lang.toUpperCase()})`}
+                      />
+                    </div>
+                    <div>
+                      <label className="text-label-sm text-on-surface-variant mb-1 block">
+                        Audio <span className="font-normal">({tf.lang.toUpperCase()})</span>
+                      </label>
+                      <AudioField
+                        lang={tf.lang}
+                        value={form.watch("audioTranslations")?.[tf.lang]}
+                        disabled={isAudioUploading}
+                        onSelect={(e) => handleAudioSelect(tf.lang, e)}
+                        onRemove={() => removeAudio(tf.lang)}
                       />
                     </div>
                     {fields.length > 0 && (
