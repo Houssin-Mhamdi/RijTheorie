@@ -61,6 +61,7 @@ export default function QuestionsPage() {
         answer_options: values.answerOptions as unknown as Record<string, unknown>,
         explanation: values.explanation || null,
         audio_translations: values.audioTranslations || {},
+        explanation_audio_translations: values.explanationAudioTranslations || {},
         ...(values.translations?.length ? {
           translations: values.translations.reduce((acc, t) => ({
             ...acc,
@@ -90,6 +91,7 @@ export default function QuestionsPage() {
         answer_options: values.answerOptions as unknown as Record<string, unknown>,
         explanation: values.explanation || null,
         audio_translations: values.audioTranslations || {},
+        explanation_audio_translations: values.explanationAudioTranslations || {},
         ...(values.translations?.length ? {
           translations: values.translations.reduce((acc, t) => ({
             ...acc,
@@ -156,6 +158,7 @@ export default function QuestionsPage() {
             answerOptions: (editQuestion.answer_options as Array<{ text: string; isCorrect: boolean; x?: number; y?: number }>) || [],
             explanation: (editQuestion.explanation as string) || undefined,
             audioTranslations: (editQuestion.audio_translations as Record<string, string>) || {},
+            explanationAudioTranslations: (editQuestion.explanation_audio_translations as Record<string, string>) || {},
             translations: Object.entries((editQuestion.translations as Record<string, { question_text: string; answer_options?: { text: string }[]; explanation?: string; active?: boolean }>) || {}).map(([lang, t]) => ({
               lang,
               questionText: t.question_text,

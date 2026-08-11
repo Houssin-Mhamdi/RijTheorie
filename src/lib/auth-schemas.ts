@@ -48,6 +48,7 @@ export const questionSchema = z.object({
   explanation: z.string().optional(),
   translations: z.array(translationEntrySchema).optional(),
   audioTranslations: audioTranslationsSchema,
+  explanationAudioTranslations: audioTranslationsSchema,
 })
 
 export type LoginInput = { email: string; password: string }

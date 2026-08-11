@@ -67,6 +67,7 @@ type Question = {
   explanation: string | null
   translations?: Record<string, Translation>
   audioTranslations?: Record<string, string>
+  explanationAudioTranslations?: Record<string, string>
 }
 
 export default function ExamDetailPage() {
@@ -98,7 +99,9 @@ export default function ExamDetailPage() {
   const timeUpHandled = useRef(false)
   const examStartTime = useRef(Date.now())
   const audioRef = useRef<HTMLAudioElement | null>(null)
+  const explanationAudioRef = useRef<HTMLAudioElement | null>(null)
   const [audioPlaying, setAudioPlaying] = useState(false)
+  const [explanationAudioPlaying, setExplanationAudioPlaying] = useState(false)
   const { t, lang } = useTranslation()
 
   const currentQuestion = questions[currentIndex]
@@ -174,6 +177,7 @@ export default function ExamDetailPage() {
           explanation: null,
           translations,
           audioTranslations: ((q as Record<string, unknown>).audio_translations as Record<string, string> | null | undefined) ?? {},
+          explanationAudioTranslations: ((q as Record<string, unknown>).explanation_audio_translations as Record<string, string> | null | undefined) ?? {},
         }
       })
 
@@ -248,14 +252,40 @@ export default function ExamDetailPage() {
     const audio = currentQuestion.audioTranslations
     const url = (audio && (audio[lang] || audio["nl"])) || null
     if (!url) {
+      el.pause()
       el.removeAttribute("src")
       el.load()
       setAudioPlaying(false)
       return
     }
     el.src = url
-    el.play().catch(() => setAudioPlaying(false))
+    el.load()
+    el.play().then(() => setAudioPlaying(true)).catch(() => setAudioPlaying(false))
+    return () => { el.pause() }
   }, [currentQuestion?.id, lang, showResults])
+
+  useEffect(() => {
+    const el = explanationAudioRef.current
+    if (!el || !currentQuestion) return
+    const audio = currentQuestion.explanationAudioTranslations
+    const url = (audio && (audio[lang] || audio["nl"])) || null
+    const shouldPlay = hasAnswered && !!url
+    if (!shouldPlay) {
+      el.pause()
+      el.removeAttribute("src")
+      el.load()
+      setExplanationAudioPlaying(false)
+      return
+    }
+    if (audioRef.current && !audioRef.current.paused) {
+      audioRef.current.pause()
+      setAudioPlaying(false)
+    }
+    el.src = url
+    el.load()
+    el.play().then(() => setExplanationAudioPlaying(true)).catch(() => setExplanationAudioPlaying(false))
+    return () => { el.pause() }
+  }, [currentQuestion?.id, lang, hasAnswered, showResults])
 
   useEffect(() => {
     if (!examActive) return
@@ -851,10 +881,21 @@ export default function ExamDetailPage() {
               <div className="bg-surface-container-lowest rounded-2xl overflow-hidden border border-outline-variant/10 p-6 md:p-8" style={{ boxShadow: "0px 4px 20px rgba(26,60,110,0.05)" }}>
                 <audio
                   ref={audioRef}
-                  className="hidden"
+                  preload="auto"
+                  playsInline
+                  className="absolute w-0 h-0 opacity-0 pointer-events-none overflow-hidden"
                   onPlay={() => setAudioPlaying(true)}
                   onPause={() => setAudioPlaying(false)}
                   onEnded={() => setAudioPlaying(false)}
+                />
+                <audio
+                  ref={explanationAudioRef}
+                  preload="auto"
+                  playsInline
+                  className="absolute w-0 h-0 opacity-0 pointer-events-none overflow-hidden"
+                  onPlay={() => setExplanationAudioPlaying(true)}
+                  onPause={() => setExplanationAudioPlaying(false)}
+                  onEnded={() => setExplanationAudioPlaying(false)}
                 />
                 <div className="flex flex-col gap-6">
                   <h1 className="text-headline-md md:text-headline-xl text-on-surface leading-tight">{qText}</h1>
@@ -869,10 +910,10 @@ export default function ExamDetailPage() {
                           onClick={() => {
                             const el = audioRef.current
                             if (!el) return
-                            if (audioPlaying) {
-                              el.pause()
-                            } else {
+                            if (el.paused) {
                               el.play().catch(() => {})
+                            } else {
+                              el.pause()
                             }
                           }}
                           className="size-10 rounded-full bg-primary text-on-primary flex items-center justify-center active:scale-95 transition-transform shrink-0"
@@ -923,9 +964,34 @@ export default function ExamDetailPage() {
             {hasAnswered && getExplanationText() && (
               <div className="bg-surface-container-low border border-surface-container-high rounded-xl p-4 flex items-start gap-4">
                 <Info size={20} className="text-primary-container shrink-0 mt-0.5" />
-                <div>
+                <div className="flex-1 min-w-0">
                           <p className="text-label-md text-on-surface font-bold mb-1">{t("exam.explanation")}</p>
                   <p className="text-body-md text-on-surface-variant leading-relaxed" dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(getExplanationText()!) }} />
+                  {(() => {
+                    const audio = currentQuestion.explanationAudioTranslations
+                    const audioUrl = (audio && (audio[lang] || audio["nl"])) || null
+                    if (!audioUrl) return null
+                    return (
+                      <div className="flex items-center gap-3 bg-surface-container rounded-xl px-3 py-2 w-fit mt-3">
+                        <button
+                          onClick={() => {
+                            const el = explanationAudioRef.current
+                            if (!el) return
+                            if (el.paused) {
+                              el.play().catch(() => {})
+                            } else {
+                              el.pause()
+                            }
+                          }}
+                          className="size-9 rounded-full bg-secondary-container text-on-secondary-container flex items-center justify-center active:scale-95 transition-transform shrink-0"
+                          aria-label={explanationAudioPlaying ? "Pause audio" : "Play audio"}
+                        >
+                          {explanationAudioPlaying ? <Pause size={16} /> : <Play size={16} />}
+                        </button>
+                        <span className="text-label-sm font-bold text-on-surface-variant">{t("exam.explanationAudio")}</span>
+                      </div>
+                    )
+                  })()}
                 </div>
               </div>
             )}

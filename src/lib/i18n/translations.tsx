@@ -164,7 +164,8 @@ const translations: Record<LangCode, Record<string, string>> = {
     "exam.tabSwitchMessage": "Je hebt het examen-verlaten. Dit wordt geregistreerd als een overtreding. Herhaal dit niet.",
     "exam.violationsCount": "Aantal overtredingen:",
     "exam.returnToExam": "Terug naar examen",
-    "exam.questionAudio": "Beluister de vraag",    "exam.expiredTitle": "Tijd op!",
+    "exam.questionAudio": "Beluister de vraag",
+    "exam.explanationAudio": "Beluister de uitleg",    "exam.expiredTitle": "Tijd op!",
     "exam.expiredMessage": "De examentijd is verlopen. Je resultaten worden automatisch opgeslagen.",
 
     // Dashboard
@@ -548,6 +549,7 @@ const translations: Record<LangCode, Record<string, string>> = {
     "exam.violationsCount": "Number of violations:",
     "exam.returnToExam": "Return to exam",
     "exam.questionAudio": "Listen to the question",
+    "exam.explanationAudio": "Listen to the explanation",
     "exam.expiredTitle": "Time's up!",
     "exam.expiredMessage": "The exam time has expired. Your results are being saved automatically.",
 
@@ -932,6 +934,7 @@ const translations: Record<LangCode, Record<string, string>> = {
     "exam.violationsCount": "عدد المخالفات:",
     "exam.returnToExam": "العودة إلى الامتحان",
     "exam.questionAudio": "استمع إلى السؤال",
+    "exam.explanationAudio": "استمع إلى الشرح",
     "exam.expiredTitle": "انتهى الوقت!",
     "exam.expiredMessage": "انتهى وقت الامتحان. يتم حفظ نتائجك تلقائيًا.",
 

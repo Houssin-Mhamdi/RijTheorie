@@ -63,6 +63,7 @@ BEGIN
       'explanation', NULL,
       'translations', q.translations,
       'audio_translations', q.audio_translations,
+      'explanation_audio_translations', q.explanation_audio_translations,
       'pause_at', q.pause_at
     )
     ORDER BY eq.sort_order
@@ -320,6 +321,7 @@ $$;
 ALTER TABLE questions ADD COLUMN IF NOT EXISTS translations JSONB DEFAULT '{}'::jsonb;
 ALTER TABLE questions ADD COLUMN IF NOT EXISTS pause_at FLOAT DEFAULT 3.0;
 ALTER TABLE questions ADD COLUMN IF NOT EXISTS audio_translations JSONB DEFAULT '{}'::jsonb;
+ALTER TABLE questions ADD COLUMN IF NOT EXISTS explanation_audio_translations JSONB DEFAULT '{}'::jsonb;
 
 -- Add language column to profiles
 ALTER TABLE profiles ADD COLUMN IF NOT EXISTS language TEXT DEFAULT 'nl';

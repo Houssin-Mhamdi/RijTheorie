@@ -221,18 +221,18 @@ export default function QuestionForm({ onSubmit, isPending, initialData, userId,
     }
   }
 
-  async function handleAudioSelect(lang: string, e: React.ChangeEvent<HTMLInputElement>) {
+  async function handleAudioSelect(field: "audioTranslations" | "explanationAudioTranslations", lang: string, e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0]
     e.target.value = ""
     if (!file) return
     const publicUrl = await uploadAudioFile(file)
     if (publicUrl) {
-      form.setValue(`audioTranslations.${lang}`, publicUrl, { shouldDirty: true })
+      form.setValue(`${field}.${lang}`, publicUrl, { shouldDirty: true })
     }
   }
 
-  async function removeAudio(lang: string) {
-    const current = form.getValues("audioTranslations") || {}
+  async function removeAudio(field: "audioTranslations" | "explanationAudioTranslations", lang: string) {
+    const current = (form.getValues(field) as Record<string, string> | undefined) || {}
     const url = current[lang]
     if (url) {
       const path = url.split("/question-media/")[1]
@@ -242,7 +242,7 @@ export default function QuestionForm({ onSubmit, isPending, initialData, userId,
     }
     const next = { ...current }
     delete next[lang]
-    form.setValue("audioTranslations", next, { shouldDirty: true })
+    form.setValue(field, next, { shouldDirty: true })
   }
 
   function handleHotspotChange(index: number, x: number, y: number) {
@@ -345,15 +345,27 @@ export default function QuestionForm({ onSubmit, isPending, initialData, userId,
           </FormItem>
         )} />
 
-        <div className="space-y-2">
-          <FormLabel>Audio <span className="text-on-surface-variant font-normal">(Nederlands, speelt automatisch in het examen)</span></FormLabel>
-          <AudioField
-            lang="nl"
-            value={form.watch("audioTranslations")?.["nl"]}
-            disabled={isAudioUploading}
-            onSelect={(e) => handleAudioSelect("nl", e)}
-            onRemove={() => removeAudio("nl")}
-          />
+        <div className="space-y-4">
+          <div className="space-y-2">
+            <FormLabel>Audio <span className="text-on-surface-variant font-normal">(Nederlands, speelt automatisch in het examen)</span></FormLabel>
+            <AudioField
+              lang="nl"
+              value={form.watch("audioTranslations")?.["nl"]}
+              disabled={isAudioUploading}
+              onSelect={(e) => handleAudioSelect("audioTranslations", "nl", e)}
+              onRemove={() => removeAudio("audioTranslations", "nl")}
+            />
+          </div>
+          <div className="space-y-2">
+            <FormLabel>Uitleg Audio <span className="text-on-surface-variant font-normal">(Nederlands, speelt bij de uitleg)</span></FormLabel>
+            <AudioField
+              lang="nl"
+              value={form.watch("explanationAudioTranslations")?.["nl"]}
+              disabled={isAudioUploading}
+              onSelect={(e) => handleAudioSelect("explanationAudioTranslations", "nl", e)}
+              onRemove={() => removeAudio("explanationAudioTranslations", "nl")}
+            />
+          </div>
         </div>
 
         {!isChooseImages && (
@@ -661,17 +673,27 @@ export default function QuestionForm({ onSubmit, isPending, initialData, userId,
                         placeholder={`Translated question text (${tf.lang.toUpperCase()})`}
                       />
                     </div>
-                    <div>
-                      <label className="text-label-sm text-on-surface-variant mb-1 block">
-                        Audio <span className="font-normal">({tf.lang.toUpperCase()})</span>
-                      </label>
-                      <AudioField
-                        lang={tf.lang}
-                        value={form.watch("audioTranslations")?.[tf.lang]}
-                        disabled={isAudioUploading}
-                        onSelect={(e) => handleAudioSelect(tf.lang, e)}
-                        onRemove={() => removeAudio(tf.lang)}
-                      />
+                    <div className="space-y-3">
+                      <div>
+                        <label className="text-label-sm text-on-surface-variant mb-1 block">Question Audio ({tf.lang.toUpperCase()})</label>
+                        <AudioField
+                          lang={tf.lang}
+                          value={form.watch("audioTranslations")?.[tf.lang]}
+                          disabled={isAudioUploading}
+                          onSelect={(e) => handleAudioSelect("audioTranslations", tf.lang, e)}
+                          onRemove={() => removeAudio("audioTranslations", tf.lang)}
+                        />
+                      </div>
+                      <div>
+                        <label className="text-label-sm text-on-surface-variant mb-1 block">Explanation Audio ({tf.lang.toUpperCase()})</label>
+                        <AudioField
+                          lang={tf.lang}
+                          value={form.watch("explanationAudioTranslations")?.[tf.lang]}
+                          disabled={isAudioUploading}
+                          onSelect={(e) => handleAudioSelect("explanationAudioTranslations", tf.lang, e)}
+                          onRemove={() => removeAudio("explanationAudioTranslations", tf.lang)}
+                        />
+                      </div>
                     </div>
                     {fields.length > 0 && (
                       <div>
