@@ -345,18 +345,22 @@ CREATE TABLE IF NOT EXISTS public.subscription_plans (
 
 ALTER TABLE public.subscription_plans ENABLE ROW LEVEL SECURITY;
 
+DROP POLICY IF EXISTS "Anyone can read active plans" ON public.subscription_plans;
 CREATE POLICY "Anyone can read active plans"
   ON public.subscription_plans FOR SELECT
   USING (true);
 
+DROP POLICY IF EXISTS "Only admins can insert plans" ON public.subscription_plans;
 CREATE POLICY "Only admins can insert plans"
   ON public.subscription_plans FOR INSERT
   WITH CHECK (public.is_admin());
 
+DROP POLICY IF EXISTS "Only admins can update plans" ON public.subscription_plans;
 CREATE POLICY "Only admins can update plans"
   ON public.subscription_plans FOR UPDATE
   USING (public.is_admin());
 
+DROP POLICY IF EXISTS "Only admins can delete plans" ON public.subscription_plans;
 CREATE POLICY "Only admins can delete plans"
   ON public.subscription_plans FOR DELETE
   USING (public.is_admin());
@@ -374,18 +378,22 @@ CREATE TABLE IF NOT EXISTS public.user_subscriptions (
 
 ALTER TABLE public.user_subscriptions ENABLE ROW LEVEL SECURITY;
 
+DROP POLICY IF EXISTS "Users can read own subscriptions" ON public.user_subscriptions;
 CREATE POLICY "Users can read own subscriptions"
   ON public.user_subscriptions FOR SELECT
   USING (auth.uid() = user_id);
 
+DROP POLICY IF EXISTS "Admins can read all subscriptions" ON public.user_subscriptions;
 CREATE POLICY "Admins can read all subscriptions"
   ON public.user_subscriptions FOR SELECT
   USING (public.is_admin());
 
+DROP POLICY IF EXISTS "Admins can insert subscriptions" ON public.user_subscriptions;
 CREATE POLICY "Admins can insert subscriptions"
   ON public.user_subscriptions FOR INSERT
   WITH CHECK (public.is_admin());
 
+DROP POLICY IF EXISTS "Admins can update subscriptions" ON public.user_subscriptions;
 CREATE POLICY "Admins can update subscriptions"
   ON public.user_subscriptions FOR UPDATE
   USING (public.is_admin());
@@ -449,10 +457,12 @@ CREATE TABLE IF NOT EXISTS public.payouts (
 
 ALTER TABLE public.payouts ENABLE ROW LEVEL SECURITY;
 
+DROP POLICY IF EXISTS "Admins can read payouts" ON public.payouts;
 CREATE POLICY "Admins can read payouts"
   ON public.payouts FOR SELECT
   USING (public.is_admin());
 
+DROP POLICY IF EXISTS "Admins can insert payouts" ON public.payouts;
 CREATE POLICY "Admins can insert payouts"
   ON public.payouts FOR INSERT
   WITH CHECK (public.is_admin());
