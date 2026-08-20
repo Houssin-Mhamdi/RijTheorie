@@ -2,15 +2,20 @@ import { createServerClient } from "@supabase/ssr"
 import { NextResponse } from "next/server"
 import type { NextRequest } from "next/server"
 
-async function getRole(supabase: ReturnType<typeof createServerClient>, userId: string): Promise<{ role: string; can_access_exams: boolean } | null> {
+async function getRole(userId: string): Promise<{ role: string; can_access_exams: boolean } | null> {
   try {
-    const { data, error } = await supabase
-      .from("profiles")
-      .select("role, can_access_exams")
-      .eq("id", userId)
-      .single()
-    if (error) return null
-    return data ?? null
+    const res = await fetch(
+      `${process.env.NEXT_PUBLIC_SUPABASE_URL}/rest/v1/profiles?select=role,can_access_exams&id=eq.${userId}`,
+      {
+        headers: {
+          apikey: process.env.SUPABASE_SERVICE_ROLE_KEY!,
+          Authorization: `Bearer ${process.env.SUPABASE_SERVICE_ROLE_KEY!}`,
+        },
+      },
+    )
+    if (!res.ok) return null
+    const profiles = await res.json()
+    return profiles?.[0] ?? null
   } catch {
     return null
   }
@@ -53,7 +58,7 @@ export async function proxy(request: NextRequest) {
   }
 
   if (user && (isAdminRoute || isStudentRoute)) {
-    const profile = await getRole(supabase, user.id)
+    const profile = await getRole(user.id)
     const role = profile?.role ?? null
     const canAccessExams = profile?.can_access_exams ?? false
 
