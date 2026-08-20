@@ -4,19 +4,25 @@ import type { NextRequest } from "next/server"
 
 async function getRole(userId: string): Promise<{ role: string; can_access_exams: boolean } | null> {
   try {
-    const res = await fetch(
-      `${process.env.NEXT_PUBLIC_SUPABASE_URL}/rest/v1/profiles?select=role,can_access_exams&id=eq.${userId}`,
-      {
-        headers: {
-          apikey: process.env.SUPABASE_SERVICE_ROLE_KEY!,
-          Authorization: `Bearer ${process.env.SUPABASE_SERVICE_ROLE_KEY!}`,
-        },
+    const url = `${process.env.NEXT_PUBLIC_SUPABASE_URL}/rest/v1/profiles?select=role,can_access_exams&id=eq.${userId}`
+    const key = process.env.SUPABASE_SERVICE_ROLE_KEY
+    if (!key) {
+      console.error("[PROXY] SUPABASE_SERVICE_ROLE_KEY is missing!")
+      return null
+    }
+    const res = await fetch(url, {
+      headers: {
+        apikey: key,
+        Authorization: `Bearer ${key}`,
       },
-    )
+    })
+    const text = await res.text()
+    console.error("[PROXY] role lookup status:", res.status, "body:", text.slice(0, 200))
     if (!res.ok) return null
-    const profiles = await res.json()
+    const profiles = JSON.parse(text)
     return profiles?.[0] ?? null
-  } catch {
+  } catch (e) {
+    console.error("[PROXY] getRole error:", e)
     return null
   }
 }
@@ -59,6 +65,7 @@ export async function proxy(request: NextRequest) {
 
   if (user && (isAdminRoute || isStudentRoute)) {
     const profile = await getRole(user.id)
+    console.error("[PROXY] user:", user.id, "profile:", profile)
     const role = profile?.role ?? null
     const canAccessExams = profile?.can_access_exams ?? false
 
@@ -67,6 +74,9 @@ export async function proxy(request: NextRequest) {
     }
 
     if (isStudentRoute && role !== "student" && !(role === "admin" && canAccessExams)) {
+      if (role === null) {
+        return NextResponse.redirect(new URL("/login", request.url))
+      }
       return NextResponse.redirect(new URL("/dashboard", request.url))
     }
   }
