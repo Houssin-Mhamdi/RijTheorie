@@ -63,18 +63,18 @@ export async function proxy(request: NextRequest) {
 
   if (user && (isAdminRoute || isStudentRoute)) {
     const profile = await getRole(user.id)
-    console.error("[PROXY] user:", user.id, "profile:", profile)
     const role = profile?.role ?? null
     const canAccessExams = profile?.can_access_exams ?? false
+
+    if (role === null) {
+      return supabaseResponse
+    }
 
     if (isAdminRoute && role !== "admin") {
       return NextResponse.redirect(new URL("/exams", request.url))
     }
 
     if (isStudentRoute && role !== "student" && !(role === "admin" && canAccessExams)) {
-      if (role === null) {
-        return NextResponse.redirect(new URL("/login", request.url))
-      }
       return NextResponse.redirect(new URL("/dashboard", request.url))
     }
   }
