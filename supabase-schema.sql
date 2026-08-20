@@ -808,7 +808,7 @@ BEGIN
       CONTINUE;
     END IF;
 
-    SELECT max_attempts INTO v_max FROM public.exams WHERE id = v_exam_id;
+    SELECT public.exams.max_attempts INTO v_max FROM public.exams WHERE id = v_exam_id;
 
     IF v_max IS NULL THEN
       exam_id := v_exam_id;
@@ -822,7 +822,7 @@ BEGIN
 
     SELECT COUNT(*) INTO v_used
     FROM public.exam_attempts
-    WHERE user_id = auth.uid() AND exam_id = v_exam_id AND started_at >= v_last_purchase;
+    WHERE user_id = auth.uid() AND public.exam_attempts.exam_id = v_exam_id AND started_at >= v_last_purchase;
 
     exam_id := v_exam_id;
     max_attempts := v_max;

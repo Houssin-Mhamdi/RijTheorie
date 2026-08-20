@@ -874,11 +874,11 @@ export default function ExamDetailPage() {
         <div className="bg-secondary-container h-full transition-all" style={{ width: `${progressPct}%` }} />
       </div>
 
-      <main className="flex-1 w-full max-w-6xl mx-auto px-4 py-5 md:px-8 md:py-12">
+      <main className="flex-1 w-full max-w-7xl mx-auto px-4 py-5 md:px-8 md:py-12">
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
-          <div className="lg:col-span-7 flex flex-col gap-6">
+          <div className="lg:col-span-9 lg:order-1 flex flex-col gap-6">
             <section key={currentQuestion.id}>
-              <div className="bg-surface-container-lowest rounded-2xl overflow-hidden border border-outline-variant/10 p-6 md:p-8" style={{ boxShadow: "0px 4px 20px rgba(26,60,110,0.05)" }}>
+                <div className="bg-surface-container-lowest rounded-2xl overflow-hidden border border-outline-variant/10 p-6 md:p-8" style={{ boxShadow: "0px 4px 20px rgba(26,60,110,0.05)" }}>
                 <audio
                   ref={audioRef}
                   preload="auto"
@@ -927,11 +927,11 @@ export default function ExamDetailPage() {
                   })()}
 
                   {currentQuestion.media && !isHotspot && !isChooseImages && (
-                    <div className="relative rounded-xl overflow-hidden aspect-video bg-surface-container">
+                    <div className="relative -mx-6 md:-mx-8 -mb-6 md:-mb-8 bg-surface-container flex items-center justify-center">
                       {currentQuestion.mediaMime?.startsWith("video/") ? (
-                        <video src={currentQuestion.media} controls preload="metadata" className="w-full h-full object-cover" />
+                        <video src={currentQuestion.media} controls preload="metadata" className="w-full max-h-[60vh] object-contain" />
                       ) : (
-                        <SmartImage src={currentQuestion.media} alt="Traffic situation" lazy={false} className="w-full h-full object-cover" />
+                        <SmartImage src={currentQuestion.media} alt="Traffic situation" lazy={false} className="w-full max-h-[60vh] object-contain" />
                       )}
                     </div>
                   )}
@@ -997,7 +997,7 @@ export default function ExamDetailPage() {
             )}
           </div>
 
-          <div className="lg:col-span-5 flex flex-col gap-6">
+          <div className="lg:col-span-3 lg:order-2 flex flex-col gap-6">
             {isChooseImages ? (
               <div className="grid grid-cols-2 gap-3">
                 {currentQuestion.answerOptions.map((option, idx) => {
