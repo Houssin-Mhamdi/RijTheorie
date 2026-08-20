@@ -2,15 +2,6 @@
 -- RijTheorie Pro - Supabase Schema
 -- ============================================
 
--- 0. HELPER FUNCTION (SECURITY DEFINER to avoid RLS recursion)
-CREATE OR REPLACE FUNCTION public.is_admin()
-RETURNS BOOLEAN
-LANGUAGE sql SECURITY DEFINER
-STABLE
-AS $$
-  SELECT EXISTS (SELECT 1 FROM public.profiles WHERE id = auth.uid() AND role = 'admin')
-$$;
-
 -- 1. PROFILES TABLE (extends auth.users)
 CREATE TABLE profiles (
   id UUID PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE,
@@ -24,6 +15,15 @@ CREATE TABLE profiles (
 );
 
 ALTER TABLE profiles ENABLE ROW LEVEL SECURITY;
+
+-- 0. HELPER FUNCTION (SECURITY DEFINER to avoid RLS recursion)
+CREATE OR REPLACE FUNCTION public.is_admin()
+RETURNS BOOLEAN
+LANGUAGE sql SECURITY DEFINER
+STABLE
+AS $$
+  SELECT EXISTS (SELECT 1 FROM public.profiles WHERE id = auth.uid() AND role = 'admin')
+$$;
 
 -- Everyone can read their own profile
 CREATE POLICY "Users can read own profile"
