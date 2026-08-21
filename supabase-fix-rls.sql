@@ -285,24 +285,44 @@ BEGIN
 END;
 $$;
 
--- Run in Supabase SQL editor for avatars bucket:
--- INSERT INTO storage.buckets (id, name, public) VALUES ('avatars', 'avatars', true);
---
--- CREATE POLICY "Anyone can read avatars"
---   ON storage.objects FOR SELECT
---   USING (bucket_id = 'avatars');
---
--- CREATE POLICY "Authenticated users can upload avatars"
---   ON storage.objects FOR INSERT
---   WITH CHECK (bucket_id = 'avatars' AND auth.role() = 'authenticated');
---
--- CREATE POLICY "Users can update own avatars"
---   ON storage.objects FOR UPDATE
---   USING (bucket_id = 'avatars' AND owner = auth.uid());
---
--- CREATE POLICY "Users can delete own avatars"
---   ON storage.objects FOR DELETE
---   USING (bucket_id = 'avatars' AND (owner = auth.uid() OR public.is_admin()));
+-- STORAGE POLICIES (for question-media and avatars buckets)
+-- Buckets should be created manually in the Supabase dashboard as Public.
+
+-- question-media: allow public read, authenticated upload/delete
+DROP POLICY IF EXISTS "Anyone can read question-media" ON storage.objects;
+CREATE POLICY "Anyone can read question-media"
+  ON storage.objects FOR SELECT
+  USING (bucket_id = 'question-media');
+
+DROP POLICY IF EXISTS "Authenticated can upload question-media" ON storage.objects;
+CREATE POLICY "Authenticated can upload question-media"
+  ON storage.objects FOR INSERT
+  TO authenticated
+  WITH CHECK (bucket_id = 'question-media');
+
+DROP POLICY IF EXISTS "Authenticated can delete question-media" ON storage.objects;
+CREATE POLICY "Authenticated can delete question-media"
+  ON storage.objects FOR DELETE
+  TO authenticated
+  USING (bucket_id = 'question-media');
+
+-- avatars: allow public read, authenticated upload/delete
+DROP POLICY IF EXISTS "Anyone can read avatars" ON storage.objects;
+CREATE POLICY "Anyone can read avatars"
+  ON storage.objects FOR SELECT
+  USING (bucket_id = 'avatars');
+
+DROP POLICY IF EXISTS "Authenticated can upload avatars" ON storage.objects;
+CREATE POLICY "Authenticated can upload avatars"
+  ON storage.objects FOR INSERT
+  TO authenticated
+  WITH CHECK (bucket_id = 'avatars');
+
+DROP POLICY IF EXISTS "Authenticated can delete avatars" ON storage.objects;
+CREATE POLICY "Authenticated can delete avatars"
+  ON storage.objects FOR DELETE
+  TO authenticated
+  USING (bucket_id = 'avatars');
 
 -- RPC: Update last_active_at (SECURITY DEFINER — bypasses RLS)
 CREATE OR REPLACE FUNCTION public.update_last_active_at()
