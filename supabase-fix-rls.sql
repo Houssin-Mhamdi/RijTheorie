@@ -1,3 +1,18 @@
+-- RPC: get_profile_for_proxy — used by the proxy middleware to check user role
+CREATE OR REPLACE FUNCTION public.get_profile_for_proxy(p_user_id UUID)
+RETURNS JSON
+LANGUAGE plpgsql SECURITY DEFINER
+SET search_path = ''
+AS $$
+DECLARE
+  result JSON;
+BEGIN
+  SELECT row_to_json(p) INTO result
+  FROM (SELECT role, can_access_exams FROM public.profiles WHERE id = p_user_id) p;
+  RETURN result;
+END;
+$$;
+
 -- Add SECURITY DEFINER helper (bypasses RLS recursion)
 CREATE OR REPLACE FUNCTION public.is_admin()
 RETURNS BOOLEAN
