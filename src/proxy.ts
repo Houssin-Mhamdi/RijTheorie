@@ -67,6 +67,9 @@ export async function proxy(request: NextRequest) {
     const canAccessExams = profile?.can_access_exams ?? false
 
     if (role === null) {
+      if (isAdminRoute) {
+        return NextResponse.redirect(new URL("/exams", request.url))
+      }
       return supabaseResponse
     }
 
