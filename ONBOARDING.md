@@ -785,7 +785,34 @@ UPDATE public.site_settings SET languages = '["nl"]'::jsonb WHERE id = 1;
 
 ---
 
-## Step 10 — Hand over to the school
+## Step 10 — Set up Stripe (for payments)
+
+Each school needs their own Stripe account to accept payments.
+
+1. Go to https://dashboard.stripe.com → log in (or create an account for the school)
+2. Go to **Developers → API keys** → copy:
+   - **Publishable key** (starts with `pk_live_`)
+   - **Secret key** (starts with `sk_live_`)
+3. Go to the school's site → log in as admin → go to **Settings → Billing**
+4. Paste the **Publishable key** and **Secret key** → click **Save**
+5. The status should show **CONNECTED**
+6. (Optional) Set up a Stripe webhook:
+   - In Stripe Dashboard → **Developers → Webhooks → Add endpoint**
+   - URL: `https://THEIR_SITE.netlify.app/api/stripe/webhook`
+   - Events to send: `checkout.session.completed`
+   - Copy the **Webhook signing secret** → go back to Billing settings → paste it as the `webhook_secret` in `payment_settings` via SQL:
+
+```sql
+UPDATE public.site_settings
+SET payment_settings = payment_settings || '{"webhook_secret": "whsec_YOUR_SECRET_HERE"}'::jsonb
+WHERE id = 1;
+```
+
+Without Stripe, students can't buy subscriptions. Free exams still work without Stripe.
+
+---
+
+## Step 11 — Hand over to the school
 
 Send the school owner:
 
