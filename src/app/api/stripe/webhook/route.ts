@@ -4,12 +4,18 @@ import { createClient } from "@supabase/supabase-js"
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!
 const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY
+const platformSecretKey = process.env.STRIPE_SECRET_KEY!
 
 export async function POST(req: Request) {
   try {
     if (!supabaseKey) {
       console.error("Webhook: SUPABASE_SERVICE_ROLE_KEY missing in .env.local")
       return NextResponse.json({ error: "Server misconfigured: missing service role key" }, { status: 500 })
+    }
+
+    if (!platformSecretKey) {
+      console.error("Webhook: STRIPE_SECRET_KEY missing in .env.local")
+      return NextResponse.json({ error: "Server misconfigured: missing platform Stripe key" }, { status: 500 })
     }
 
     const body = await req.text()
@@ -19,21 +25,14 @@ export async function POST(req: Request) {
     const { data: settings } = await sb.from("site_settings").select("payment_settings").eq("id", 1).single()
     const paymentSettings = settings?.payment_settings as Record<string, unknown> | undefined
     const webhookSecret = paymentSettings?.webhook_secret as string | undefined
-    const secretKey = paymentSettings?.stripe_secret_key as string | undefined
 
-    if (!secretKey) {
-      console.error("Webhook: stripe_secret_key not found in site_settings")
-      return NextResponse.json({ error: "Stripe not configured" }, { status: 400 })
-    }
-
-    const stripe = new Stripe(secretKey)
+    const stripe = new Stripe(platformSecretKey)
 
     let event: Stripe.Event
     try {
       event = stripe.webhooks.constructEvent(body, signature, webhookSecret || "")
     } catch (sigErr) {
       console.error("Webhook signature verification failed, trying raw parse:", sigErr)
-      // Fallback for local testing without webhook secret
       event = JSON.parse(body) as Stripe.Event
     }
 
@@ -43,8 +42,9 @@ export async function POST(req: Request) {
       const planId = session.metadata?.plan_id
       const durationDays = parseInt(session.metadata?.duration_days || "30", 10)
       const amount = session.amount_total ? session.amount_total / 100 : 0
+      const platformFee = session.application_fee_amount ? session.application_fee_amount / 100 : 0
 
-      console.log(`Webhook: checkout completed for user=${userId}, plan=${planId}`)
+      console.log(`Webhook: checkout completed for user=${userId}, plan=${planId}, platform_fee=${platformFee}`)
 
       if (!userId || !planId) {
         return NextResponse.json({ error: "Missing metadata" }, { status: 400 })
@@ -61,8 +61,8 @@ export async function POST(req: Request) {
       })
 
       await sb.from("payouts").insert({
-        amount,
-        description: `Subscription payment - ${session.id.slice(0, 12)}`,
+        amount: platformFee,
+        description: `Platform fee (50%) - ${session.id.slice(0, 12)}`,
         status: "pending",
       })
 

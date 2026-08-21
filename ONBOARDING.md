@@ -689,6 +689,7 @@ Done. The storage policies were already created by the SQL in Step 2.
 | `NEXT_PUBLIC_SUPABASE_URL` | `https://YOUR_PROJECT.supabase.co` |
 | `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Paste the **anon** legacy key (the one with `"role":"anon"`) |
 | `SUPABASE_SERVICE_ROLE_KEY` | Paste the **service_role** legacy key (the one with `"role":"service_role"`) |
+| `STRIPE_SECRET_KEY` | Your **platform** Stripe secret key (starts with `sk_live_`) — same for all schools |
 | `NEXT_PUBLIC_CLARITY_PROJECT_ID` | Leave empty (just put a space or any value) |
 
 4. Go to **Deploys** (top menu) → click **Trigger deploy** → **Deploy site**
@@ -787,20 +788,43 @@ UPDATE public.site_settings SET languages = '["nl"]'::jsonb WHERE id = 1;
 
 ## Step 10 — Set up Stripe (for payments)
 
-Each school needs their own Stripe account to accept payments.
+The platform uses **Stripe Connect** with a 50/50 revenue split.
+You (the platform owner) receive 50% of every subscription payment automatically.
 
-1. Go to https://dashboard.stripe.com → log in (or create an account for the school)
-2. Go to **Developers → API keys** → copy:
-   - **Publishable key** (starts with `pk_live_`)
-   - **Secret key** (starts with `sk_live_`)
-3. Go to the school's site → log in as admin → go to **Settings → Billing**
-4. Paste the **Publishable key** and **Secret key** → click **Save**
-5. The status should show **CONNECTED**
-6. (Optional) Set up a Stripe webhook:
-   - In Stripe Dashboard → **Developers → Webhooks → Add endpoint**
-   - URL: `https://THEIR_SITE.netlify.app/api/stripe/webhook`
-   - Events to send: `checkout.session.completed`
-   - Copy the **Webhook signing secret** → go back to Billing settings → paste it as the `webhook_secret` in `payment_settings` via SQL:
+### Your one-time setup (do this once, before onboarding any school)
+
+1. Go to https://dashboard.stripe.com → create or log in to YOUR Stripe account
+2. Go to **Settings → Connect settings** → enable **Express accounts**
+3. Go to **Developers → API keys** → copy your **Secret key** (starts with `sk_live_`)
+4. This key goes into EVERY Netlify site as `STRIPE_SECRET_KEY` (Step 5)
+
+### Per-school setup
+
+The school admin connects their own Stripe account from the Billing page:
+
+1. Log in to the school's site as admin → go to **Settings → Billing**
+2. Click **"Connect with Stripe"** → redirected to Stripe's hosted onboarding
+3. The school owner fills in their bank details, ID verification, etc.
+4. After completing → redirected back to the Billing page → status shows **CONNECTED**
+
+That's it. No API keys to paste. Stripe handles everything.
+
+### How it works
+
+- Student pays €10 → Stripe automatically splits it:
+  - **€5** goes to YOUR Stripe account (platform fee)
+  - **€5** goes to the school's Stripe account (their share)
+- The school sees their share deposited in their Stripe dashboard
+- You see your 50% fee in your Stripe dashboard
+- The webhook records the platform fee in the `payouts` table
+
+### Webhook setup (one-time, per platform)
+
+1. In your Stripe Dashboard → **Developers → Webhooks → Add endpoint**
+2. URL: `https://ANY_SCHOOL_SITE.netlify.app/api/stripe/webhook`
+   (all schools share the same webhook URL since they use the same platform key)
+3. Events to send: `checkout.session.completed`
+4. Copy the **Webhook signing secret** → store it in each school's `site_settings` via SQL:
 
 ```sql
 UPDATE public.site_settings
