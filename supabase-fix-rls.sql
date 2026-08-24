@@ -337,6 +337,7 @@ END;
 $$;
 
 -- RPC: Get caller's latest attempt on an exam
+DROP FUNCTION IF EXISTS public.get_latest_attempt(UUID, UUID);
 CREATE OR REPLACE FUNCTION public.get_latest_attempt(p_user_id UUID, p_exam_id UUID)
 RETURNS JSONB
 LANGUAGE plpgsql SECURITY DEFINER
