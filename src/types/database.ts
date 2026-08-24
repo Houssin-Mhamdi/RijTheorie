@@ -77,3 +77,16 @@ export type Payout = {
   paid_at: string | null
   created_at: string
 }
+
+export type CouponCode = {
+  id: string
+  code: string
+  discount_percent: number
+  max_uses: number | null
+  used_count: number
+  plan_ids: string[]
+  expires_at: string | null
+  is_active: boolean
+  created_by: string | null
+  created_at: string
+}

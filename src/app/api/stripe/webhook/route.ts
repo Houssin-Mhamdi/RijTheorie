@@ -62,6 +62,19 @@ export async function POST(req: Request) {
         is_active: true,
       })
 
+      // Record coupon redemption (unique constraint prevents double-redemption)
+      const couponId = session.metadata?.coupon_id
+      if (couponId) {
+        const { data: inserted, error: redeemErr } = await sb
+          .from("coupon_redemptions")
+          .insert({ coupon_id: couponId, user_id: userId })
+          .select("id")
+        if (!redeemErr && inserted && inserted.length > 0) {
+          // Only increments once per user per coupon
+          await sb.rpc("increment_coupon_used_count", { p_coupon_id: couponId })
+        }
+      }
+
       await sb.from("payouts").insert({
         amount: platformFee,
         description: `Platform fee (50%) - ${session.id.slice(0, 12)}`,

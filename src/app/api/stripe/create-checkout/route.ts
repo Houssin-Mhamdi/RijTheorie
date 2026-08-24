@@ -10,7 +10,7 @@ const APPLICATION_FEE_PERCENT = 50
 
 export async function POST(req: Request) {
   try {
-    const { planId, userId } = await req.json()
+    const { planId, userId, couponCode } = await req.json()
     if (!planId || !userId) {
       return NextResponse.json({ error: "Missing planId or userId" }, { status: 400 })
     }
@@ -34,11 +34,40 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "Plan not found" }, { status: 404 })
     }
 
+    // --- COUPON VALIDATION (server-side only; client never controls the price) ---
+    let discountPercent = 0
+    let couponId: string | null = null
+    if (couponCode && typeof couponCode === "string") {
+      const code = String(couponCode).trim().toUpperCase()
+      const { data: c } = await sb.from("coupon_codes").select("*").eq("code", code).maybeSingle()
+      const coupon = c as Record<string, unknown> | null
+
+      if (!coupon || !coupon.is_active) throw new Error("Invalid coupon code")
+      if (coupon.expires_at && new Date(coupon.expires_at as string) < new Date()) throw new Error("Coupon expired")
+      if (coupon.max_uses != null && Number(coupon.used_count) >= Number(coupon.max_uses)) throw new Error("Coupon usage limit reached")
+
+      const planIds = Array.isArray(coupon.plan_ids) ? (coupon.plan_ids as string[]) : []
+      if (!planIds.includes(planId)) throw new Error("Coupon not valid for this bundle")
+
+      // One redemption per user — enforced by DB unique constraint, checked here for UX
+      const { count } = await sb
+        .from("coupon_redemptions")
+        .select("id", { count: "exact", head: true })
+        .eq("coupon_id", coupon.id as string)
+        .eq("user_id", userId)
+      if ((count ?? 0) > 0) throw new Error("You already used this coupon")
+
+      discountPercent = Math.min(Math.max(Number(coupon.discount_percent), 0), 99)
+      couponId = coupon.id as string
+    }
+
     const planData = plan as Record<string, unknown>
     const stripe = new Stripe(platformSecretKey)
-    const amountInCents = Math.round(Number(planData.price) * 100)
+    const fullAmountCents = Math.round(Number(planData.price) * 100)
+    // Final amount ALWAYS computed from DB price — never trusted from client
+    const finalCents = Math.round((fullAmountCents * (100 - discountPercent)) / 100)
     const durationDays = Number(planData.duration_days ?? 30)
-    const applicationFeeCents = Math.round(amountInCents * APPLICATION_FEE_PERCENT / 100)
+    const applicationFeeCents = Math.round(finalCents * APPLICATION_FEE_PERCENT / 100)
 
     const session = await stripe.checkout.sessions.create({
       mode: "payment",
@@ -51,7 +80,7 @@ export async function POST(req: Request) {
               name: planData.name as string,
               description: planData.description as string | undefined,
             },
-            unit_amount: amountInCents,
+            unit_amount: finalCents,
           },
           quantity: 1,
         },
@@ -61,6 +90,7 @@ export async function POST(req: Request) {
         plan_id: planId,
         duration_days: String(durationDays),
         connected_account: connectedAccountId,
+        ...(couponId ? { coupon_id: couponId, discount_percent: String(discountPercent) } : {}),
       },
       application_fee_amount: applicationFeeCents,
       transfer_data: {
@@ -73,6 +103,7 @@ export async function POST(req: Request) {
     return NextResponse.json({ url: session.url })
   } catch (e) {
     console.error("Create checkout error:", e)
-    return NextResponse.json({ error: "Failed to create checkout session" }, { status: 500 })
+    const message = e instanceof Error && !e.message.includes("error") ? e.message : "Failed to create checkout session"
+    return NextResponse.json({ error: message }, { status: e instanceof Error && e.message.includes("oupon") ? 400 : 500 })
   }
 }

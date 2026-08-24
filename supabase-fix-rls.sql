@@ -712,3 +712,99 @@ REVOKE EXECUTE ON FUNCTION public.get_latest_attempt(UUID, UUID) FROM PUBLIC, an
 GRANT EXECUTE ON FUNCTION public.get_latest_attempt(UUID, UUID) TO authenticated;
 
 DROP FUNCTION IF EXISTS public.subscribe_to_plan(UUID);
+
+-- ============================================
+-- COUPON CODES SYSTEM
+-- Admin creates codes (e.g. START20 = 20% off selected bundles).
+-- Each user can redeem a code ONCE. Global max_uses optional.
+-- Prices are ALWAYS computed server-side — client cannot inject amounts.
+-- ============================================
+CREATE TABLE IF NOT EXISTS public.coupon_codes (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  code TEXT NOT NULL UNIQUE,
+  discount_percent INTEGER NOT NULL CHECK (discount_percent BETWEEN 1 AND 99),
+  max_uses INTEGER,
+  used_count INTEGER NOT NULL DEFAULT 0,
+  plan_ids JSONB NOT NULL DEFAULT '[]'::jsonb,
+  expires_at TIMESTAMPTZ,
+  is_active BOOLEAN NOT NULL DEFAULT true,
+  created_by UUID REFERENCES public.profiles(id),
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS public.coupon_redemptions (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  coupon_id UUID REFERENCES public.coupon_codes(id) ON DELETE CASCADE NOT NULL,
+  user_id UUID REFERENCES public.profiles(id) ON DELETE CASCADE NOT NULL,
+  redeemed_at TIMESTAMPTZ DEFAULT NOW(),
+  UNIQUE(coupon_id, user_id)
+);
+
+ALTER TABLE public.coupon_codes ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.coupon_redemptions ENABLE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS "Admins manage coupon_codes" ON public.coupon_codes;
+CREATE POLICY "Admins read coupon_codes" ON public.coupon_codes FOR SELECT USING (public.is_admin());
+CREATE POLICY "Admins insert coupon_codes" ON public.coupon_codes FOR INSERT WITH CHECK (public.is_admin());
+CREATE POLICY "Admins update coupon_codes" ON public.coupon_codes FOR UPDATE USING (public.is_admin());
+CREATE POLICY "Admins delete coupon_codes" ON public.coupon_codes FOR DELETE USING (public.is_admin());
+
+-- Students have NO direct access to redemptions; webhook writes via service role.
+DROP POLICY IF EXISTS "Admins read redemptions" ON public.coupon_redemptions;
+CREATE POLICY "Admins read redemptions" ON public.coupon_redemptions FOR SELECT USING (public.is_admin());
+
+-- RPC: student preview — which plans does this code apply to and how much % off
+CREATE OR REPLACE FUNCTION public.validate_coupon_preview(p_code TEXT)
+RETURNS JSONB
+LANGUAGE plpgsql SECURITY DEFINER
+SET search_path = ''
+AS $$
+DECLARE
+  c RECORD;
+  already_used BOOLEAN;
+BEGIN
+  SELECT * INTO c FROM public.coupon_codes
+  WHERE code = UPPER(BTRIM(p_code));
+  IF NOT FOUND THEN
+    RETURN jsonb_build_object('valid', false, 'error', 'invalid');
+  END IF;
+  IF NOT c.is_active THEN
+    RETURN jsonb_build_object('valid', false, 'error', 'inactive');
+  END IF;
+  IF c.expires_at IS NOT NULL AND c.expires_at < NOW() THEN
+    RETURN jsonb_build_object('valid', false, 'error', 'expired');
+  END IF;
+  IF c.max_uses IS NOT NULL AND c.used_count >= c.max_uses THEN
+    RETURN jsonb_build_object('valid', false, 'error', 'limit_reached');
+  END IF;
+
+  SELECT EXISTS (
+    SELECT 1 FROM public.coupon_redemptions
+    WHERE coupon_id = c.id AND user_id = auth.uid()
+  ) INTO already_used;
+  IF already_used THEN
+    RETURN jsonb_build_object('valid', false, 'error', 'already_used');
+  END IF;
+
+  RETURN jsonb_build_object(
+    'valid', true,
+    'discount_percent', c.discount_percent,
+    'plan_ids', c.plan_ids
+  );
+END;
+$$;
+
+REVOKE EXECUTE ON FUNCTION public.validate_coupon_preview(TEXT) FROM PUBLIC, anon;
+GRANT EXECUTE ON FUNCTION public.validate_coupon_preview(TEXT) TO authenticated;
+
+-- RPC: increment coupon usage counter (service role / webhook only)
+CREATE OR REPLACE FUNCTION public.increment_coupon_used_count(p_coupon_id UUID)
+RETURNS VOID
+LANGUAGE sql SECURITY DEFINER
+SET search_path = ''
+AS $$
+  UPDATE public.coupon_codes SET used_count = used_count + 1 WHERE id = p_coupon_id;
+$$;
+
+REVOKE EXECUTE ON FUNCTION public.increment_coupon_used_count(UUID) FROM PUBLIC, anon, authenticated;
+GRANT EXECUTE ON FUNCTION public.increment_coupon_used_count(UUID) TO service_role;

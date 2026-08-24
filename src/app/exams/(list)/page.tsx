@@ -46,6 +46,52 @@ export default function ExamsPage() {
   const [logoutOpen, setLogoutOpen] = useState(false)
   const dropdownRef = useRef<HTMLDivElement>(null)
 
+  // Coupon state
+  const [couponInput, setCouponInput] = useState("")
+  const [coupon, setCoupon] = useState<{ code: string; discount_percent: number; plan_ids: string[] } | null>(null)
+  const [couponError, setCouponError] = useState("")
+  const [couponLoading, setCouponLoading] = useState(false)
+
+  const applyCoupon = async () => {
+    const code = couponInput.trim().toUpperCase()
+    if (!code) return
+    setCouponLoading(true)
+    setCouponError("")
+    try {
+      const { data, error } = await supabase.rpc("validate_coupon_preview", { p_code: code })
+      if (error || !data) throw new Error()
+      const result = data as { valid: boolean; error?: string; discount_percent?: number; plan_ids?: string[] }
+      if (!result.valid) {
+        const errorKeys: Record<string, string> = {
+          invalid: "coupons.invalid",
+          inactive: "coupons.invalid",
+          expired: "coupons.expired",
+          limit_reached: "coupons.limit",
+          already_used: "coupons.used",
+        }
+        setCouponError(t(errorKeys[result.error ?? "invalid"] ?? "coupons.invalid"))
+        setCoupon(null)
+        return
+      }
+      setCoupon({ code, discount_percent: result.discount_percent ?? 0, plan_ids: result.plan_ids ?? [] })
+    } catch {
+      setCouponError(t("coupons.invalid"))
+      setCoupon(null)
+    }
+    setCouponLoading(false)
+  }
+
+  const clearCoupon = () => {
+    setCoupon(null)
+    setCouponInput("")
+    setCouponError("")
+  }
+
+  const discountedPrice = (planId: string, price: number) =>
+    coupon && coupon.plan_ids.includes(planId)
+      ? Math.round(price * (100 - coupon.discount_percent)) / 100
+      : price
+
   const name = profile?.name || ""
   const email = profile?.email || ""
   const initials = (name || email)
@@ -232,7 +278,7 @@ export default function ExamsPage() {
       const res = await fetch("/api/stripe/create-checkout", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ planId, userId: user.id }),
+        body: JSON.stringify({ planId, userId: user.id, couponCode: coupon?.code ?? null }),
       })
       const json = await res.json()
       if (!res.ok) throw new Error(json.error || "Checkout failed")
@@ -244,10 +290,26 @@ export default function ExamsPage() {
     }
   }
 
-  const renderPlanCard = (plan: { id: string; name: string; price: number; features: string[] }) => (
+  const renderPlanCard = (plan: { id: string; name: string; price: number; features: string[] }) => {
+    const hasDiscount = coupon && coupon.plan_ids.includes(plan.id)
+    return (
     <div key={plan.id} className="bg-surface rounded-xl border border-outline-variant/30 p-5 text-left">
       <h3 className="text-headline-sm font-bold text-primary mb-1">{plan.name}</h3>
-      <p className="text-headline-lg font-bold text-primary mb-3">&euro;{plan.price.toFixed(2)}</p>
+      <p className="text-headline-lg font-bold text-primary mb-3">
+        {hasDiscount ? (
+          <>
+            <span className="text-label-md text-on-surface-variant line-through mr-2">&euro;{plan.price.toFixed(2)}</span>
+            &euro;{discountedPrice(plan.id, plan.price).toFixed(2)}
+          </>
+        ) : (
+          <>&euro;{plan.price.toFixed(2)}</>
+        )}
+      </p>
+      {hasDiscount && (
+        <span className="inline-block mb-3 px-2.5 py-1 rounded-full bg-green-100 text-green-700 text-label-sm font-bold">
+          -{coupon!.discount_percent}% {coupon!.code}
+        </span>
+      )}
       <div className="space-y-1.5 mb-5">
         {(plan.features as string[]).map((f, i) => (
           <div key={i} className="flex items-center gap-2 text-label-sm text-on-surface-variant">
@@ -259,7 +321,9 @@ export default function ExamsPage() {
       <button
         onClick={() => handleSubscribe(plan.id)}
         disabled={subscribing === plan.id}
-        className="w-full py-2.5 rounded-xl bg-primary text-on-primary text-label-md font-bold hover:opacity-90 transition-all active:scale-[0.97] disabled:opacity-50 disabled:active:scale-100"
+        className={`w-full py-2.5 rounded-xl text-label-md font-bold transition-all active:scale-[0.97] disabled:opacity-50 disabled:active:scale-100 ${
+          hasDiscount ? "bg-green-600 text-white hover:opacity-90" : "bg-primary text-on-primary hover:opacity-90"
+        }`}
       >
         {subscribing === plan.id ? (
           <span className="flex items-center justify-center gap-2">
@@ -271,12 +335,51 @@ export default function ExamsPage() {
         )}
       </button>
     </div>
+    )
+  }
+
+  const renderCouponInput = () => (
+    <div className="max-w-3xl mx-auto mb-4">
+      <div className="flex gap-2">
+        <input
+          type="text"
+          value={couponInput}
+          onChange={(e) => setCouponInput(e.target.value.toUpperCase())}
+          onKeyDown={(e) => e.key === "Enter" && applyCoupon()}
+          placeholder={t("coupons.placeholder")}
+          maxLength={24}
+          className="flex-1 h-12 px-4 rounded-xl border border-outline-variant focus:ring-2 focus:ring-primary font-mono font-bold uppercase tracking-wider outline-none bg-surface"
+        />
+        {coupon ? (
+          <button
+            onClick={clearCoupon}
+            className="px-5 h-12 rounded-xl border border-outline-variant text-label-md font-bold text-error hover:bg-red-50 transition-colors active:scale-[0.97]"
+          >
+            {t("common.cancel")}
+          </button>
+        ) : (
+          <button
+            onClick={applyCoupon}
+            disabled={couponLoading || !couponInput.trim()}
+            className="px-6 h-12 rounded-xl bg-primary text-on-primary text-label-md font-bold hover:opacity-90 transition-all active:scale-[0.97] disabled:opacity-50 flex items-center gap-2"
+          >
+            {couponLoading ? <Loader2 size={16} className="animate-spin" /> : t("coupons.apply")}
+          </button>
+        )}
+      </div>
+      {couponError && (
+        <p className="mt-2 text-label-md text-error font-medium">{couponError}</p>
+      )}
+    </div>
   )
 
   const renderPlansGrid = () =>
     plans.length > 0 && (
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 max-w-3xl mx-auto">
-        {plans.map(renderPlanCard)}
+      <div className="max-w-3xl mx-auto">
+        {renderCouponInput()}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          {plans.map(renderPlanCard)}
+        </div>
       </div>
     )
 
