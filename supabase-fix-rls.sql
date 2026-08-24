@@ -245,34 +245,8 @@ CREATE POLICY "Admins can read all attempts"
 -- Subscriptions are now ONLY created by the Stripe webhook (server-side).
 DROP FUNCTION IF EXISTS public.subscribe_to_plan(UUID);
 
--- SECURITY: restrict sensitive RPCs to authenticated users (block anon),
--- and get_profile_for_proxy to service_role only (used by server proxy).
-REVOKE EXECUTE ON FUNCTION public.get_profile_for_proxy(UUID) FROM PUBLIC, anon, authenticated;
-GRANT EXECUTE ON FUNCTION public.get_profile_for_proxy(UUID) TO service_role;
-
-REVOKE EXECUTE ON FUNCTION public.get_exam_questions(UUID) FROM PUBLIC, anon;
-GRANT EXECUTE ON FUNCTION public.get_exam_questions(UUID) TO authenticated;
-
-REVOKE EXECUTE ON FUNCTION public.check_answer(UUID, INT) FROM PUBLIC, anon;
-GRANT EXECUTE ON FUNCTION public.check_answer(UUID, INT) TO authenticated;
-
-REVOKE EXECUTE ON FUNCTION public.check_hotspot(UUID, JSONB) FROM PUBLIC, anon;
-GRANT EXECUTE ON FUNCTION public.check_hotspot(UUID, JSONB) TO authenticated;
-
-REVOKE EXECUTE ON FUNCTION public.get_exam_stats_full() FROM PUBLIC, anon;
-GRANT EXECUTE ON FUNCTION public.get_exam_stats_full() TO authenticated;
-
-REVOKE EXECUTE ON FUNCTION public.get_exam_attempt_status(UUID[]) FROM PUBLIC, anon;
-GRANT EXECUTE ON FUNCTION public.get_exam_attempt_status(UUID[]) TO authenticated;
-
-REVOKE EXECUTE ON FUNCTION public.can_attempt_exam(UUID) FROM PUBLIC, anon;
-GRANT EXECUTE ON FUNCTION public.can_attempt_exam(UUID) TO authenticated;
-
-REVOKE EXECUTE ON FUNCTION public.can_access_exam(UUID) FROM PUBLIC, anon;
-GRANT EXECUTE ON FUNCTION public.can_access_exam(UUID) TO authenticated;
-
-REVOKE EXECUTE ON FUNCTION public.finish_exam_attempt(UUID, INTEGER, INTEGER, BOOLEAN, JSONB) FROM PUBLIC, anon;
-GRANT EXECUTE ON FUNCTION public.finish_exam_attempt(UUID, INTEGER, INTEGER, BOOLEAN, JSONB) TO service_role;
+-- NOTE: function EXECUTE permissions (REVOKE/GRANT) are applied at the very
+-- END of this file, AFTER all functions have been created/replaced.
 
 -- RPC: Finish exam attempt (updates score + category_scores)
 CREATE OR REPLACE FUNCTION public.finish_exam_attempt(
@@ -376,15 +350,6 @@ BEGIN
   RETURN result;
 END;
 $$;
-
-REVOKE EXECUTE ON FUNCTION public.count_user_exam_attempts(UUID, UUID) FROM PUBLIC, anon;
-GRANT EXECUTE ON FUNCTION public.count_user_exam_attempts(UUID, UUID) TO authenticated;
-
-REVOKE EXECUTE ON FUNCTION public.insert_exam_attempt(UUID, UUID, INTEGER) FROM PUBLIC, anon;
-GRANT EXECUTE ON FUNCTION public.insert_exam_attempt(UUID, UUID, INTEGER) TO authenticated;
-
-REVOKE EXECUTE ON FUNCTION public.get_latest_attempt(UUID, UUID) FROM PUBLIC, anon;
-GRANT EXECUTE ON FUNCTION public.get_latest_attempt(UUID, UUID) TO authenticated;
 
 -- STORAGE POLICIES (for question-media and avatars buckets)
 -- Buckets should be created manually in the Supabase dashboard as Public.
@@ -527,41 +492,8 @@ CREATE POLICY "Admins can update subscriptions"
   ON public.user_subscriptions FOR UPDATE
   USING (public.is_admin());
 
--- RPC for students to subscribe themselves (SECURITY DEFINER bypasses RLS)
-CREATE OR REPLACE FUNCTION public.subscribe_to_plan(p_plan_id UUID)
-RETURNS JSONB
-LANGUAGE plpgsql
-SECURITY DEFINER
-SET search_path = ''
-AS $$
-DECLARE
-  v_plan public.subscription_plans;
-  v_subscription public.user_subscriptions;
-BEGIN
-  -- Get the plan
-  SELECT * INTO v_plan FROM public.subscription_plans WHERE id = p_plan_id AND is_active = true;
-  IF NOT FOUND THEN
-    RETURN jsonb_build_object('error', 'Plan not found or inactive');
-  END IF;
-
-  -- Deactivate any existing active subscriptions for this user
-  UPDATE public.user_subscriptions
-  SET is_active = false
-  WHERE user_id = auth.uid() AND is_active = true;
-
-  -- Insert new subscription
-  INSERT INTO public.user_subscriptions (user_id, plan_id, start_date, end_date, is_active)
-  VALUES (auth.uid(), p_plan_id, NOW(), NOW() + (v_plan.duration_days || ' days')::INTERVAL, true)
-  RETURNING * INTO v_subscription;
-
-  RETURN jsonb_build_object(
-    'id', v_subscription.id,
-    'plan_id', v_subscription.plan_id,
-    'end_date', v_subscription.end_date,
-    'is_active', v_subscription.is_active
-  );
-END;
-$$;
+-- SECURITY: subscribe_to_plan was REMOVED (allowed students to self-subscribe for free).
+DROP FUNCTION IF EXISTS public.subscribe_to_plan(UUID);
 
 -- Seed 3 default subscription plans
 INSERT INTO public.subscription_plans (name, description, price, duration_days, features)
@@ -735,3 +667,45 @@ BEGIN
   RETURN;
 END;
 $$;
+
+-- ============================================
+-- FINAL STEP: FUNCTION EXECUTE PERMISSIONS
+-- Applied LAST so every function above is covered.
+-- ============================================
+REVOKE EXECUTE ON FUNCTION public.get_profile_for_proxy(UUID) FROM PUBLIC, anon, authenticated;
+GRANT EXECUTE ON FUNCTION public.get_profile_for_proxy(UUID) TO service_role;
+
+REVOKE EXECUTE ON FUNCTION public.get_exam_questions(UUID) FROM PUBLIC, anon;
+GRANT EXECUTE ON FUNCTION public.get_exam_questions(UUID) TO authenticated;
+
+REVOKE EXECUTE ON FUNCTION public.check_answer(UUID, INT) FROM PUBLIC, anon;
+GRANT EXECUTE ON FUNCTION public.check_answer(UUID, INT) TO authenticated;
+
+REVOKE EXECUTE ON FUNCTION public.check_hotspot(UUID, JSONB) FROM PUBLIC, anon;
+GRANT EXECUTE ON FUNCTION public.check_hotspot(UUID, JSONB) TO authenticated;
+
+REVOKE EXECUTE ON FUNCTION public.get_exam_stats_full() FROM PUBLIC, anon;
+GRANT EXECUTE ON FUNCTION public.get_exam_stats_full() TO authenticated;
+
+REVOKE EXECUTE ON FUNCTION public.get_exam_attempt_status(UUID[]) FROM PUBLIC, anon;
+GRANT EXECUTE ON FUNCTION public.get_exam_attempt_status(UUID[]) TO authenticated;
+
+REVOKE EXECUTE ON FUNCTION public.can_attempt_exam(UUID) FROM PUBLIC, anon;
+GRANT EXECUTE ON FUNCTION public.can_attempt_exam(UUID) TO authenticated;
+
+REVOKE EXECUTE ON FUNCTION public.can_access_exam(UUID) FROM PUBLIC, anon;
+GRANT EXECUTE ON FUNCTION public.can_access_exam(UUID) TO authenticated;
+
+REVOKE EXECUTE ON FUNCTION public.finish_exam_attempt(UUID, INTEGER, INTEGER, BOOLEAN, JSONB) FROM PUBLIC, anon;
+GRANT EXECUTE ON FUNCTION public.finish_exam_attempt(UUID, INTEGER, INTEGER, BOOLEAN, JSONB) TO service_role;
+
+REVOKE EXECUTE ON FUNCTION public.count_user_exam_attempts(UUID, UUID) FROM PUBLIC, anon;
+GRANT EXECUTE ON FUNCTION public.count_user_exam_attempts(UUID, UUID) TO authenticated;
+
+REVOKE EXECUTE ON FUNCTION public.insert_exam_attempt(UUID, UUID, INTEGER) FROM PUBLIC, anon;
+GRANT EXECUTE ON FUNCTION public.insert_exam_attempt(UUID, UUID, INTEGER) TO authenticated;
+
+REVOKE EXECUTE ON FUNCTION public.get_latest_attempt(UUID, UUID) FROM PUBLIC, anon;
+GRANT EXECUTE ON FUNCTION public.get_latest_attempt(UUID, UUID) TO authenticated;
+
+DROP FUNCTION IF EXISTS public.subscribe_to_plan(UUID);
