@@ -32,8 +32,8 @@ export async function POST(req: Request) {
     try {
       event = stripe.webhooks.constructEvent(body, signature, webhookSecret || "")
     } catch (sigErr) {
-      console.error("Webhook signature verification failed, trying raw parse:", sigErr)
-      event = JSON.parse(body) as Stripe.Event
+      console.error("Webhook signature verification failed:", sigErr)
+      return NextResponse.json({ error: "Invalid signature" }, { status: 400 })
     }
 
     if (event.type === "checkout.session.completed") {
@@ -42,7 +42,9 @@ export async function POST(req: Request) {
       const planId = session.metadata?.plan_id
       const durationDays = parseInt(session.metadata?.duration_days || "30", 10)
       const amount = session.amount_total ? session.amount_total / 100 : 0
-      const platformFee = session.application_fee_amount ? session.application_fee_amount / 100 : 0
+      const platformFee = (session as unknown as { application_fee_amount?: number }).application_fee_amount
+        ? (session as unknown as { application_fee_amount?: number }).application_fee_amount! / 100
+        : 0
 
       console.log(`Webhook: checkout completed for user=${userId}, plan=${planId}, platform_fee=${platformFee}`)
 

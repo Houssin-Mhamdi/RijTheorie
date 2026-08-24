@@ -300,24 +300,22 @@ CREATE POLICY "Users can update own progress"
   USING (auth.uid() = user_id);
 
 -- 11. STORAGE BUCKET FOR QUESTION MEDIA
--- Run this in the Supabase SQL editor to create the storage bucket:
--- INSERT INTO storage.buckets (id, name, public) VALUES ('question-media', 'question-media', true);
---
--- Then create these policies in the storage bucket:
--- Anyone can read files:
--- CREATE POLICY "Anyone can read question-media"
---   ON storage.objects FOR SELECT
---   USING (bucket_id = 'question-media');
---
--- Authenticated users can upload:
--- CREATE POLICY "Authenticated users can upload to question-media"
---   ON storage.objects FOR INSERT
---   WITH CHECK (bucket_id = 'question-media' AND auth.role() = 'authenticated');
---
--- Users can delete their own files (or admins can delete any):
--- CREATE POLICY "Users can delete own question-media files"
---   ON storage.objects FOR DELETE
---   USING (bucket_id = 'question-media' AND (owner = auth.uid() OR public.is_admin()));
+-- Buckets must be created manually in the Supabase dashboard as Public.
+-- SECURITY: only admins can upload/delete question media.
+
+CREATE POLICY "Anyone can read question-media"
+  ON storage.objects FOR SELECT
+  USING (bucket_id = 'question-media');
+
+CREATE POLICY "Admins can upload question-media"
+  ON storage.objects FOR INSERT
+  TO authenticated
+  WITH CHECK (bucket_id = 'question-media' AND public.is_admin());
+
+CREATE POLICY "Admins can delete question-media"
+  ON storage.objects FOR DELETE
+  TO authenticated
+  USING (bucket_id = 'question-media' AND public.is_admin());
 
 -- 12. RPC FUNCTIONS (secure access to questions without exposing isCorrect)
 
@@ -494,13 +492,9 @@ CREATE POLICY "Users can read own attempts"
   ON public.exam_attempts FOR SELECT
   USING (auth.uid() = user_id);
 
-CREATE POLICY "Users can insert own attempts"
-  ON public.exam_attempts FOR INSERT
-  WITH CHECK (auth.uid() = user_id);
-
-CREATE POLICY "Users can update own attempts"
-  ON public.exam_attempts FOR UPDATE
-  USING (auth.uid() = user_id);
+-- SECURITY: no INSERT/UPDATE policies for students on exam_attempts.
+-- Attempts are created/updated server-side via API routes with the service role key,
+-- preventing students from faking scores via direct table access.
 
 CREATE POLICY "Admins can read all attempts"
   ON public.exam_attempts FOR SELECT
@@ -633,38 +627,10 @@ CREATE POLICY "Admins can update subscriptions"
   ON public.user_subscriptions FOR UPDATE
   USING (public.is_admin());
 
--- RPC for students to subscribe themselves (SECURITY DEFINER bypasses RLS)
-CREATE OR REPLACE FUNCTION public.subscribe_to_plan(p_plan_id UUID)
-RETURNS JSONB
-LANGUAGE plpgsql
-SECURITY DEFINER
-SET search_path = ''
-AS $$
-DECLARE
-  v_plan public.subscription_plans;
-  v_subscription public.user_subscriptions;
-BEGIN
-  SELECT * INTO v_plan FROM public.subscription_plans WHERE id = p_plan_id AND is_active = true;
-  IF NOT FOUND THEN
-    RETURN jsonb_build_object('error', 'Plan not found or inactive');
-  END IF;
-
-  UPDATE public.user_subscriptions
-  SET is_active = false
-  WHERE user_id = auth.uid() AND is_active = true;
-
-  INSERT INTO public.user_subscriptions (user_id, plan_id, start_date, end_date, is_active)
-  VALUES (auth.uid(), p_plan_id, NOW(), NOW() + (v_plan.duration_days || ' days')::INTERVAL, true)
-  RETURNING * INTO v_subscription;
-
-  RETURN jsonb_build_object(
-    'id', v_subscription.id,
-    'plan_id', v_subscription.plan_id,
-    'end_date', v_subscription.end_date,
-    'is_active', v_subscription.is_active
-  );
-END;
-$$;
+-- SECURITY: subscribe_to_plan was REMOVED — it allowed students to self-subscribe
+-- for free, bypassing Stripe payment. Subscriptions are ONLY created by the
+-- Stripe webhook (server-side, using SUPABASE_SERVICE_ROLE_KEY).
+DROP FUNCTION IF EXISTS public.subscribe_to_plan(UUID);
 
 -- Seed 3 default subscription plans
 INSERT INTO public.subscription_plans (name, description, price, duration_days, features)
@@ -694,24 +660,28 @@ CREATE POLICY "Admins can insert payouts"
   ON public.payouts FOR INSERT
   WITH CHECK (public.is_admin());
 
--- Run this in Supabase SQL editor to create the avatars storage bucket:
--- INSERT INTO storage.buckets (id, name, public) VALUES ('avatars', 'avatars', true);
---
--- CREATE POLICY "Anyone can read avatars"
---   ON storage.objects FOR SELECT
---   USING (bucket_id = 'avatars');
---
--- CREATE POLICY "Authenticated users can upload avatars"
---   ON storage.objects FOR INSERT
---   WITH CHECK (bucket_id = 'avatars' AND auth.role() = 'authenticated');
---
--- CREATE POLICY "Users can update own avatars"
---   ON storage.objects FOR UPDATE
---   USING (bucket_id = 'avatars' AND owner = auth.uid());
---
--- CREATE POLICY "Users can delete own avatars"
---   ON storage.objects FOR DELETE
---   USING (bucket_id = 'avatars' AND (owner = auth.uid() OR public.is_admin()));
+-- AVATARS BUCKET: create manually in dashboard as Public.
+-- SECURITY: users can upload avatars; only the owner (folder = their uid) or an admin can delete.
+
+CREATE POLICY "Anyone can read avatars"
+  ON storage.objects FOR SELECT
+  USING (bucket_id = 'avatars');
+
+CREATE POLICY "Authenticated can upload avatars"
+  ON storage.objects FOR INSERT
+  TO authenticated
+  WITH CHECK (bucket_id = 'avatars');
+
+CREATE POLICY "Owner or admin can delete avatars"
+  ON storage.objects FOR DELETE
+  TO authenticated
+  USING (
+    bucket_id = 'avatars'
+    AND (
+      public.is_admin()
+      OR auth.uid()::text = (storage.foldername(name))[1]
+    )
+  );
 
 -- 24. CAN ACCESS EXAM RPC (SECURITY DEFINER)
 CREATE OR REPLACE FUNCTION public.can_access_exam(p_exam_id UUID)
@@ -849,3 +819,91 @@ BEGIN
   RETURN;
 END;
 $$;
+
+-- ============================================
+-- 27. EXAM ATTEMPT HELPER RPCs (ownership forced to caller)
+-- ============================================
+
+CREATE OR REPLACE FUNCTION public.count_user_exam_attempts(p_user_id UUID, p_exam_id UUID)
+RETURNS INTEGER
+LANGUAGE plpgsql SECURITY DEFINER
+SET search_path = ''
+AS $$
+DECLARE v_count INTEGER;
+BEGIN
+  SELECT COUNT(*) INTO v_count
+  FROM public.exam_attempts
+  WHERE user_id = auth.uid() AND exam_id = p_exam_id;
+  RETURN v_count;
+END;
+$$;
+
+CREATE OR REPLACE FUNCTION public.insert_exam_attempt(p_user_id UUID, p_exam_id UUID, p_attempt_number INTEGER)
+RETURNS UUID
+LANGUAGE plpgsql SECURITY DEFINER
+SET search_path = ''
+AS $$
+DECLARE v_id UUID;
+BEGIN
+  IF public.is_admin() THEN RETURN NULL; END IF;
+  INSERT INTO public.exam_attempts (user_id, exam_id, attempt_number)
+  VALUES (auth.uid(), p_exam_id, GREATEST(p_attempt_number, 1))
+  RETURNING id INTO v_id;
+  RETURN v_id;
+END;
+$$;
+
+CREATE OR REPLACE FUNCTION public.get_latest_attempt(p_user_id UUID, p_exam_id UUID)
+RETURNS JSONB
+LANGUAGE plpgsql SECURITY DEFINER
+SET search_path = ''
+AS $$
+DECLARE result JSONB;
+BEGIN
+  SELECT row_to_json(a)::jsonb INTO result
+  FROM public.exam_attempts a
+  WHERE a.user_id = auth.uid() AND a.exam_id = p_exam_id
+  ORDER BY a.started_at DESC
+  LIMIT 1;
+  RETURN result;
+END;
+$$;
+
+-- ============================================
+-- 28. FUNCTION PERMISSIONS (block anon access, lock server-only functions)
+-- ============================================
+REVOKE EXECUTE ON FUNCTION public.get_profile_for_proxy(UUID) FROM PUBLIC, anon, authenticated;
+GRANT EXECUTE ON FUNCTION public.get_profile_for_proxy(UUID) TO service_role;
+
+REVOKE EXECUTE ON FUNCTION public.get_exam_questions(UUID) FROM PUBLIC, anon;
+GRANT EXECUTE ON FUNCTION public.get_exam_questions(UUID) TO authenticated;
+
+REVOKE EXECUTE ON FUNCTION public.check_answer(UUID, INT) FROM PUBLIC, anon;
+GRANT EXECUTE ON FUNCTION public.check_answer(UUID, INT) TO authenticated;
+
+REVOKE EXECUTE ON FUNCTION public.check_hotspot(UUID, JSONB) FROM PUBLIC, anon;
+GRANT EXECUTE ON FUNCTION public.check_hotspot(UUID, JSONB) TO authenticated;
+
+REVOKE EXECUTE ON FUNCTION public.get_exam_stats_full() FROM PUBLIC, anon;
+GRANT EXECUTE ON FUNCTION public.get_exam_stats_full() TO authenticated;
+
+REVOKE EXECUTE ON FUNCTION public.get_exam_attempt_status(UUID[]) FROM PUBLIC, anon;
+GRANT EXECUTE ON FUNCTION public.get_exam_attempt_status(UUID[]) TO authenticated;
+
+REVOKE EXECUTE ON FUNCTION public.can_attempt_exam(UUID) FROM PUBLIC, anon;
+GRANT EXECUTE ON FUNCTION public.can_attempt_exam(UUID) TO authenticated;
+
+REVOKE EXECUTE ON FUNCTION public.can_access_exam(UUID) FROM PUBLIC, anon;
+GRANT EXECUTE ON FUNCTION public.can_access_exam(UUID) TO authenticated;
+
+REVOKE EXECUTE ON FUNCTION public.finish_exam_attempt(UUID, INTEGER, INTEGER, BOOLEAN, JSONB) FROM PUBLIC, anon;
+GRANT EXECUTE ON FUNCTION public.finish_exam_attempt(UUID, INTEGER, INTEGER, BOOLEAN, JSONB) TO service_role;
+
+REVOKE EXECUTE ON FUNCTION public.count_user_exam_attempts(UUID, UUID) FROM PUBLIC, anon;
+GRANT EXECUTE ON FUNCTION public.count_user_exam_attempts(UUID, UUID) TO authenticated;
+
+REVOKE EXECUTE ON FUNCTION public.insert_exam_attempt(UUID, UUID, INTEGER) FROM PUBLIC, anon;
+GRANT EXECUTE ON FUNCTION public.insert_exam_attempt(UUID, UUID, INTEGER) TO authenticated;
+
+REVOKE EXECUTE ON FUNCTION public.get_latest_attempt(UUID, UUID) FROM PUBLIC, anon;
+GRANT EXECUTE ON FUNCTION public.get_latest_attempt(UUID, UUID) TO authenticated;

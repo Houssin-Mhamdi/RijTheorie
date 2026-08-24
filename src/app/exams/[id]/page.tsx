@@ -96,6 +96,7 @@ export default function ExamDetailPage() {
   const [examFinished, setExamFinished] = useState(false)
   const [attemptBlocked, setAttemptBlocked] = useState<{ attempts: number; max_attempts: number } | null>(null)
   const attemptCreated = useRef(false)
+  const attemptIdRef = useRef<string | null>(null)
   const timeUpHandled = useRef(false)
   const examStartTime = useRef(Date.now())
   const audioRef = useRef<HTMLAudioElement | null>(null)
@@ -201,13 +202,15 @@ export default function ExamDetailPage() {
                 p_exam_id: examId,
               })
               const nextNumber = (typeof count === "number" ? count : 0) + 1
-              await supabase.rpc("insert_exam_attempt", {
+              const { data: newId } = await supabase.rpc("insert_exam_attempt", {
                 p_user_id: user.id,
                 p_exam_id: examId,
                 p_attempt_number: nextNumber,
               })
+              attemptIdRef.current = typeof newId === "string" ? newId : null
               setAttemptNumber(nextNumber)
             } else {
+              attemptIdRef.current = existing[0].id
               setAttemptNumber(existing[0].attempt_number)
             }
           } else {
@@ -216,11 +219,12 @@ export default function ExamDetailPage() {
               p_exam_id: examId,
             })
             const nextNumber = (typeof count === "number" ? count : 0) + 1
-            await supabase.rpc("insert_exam_attempt", {
+            const { data: newId } = await supabase.rpc("insert_exam_attempt", {
               p_user_id: user.id,
               p_exam_id: examId,
               p_attempt_number: nextNumber,
             })
+            attemptIdRef.current = typeof newId === "string" ? newId : null
             setAttemptNumber(nextNumber)
           }
         }
@@ -387,6 +391,7 @@ export default function ExamDetailPage() {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         exam_id: examId,
+        attempt_id: attemptIdRef.current,
         score: correct,
         total_questions: total,
         passed,

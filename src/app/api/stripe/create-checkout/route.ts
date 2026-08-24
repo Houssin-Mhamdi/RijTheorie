@@ -68,7 +68,7 @@ export async function POST(req: Request) {
       },
       success_url: `${req.headers.get("origin") || "http://localhost:3000"}/exams?subscription=success`,
       cancel_url: `${req.headers.get("origin") || "http://localhost:3000"}/exams?subscription=cancelled`,
-    })
+    } as Stripe.Checkout.SessionCreateParams)
 
     return NextResponse.json({ url: session.url })
   } catch (e) {
