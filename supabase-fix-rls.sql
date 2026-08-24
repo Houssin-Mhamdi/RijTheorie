@@ -1,4 +1,4 @@
--- RPC: get_profile_for_proxy — used by the proxy middleware to check user role
+﻿-- RPC: get_profile_for_proxy â€” used by the proxy middleware to check user role
 CREATE OR REPLACE FUNCTION public.get_profile_for_proxy(p_user_id UUID)
 RETURNS JSON
 LANGUAGE plpgsql SECURITY DEFINER
@@ -303,7 +303,8 @@ BEGIN
 END;
 $$;
 
--- RPC: Count a user's attempts on an exam (user is forced to caller — p_user_id ignored)
+-- RPC: Count a user's attempts on an exam (user is forced to caller â€” p_user_id ignored)
+DROP FUNCTION IF EXISTS public.count_user_exam_attempts(UUID, UUID);
 CREATE OR REPLACE FUNCTION public.count_user_exam_attempts(p_user_id UUID, p_exam_id UUID)
 RETURNS INTEGER
 LANGUAGE plpgsql SECURITY DEFINER
@@ -318,7 +319,8 @@ BEGIN
 END;
 $$;
 
--- RPC: Insert a new exam attempt (ownership forced — always uses caller's uid)
+-- RPC: Insert a new exam attempt (ownership forced â€” always uses caller's uid)
+DROP FUNCTION IF EXISTS public.insert_exam_attempt(UUID, UUID, INTEGER);
 CREATE OR REPLACE FUNCTION public.insert_exam_attempt(p_user_id UUID, p_exam_id UUID, p_attempt_number INTEGER)
 RETURNS UUID
 LANGUAGE plpgsql SECURITY DEFINER
@@ -398,7 +400,7 @@ CREATE POLICY "Owner or admin can delete avatars"
     )
   );
 
--- RPC: Update last_active_at (SECURITY DEFINER — bypasses RLS)
+-- RPC: Update last_active_at (SECURITY DEFINER â€” bypasses RLS)
 CREATE OR REPLACE FUNCTION public.update_last_active_at()
 RETURNS VOID
 LANGUAGE plpgsql SECURITY DEFINER
@@ -553,7 +555,7 @@ $$;
 -- 24. EXAM ATTEMPT LIMIT: max_attempts column (NULL = unlimited)
 ALTER TABLE public.exams ADD COLUMN IF NOT EXISTS max_attempts INTEGER;
 
--- 25. CAN ATTEMPT EXAM RPC — enforces max attempts per exam (NULL = unlimited)
+-- 25. CAN ATTEMPT EXAM RPC â€” enforces max attempts per exam (NULL = unlimited)
 -- Attempts are counted from the student's last subscription purchase.
 -- Every entry into the exam (started_at) counts as an attempt. Buying a new
 -- subscription resets the counter. An active subscription does NOT bypass the limit.
@@ -606,7 +608,7 @@ BEGIN
 END;
 $$;
 
--- 26. GET EXAM ATTEMPT STATUS — per-exam remaining attempts for the student list view
+-- 26. GET EXAM ATTEMPT STATUS â€” per-exam remaining attempts for the student list view
 CREATE OR REPLACE FUNCTION public.get_exam_attempt_status(p_exam_ids UUID[])
 RETURNS TABLE (
   exam_id UUID,
