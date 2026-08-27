@@ -129,7 +129,7 @@ export default function BillingPage() {
   const platformFeePercent = 50
 
   return (
-    <div className="flex-grow space-y-6">
+    <div className="flex-grow space-y-6 px-4 md:px-6 py-8">
       <header className="mb-8">
         <h1 className="text-headline-lg text-primary">Billing &amp; Payouts</h1>
         <p className="text-body-md text-on-surface-variant">

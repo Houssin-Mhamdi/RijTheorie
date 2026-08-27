@@ -28,11 +28,13 @@ export function useScrollAnimation(threshold = 0.15) {
   return { ref, isVisible }
 }
 
-export function useHeaderScroll() {
+export function useHeaderScroll(threshold = 20) {
   const [scrolled, setScrolled] = useState(false)
+  const thresholdRef = useRef(threshold)
+  thresholdRef.current = threshold
 
   useEffect(() => {
-    const onScroll = () => setScrolled(window.scrollY > 20)
+    const onScroll = () => setScrolled(window.scrollY > thresholdRef.current)
     window.addEventListener("scroll", onScroll, { passive: true })
     return () => window.removeEventListener("scroll", onScroll)
   }, [])

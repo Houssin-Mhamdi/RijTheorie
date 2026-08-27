@@ -1,10 +1,58 @@
 "use client"
 
 import { ArrowRight, PlayCircle, BadgeCheck, Camera, Zap, Timer, Check, Info } from "lucide-react"
+import { useEffect, useState } from "react"
+import { useRouter } from "next/navigation"
 import { useTranslation } from "@/lib/i18n/translations"
+
+const HERO_PICS = ["/hero/hero-1.png", "/hero/hero-2.png", "/hero/hero-3.png"]
+
+const HERO_SLIDES = [
+  {
+    question: "Je nadert dit kruispunt. Wie heeft hier voorrang?",
+    options: ["De rode auto", "De blauwe auto", "Jij"],
+    correct: 1,
+    explanation: "Je verleent voorrang aan verkeer van rechts op gelijkwaardige kruispunten.",
+  },
+  {
+    question: "Mag je hier inhalen?",
+    options: ["Ja", "Nee", "Alleen als het rustig is"],
+    correct: 0,
+    explanation: "Bij een doorgetrokken streep mag je niet inhalen.",
+  },
+  {
+    question: "Wat is de maximumsnelheid binnen de bebouwde kom?",
+    options: ["30 km/u", "50 km/u", "70 km/u"],
+    correct: 1,
+    explanation: "Binnen de bebouwde kom geldt tenzij anders aangegeven 50 km/u.",
+  },
+]
+
+function shuffle<T>(arr: T[]): T[] {
+  const a = [...arr]
+  for (let i = a.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1))
+    ;[a[i], a[j]] = [a[j], a[i]]
+  }
+  return a
+}
 
 export function Hero() {
   const { t } = useTranslation()
+  const router = useRouter()
+  const [slide, setSlide] = useState(0)
+  const [options, setOptions] = useState<number[]>(shuffle([0, 1, 2]))
+
+  useEffect(() => {
+    const id = setInterval(() => {
+      setSlide((s) => (s + 1) % HERO_SLIDES.length)
+      setOptions(shuffle([0, 1, 2]))
+    }, 5000)
+    return () => clearInterval(id)
+  }, [])
+
+  const active = HERO_SLIDES[slide]
+  const letter = ["A", "B", "C"]
   return (
     <section className="relative pt-16 pb-24 overflow-hidden">
       <div className="max-w-container-max-width mx-auto px-margin-desktop grid md:grid-cols-2 gap-16 items-center">
@@ -15,7 +63,7 @@ export function Hero() {
           </h1>
           <p className="text-body-lg text-on-surface-variant mb-10 max-w-lg">{t("hero.subtitle")}</p>
           <div className="flex flex-col sm:flex-row gap-4 mb-12">
-            <button className="bg-secondary-container text-on-secondary-container font-bold text-label-md px-8 py-4 rounded-xl hover:opacity-90 active:scale-95 transition-all shadow-lg flex items-center justify-center gap-2">
+            <button onClick={() => router.push("/login")} className="bg-secondary-container text-on-secondary-container font-bold text-label-md px-8 py-4 rounded-xl hover:opacity-90 active:scale-95 transition-all shadow-lg flex items-center justify-center gap-2">
               {t("landing.freeStart")} <ArrowRight size={20} />
             </button>
             <button className="border-2 border-primary text-primary font-bold text-label-md px-8 py-4 rounded-xl hover:bg-primary-container hover:text-on-primary transition-all flex items-center justify-center gap-2">
@@ -52,35 +100,54 @@ export function Hero() {
             </div>
             <div className="rounded-2xl overflow-hidden mb-6 aspect-video bg-surface-container relative">
               <img
-                className="w-full h-full object-cover"
+                key={HERO_PICS[slide]}
+                className="w-full h-full object-cover transition-opacity duration-500"
                 alt={t("hero.imageAlt")}
-                src="https://lh3.googleusercontent.com/aida-public/AB6AXuA2vTZbHxz6HTscXgyWe0e38DZiTu9Jwf0qgMA2Wdto8YwDh2TthQdi6ixpU-_mWCzPZky9BhrCEwDT8ZiHdXz99aKoDXodt1AbJqiX2dKlRXnUEN2mAouEj45Wgdx5f9SRe35n8I7ehVRJi-Orp4AAc6awXZQLVOXd3ky2Kvjl1Y4qu08IBu6kw587OsIXJpXIu0rVw36YXFDVwg-J9bC70-dh1N6JprnxiSgufmo-owMqoHRYUQsTvvjLGX3sKs2xuFie-eb3A7aQ"
+                src={HERO_PICS[slide]}
               />
               <div className="absolute bottom-4 left-4 px-3 py-1 bg-primary text-white font-medium text-label-sm rounded-lg opacity-90">{t("hero.imageLabel")}</div>
+              <div className="absolute bottom-4 right-4 px-3 py-1 bg-black/50 text-white font-medium text-label-sm rounded-lg">{slide + 1}/{HERO_SLIDES.length}</div>
             </div>
-            <p className="text-headline-md text-on-surface mb-6">{t("hero.mockQuestion")}</p>
+            <p key={`q-${slide}`} className="text-headline-md text-on-surface mb-6 fade-in">{active.question}</p>
             <div className="space-y-3 mb-6">
-              <div className="p-4 border border-outline-variant rounded-xl flex items-center gap-3 cursor-pointer hover:border-primary transition-all group">
-                <div className="size-6 rounded-full border-2 border-outline-variant flex items-center justify-center group-hover:border-primary">A</div>
-                <span className="text-body-md text-on-surface-variant">{t("hero.mockA")}</span>
-              </div>
-              <div className="p-4 border-2 border-secondary-container bg-surface-container-highest rounded-xl flex items-center gap-3 cursor-pointer">
-                <div className="size-6 rounded-full bg-secondary-container text-white flex items-center justify-center text-xs">
-                  <Check size={16} className="text-white" />
-                </div>
-                <span className="text-body-md font-semibold text-secondary">{t("hero.mockB")}</span>
-              </div>
-              <div className="p-4 border border-outline-variant rounded-xl flex items-center gap-3 cursor-pointer hover:border-primary transition-all group">
-                <div className="size-6 rounded-full border-2 border-outline-variant flex items-center justify-center group-hover:border-primary">C</div>
-                <span className="text-body-md text-on-surface-variant">{t("hero.mockC")}</span>
-              </div>
+              {options.map((optIdx, i) => {
+                const isCorrect = optIdx === active.correct
+                return (
+                  <div key={`${slide}-${optIdx}`} className={`p-4 rounded-xl flex items-center gap-3 ${
+                    isCorrect
+                      ? "border-2 border-secondary-container bg-surface-container-highest cursor-pointer"
+                      : "border border-outline-variant cursor-pointer hover:border-primary transition-all group"
+                  }`}>
+                    <div className={`size-6 rounded-full flex items-center justify-center ${
+                      isCorrect
+                        ? "bg-secondary-container text-white text-xs"
+                        : "border-2 border-outline-variant group-hover:border-primary"
+                    }`}>
+                      {isCorrect ? <Check size={16} className="text-white" /> : letter[i]}
+                    </div>
+                    <span className={`text-body-md ${isCorrect ? "font-semibold text-secondary" : "text-on-surface-variant"}`}>{active.options[optIdx]}</span>
+                  </div>
+                )
+              })}
             </div>
-            <div className="p-4 bg-surface-container-low border-l-4 border-secondary-container rounded-r-xl">
+            <div key={`e-${slide}`} className="p-4 bg-surface-container-low border-l-4 border-secondary-container rounded-r-xl fade-in">
               <div className="flex items-center gap-2 mb-1 text-secondary font-bold text-label-md">
                 <Info size={16} /> {t("exam.explanation")}
               </div>
-              <p className="font-semibold text-label-md text-on-surface-variant">{t("hero.mockExplanation")}</p>
+              <p className="font-semibold text-label-md text-on-surface-variant">{active.explanation}</p>
             </div>
+          </div>
+          <div className="relative z-10 flex justify-center gap-2 mt-5">
+            {HERO_SLIDES.map((_, i) => (
+              <button
+                key={i}
+                onClick={() => { setSlide(i); setOptions(shuffle([0, 1, 2])) }}
+                aria-label={`Slide ${i + 1}`}
+                className={`h-2 rounded-full transition-all duration-300 ${
+                  i === slide ? "w-6 bg-secondary-container" : "w-2 bg-outline-variant hover:bg-outline"
+                }`}
+              />
+            ))}
           </div>
           <div className="absolute -top-10 -right-10 size-32 bg-secondary-container opacity-10 rounded-full blur-3xl" />
           <div className="absolute -bottom-10 -left-10 size-48 bg-primary-container opacity-10 rounded-full blur-3xl" />

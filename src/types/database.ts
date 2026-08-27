@@ -90,3 +90,30 @@ export type CouponCode = {
   created_by: string | null
   created_at: string
 }
+
+export type BlogTranslation = {
+  title: string
+  subtitle: string
+  description: string
+  meta_title: string
+  meta_description: string
+  body: string
+  cover_alt?: string
+}
+
+export type BlogTranslations = Partial<Record<string, BlogTranslation>>
+
+export type BlogPost = {
+  id: string
+  slug: string
+  cover_url: string | null
+  translations: BlogTranslations
+  author: string | null
+  tags: string[]
+  featured: boolean
+  published: boolean
+  published_at: string | null
+  created_by: string | null
+  created_at: string
+  updated_at: string
+}

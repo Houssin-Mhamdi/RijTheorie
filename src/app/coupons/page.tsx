@@ -130,7 +130,7 @@ export default function CouponsPage() {
   const discounted = (price: number) => Math.round(price * (100 - discount)) / 100
 
   return (
-    <div className="flex-grow space-y-6">
+    <div className="flex-grow space-y-6 px-4 md:px-6 py-8">
       <header className="mb-8 flex items-start justify-between gap-4 flex-wrap">
         <div>
           <h1 className="text-headline-lg text-primary">Coupon Codes</h1>
