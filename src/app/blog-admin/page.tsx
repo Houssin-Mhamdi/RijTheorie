@@ -39,6 +39,11 @@ export default function AdminBlogPage() {
 
   const handleDelete = async () => {
     if (!deleteId) return
+    const post = posts?.find((p) => p.id === deleteId)
+    if (post?.cover_url) {
+      const { deleteCloudinaryAsset } = await import("@/lib/cloudinary")
+      await deleteCloudinaryAsset(post.cover_url)
+    }
     await supabase.from("blog_posts").delete().eq("id", deleteId)
     setDeleteId(null)
     refetch()

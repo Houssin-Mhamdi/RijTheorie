@@ -12,6 +12,7 @@ import TipTapEditor from "@/components/ui/tip-tap-editor"
 import ImageHotspot from "@/components/questions/image-hotspot"
 import VideoHotspot from "@/components/questions/video-hotspot"
 import { supabase } from "@/lib/supabase"
+import { uploadToCloudinary, deleteCloudinaryAsset } from "@/lib/cloudinary"
 import { toast } from "sonner"
 
 interface QuestionFormProps {
@@ -135,17 +136,12 @@ export default function QuestionForm({ onSubmit, isPending, initialData, userId,
       toast.error("You must be logged in to upload files")
       return null
     }
-    const ext = file.name.split(".").pop() || (file.type.startsWith("video/") ? "mp4" : "jpg")
-    const filePath = `${userId}/${crypto.randomUUID()}.${ext}`
     setIsUploading(true)
     try {
-      const { error } = await supabase.storage.from("question-media").upload(filePath, file, {
-        cacheControl: "3600",
-        upsert: false,
-      })
-      if (error) throw error
-      const { data: urlData } = supabase.storage.from("question-media").getPublicUrl(filePath)
-      return urlData.publicUrl
+      const url = await uploadToCloudinary(file, "questions")
+      if (url) return url
+      toast.error("Failed to upload file")
+      return null
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Failed to upload file")
       return null
@@ -173,10 +169,7 @@ export default function QuestionForm({ onSubmit, isPending, initialData, userId,
 
   async function clearMedia() {
     if (storedMediaUrl) {
-      const path = storedMediaUrl.split("/question-media/")[1]
-      if (path) {
-        await supabase.storage.from("question-media").remove([path])
-      }
+      await deleteCloudinaryAsset(storedMediaUrl)
     }
     if (mediaPreview) URL.revokeObjectURL(mediaPreview)
     setMediaPreview(null)
@@ -202,17 +195,12 @@ export default function QuestionForm({ onSubmit, isPending, initialData, userId,
       toast.error("You must be logged in to upload files")
       return null
     }
-    const ext = file.name.split(".").pop() || "mp3"
-    const filePath = `${userId}/${crypto.randomUUID()}.${ext}`
     setIsAudioUploading(true)
     try {
-      const { error } = await supabase.storage.from("question-media").upload(filePath, file, {
-        cacheControl: "3600",
-        upsert: false,
-      })
-      if (error) throw error
-      const { data: urlData } = supabase.storage.from("question-media").getPublicUrl(filePath)
-      return urlData.publicUrl
+      const url = await uploadToCloudinary(file, "audio")
+      if (url) return url
+      toast.error("Failed to upload audio")
+      return null
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Failed to upload audio")
       return null
@@ -235,10 +223,7 @@ export default function QuestionForm({ onSubmit, isPending, initialData, userId,
     const current = (form.getValues(field) as Record<string, string> | undefined) || {}
     const url = current[lang]
     if (url) {
-      const path = url.split("/question-media/")[1]
-      if (path) {
-        await supabase.storage.from("question-media").remove([path]).catch(() => {})
-      }
+      await deleteCloudinaryAsset(url)
     }
     const next = { ...current }
     delete next[lang]

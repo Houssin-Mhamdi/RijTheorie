@@ -35,7 +35,7 @@ export default function QuestionsPage() {
   const [currentPage, setCurrentPage] = useState(1)
   const [slideOverOpen, setSlideOverOpen] = useState(false)
   const [editId, setEditId] = useState<string | null>(null)
-  const [deleteTarget, setDeleteTarget] = useState<{ id: string } | null>(null)
+  const [deleteTarget, setDeleteTarget] = useState<{ id: string | number; thumbnail?: unknown } | null>(null)
   const { data: session } = useSession()
   const [isUploading, setIsUploading] = useState(false)
   const [importOpen, setImportOpen] = useState(false)
@@ -129,6 +129,21 @@ export default function QuestionsPage() {
   async function handleDelete() {
     if (!deleteTarget) return
     try {
+      const { deleteCloudinaryAsset } = await import("@/lib/cloudinary")
+      const rows = (questionsData as Record<string, unknown>[] | undefined) || []
+      const q = rows.find((r) => r.id === deleteTarget.id)
+      if (q) {
+        const urls: string[] = []
+        if (typeof q.media === "string") urls.push(q.media)
+        const options = (q.answer_options as Array<{ imageUrl?: string }>) || []
+        for (const o of options) if (o.imageUrl) urls.push(o.imageUrl)
+        const audio = (q.audio_translations as Record<string, string>) || {}
+        const expAudio = (q.explanation_audio_translations as Record<string, string>) || {}
+        for (const v of Object.values(audio)) if (v) urls.push(v)
+        for (const v of Object.values(expAudio)) if (v) urls.push(v)
+        await Promise.allSettled(urls.map((u) => deleteCloudinaryAsset(u)))
+      }
+
       await supabase.from("questions").delete().eq("id", deleteTarget.id)
       toast.success("Question deleted")
       setDeleteTarget(null)
@@ -326,7 +341,7 @@ export default function QuestionsPage() {
           questions={filteredQuestions}
           isLoading={isLoading}
           onEdit={(q) => handleEdit(q as unknown as Record<string, unknown>)}
-          onDelete={(q) => setDeleteTarget({ id: String(q.id) })}
+          onDelete={(q) => setDeleteTarget(q)}
         />
 
         <div className="px-6 py-4 border-t border-surface-container">

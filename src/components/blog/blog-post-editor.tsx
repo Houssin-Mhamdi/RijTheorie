@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import dynamic from "next/dynamic"
 import { supabase } from "@/lib/supabase"
 import { analyzeSeo } from "@/lib/seo"
+import { uploadToCloudinary, deleteCloudinaryAsset } from "@/lib/cloudinary"
 import type { BlogPost, BlogTranslation } from "@/types/database"
 import { Loader2, Image as ImageIcon, X, CheckCircle2, XCircle, ChevronRight, Globe } from "lucide-react"
 
@@ -121,17 +122,11 @@ export default function BlogPostEditor({ initialData, onClose, onSaved }: BlogPo
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) return
     setUploading(true)
-    const ext = file.name.split(".").pop() || "jpg"
-    const filePath = `blog/${Date.now()}-${Math.random().toString(36).slice(2, 8)}.${ext}`
-    const { error } = await supabase.storage.from("question-media").upload(filePath, file, {
-      cacheControl: "3600",
-      upsert: false,
-    })
-    if (!error) {
-      const { data: urlData } = supabase.storage.from("question-media").getPublicUrl(filePath)
-      setCoverUrl(urlData.publicUrl)
+    const url = await uploadToCloudinary(file, "blog")
+    if (url) {
+      setCoverUrl(url)
     } else {
-      setError("Upload failed: " + error.message)
+      setError("Upload failed")
     }
     setUploading(false)
   }
@@ -275,7 +270,7 @@ export default function BlogPostEditor({ initialData, onClose, onSaved }: BlogPo
                 <div className="relative w-56 rounded-xl overflow-hidden border border-outline-variant group">
                   <img src={coverUrl} alt="Cover" className="w-full h-32 object-cover" />
                   <button
-                    onClick={() => setCoverUrl("")}
+                    onClick={() => { deleteCloudinaryAsset(coverUrl); setCoverUrl("") }}
                     className="absolute top-2 right-2 p-1.5 rounded-lg bg-black/60 text-white hover:bg-black/80"
                   >
                     <X size={14} />
