@@ -14,6 +14,10 @@ export async function uploadToCloudinary(file: File, folder: string): Promise<st
   form.append("file", file)
   form.append("upload_preset", process.env.NEXT_PUBLIC_CLOUDINARY_UPLOAD_PRESET!)
   if (folder) form.append("folder", folder)
+  // Unique public_id to avoid collisions (preset uses overwrite:false, unique filename:false)
+  const base = (file.name || "file").replace(/\.[^/.]+$/, "").replace(/[^a-zA-Z0-9_-]/g, "-").slice(0, 40) || "asset"
+  const slug = crypto.randomUUID?.() ? crypto.randomUUID().slice(0, 8) : Date.now().toString(36)
+  form.append("public_id", `${base}-${slug}`)
 
   try {
     const res = await fetch(`https://api.cloudinary.com/v1_1/${CLOUD_NAME}/auto/upload`, {
