@@ -22,6 +22,11 @@ export default function ExamError({
         <pre className="text-left bg-surface-container rounded-xl p-4 overflow-auto text-label-xs text-red-700 whitespace-pre-wrap">
           {error.message}
         </pre>
+        {error.stack && (
+          <pre className="text-left bg-surface-container rounded-xl p-4 overflow-auto text-label-xs text-on-surface-variant whitespace-pre-wrap mt-2 max-h-64">
+            {error.stack}
+          </pre>
+        )}
         <button
           onClick={reset}
           className="mt-4 px-6 py-3 bg-primary text-on-primary rounded-xl font-bold text-label-md hover:opacity-90 active:scale-95"

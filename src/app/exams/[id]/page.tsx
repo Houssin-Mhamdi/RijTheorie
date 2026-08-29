@@ -262,10 +262,14 @@ export default function ExamDetailPage() {
       setAudioPlaying(false)
       return
     }
-    el.src = url
-    el.load()
-    el.play().then(() => setAudioPlaying(true)).catch(() => setAudioPlaying(false))
-    return () => { el.pause() }
+    // Defer DOM mutations past React's commit to avoid removeChild reconciliation races
+    const t = setTimeout(() => {
+      if (!el.isConnected || el.getAttribute("src") === url) return
+      el.src = url
+      el.load()
+      el.play().then(() => setAudioPlaying(true)).catch(() => setAudioPlaying(false))
+    }, 0)
+    return () => { clearTimeout(t); el.pause() }
   }, [currentQuestion?.id, lang, showResults])
 
   useEffect(() => {
@@ -285,10 +289,14 @@ export default function ExamDetailPage() {
       audioRef.current.pause()
       setAudioPlaying(false)
     }
-    el.src = url
-    el.load()
-    el.play().then(() => setExplanationAudioPlaying(true)).catch(() => setExplanationAudioPlaying(false))
-    return () => { el.pause() }
+    // Defer DOM mutations past React's commit to avoid removeChild reconciliation races
+    const t = setTimeout(() => {
+      if (!el.isConnected || el.getAttribute("src") === url) return
+      el.src = url
+      el.load()
+      el.play().then(() => setExplanationAudioPlaying(true)).catch(() => setExplanationAudioPlaying(false))
+    }, 0)
+    return () => { clearTimeout(t); el.pause() }
   }, [currentQuestion?.id, lang, hasAnswered, showResults])
 
   useEffect(() => {
