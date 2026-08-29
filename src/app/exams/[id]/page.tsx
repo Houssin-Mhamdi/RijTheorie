@@ -1017,11 +1017,12 @@ export default function ExamDetailPage() {
                   const state = getOptionState(idx)
                   if (state === "idle") {
                     return (
-                      <button key={idx} type="button" onClick={() => handleSelect(idx)}
+                      <div key={idx} role="button" tabIndex={0} onClick={() => handleSelect(idx)}
+                        onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); handleSelect(idx) } }}
                         className="relative rounded-xl overflow-hidden border-2 border-outline-variant/50 transition-all active:scale-[0.97] hover:border-primary hover:shadow-sm cursor-pointer bg-surface"
                       >
                         {option.imageUrl && <SmartImage src={option.imageUrl} alt="" lazy={false} className="w-full aspect-square object-cover" />}
-                      </button>
+                      </div>
                     )
                   }
                   if (state === "correct-selected" || state === "correct-unselected") {
@@ -1056,18 +1057,20 @@ export default function ExamDetailPage() {
 
                   if (state === "idle") {
                     return (
-                      <button
+                      <div
                         key={idx}
-                        type="button"
+                        role="button"
+                        tabIndex={0}
                         onClick={() => handleSelect(idx)}
-                        className="group relative flex items-center w-full bg-surface-container-lowest p-6 rounded-2xl border-2 border-transparent hover:border-secondary transition-all text-left outline-none active:scale-[0.98]"
+                        onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); handleSelect(idx) } }}
+                        className="group relative flex items-center w-full bg-surface-container-lowest p-6 rounded-2xl border-2 border-transparent hover:border-secondary transition-all text-left outline-none active:scale-[0.98] cursor-pointer"
                         style={{ boxShadow: "0px 4px 20px rgba(26,60,110,0.05)" }}
                       >
                         <div className="flex-shrink-0 w-12 h-12 flex items-center justify-center rounded-full bg-surface-container text-primary group-hover:bg-secondary-fixed group-hover:text-on-secondary-fixed transition-colors font-bold text-headline-md mr-4">
                           {prefix}
                         </div>
                         <span className="text-body-lg text-on-surface flex-grow">{optionText}</span>
-                      </button>
+                      </div>
                     )
                   }
 
