@@ -24,6 +24,7 @@ import {
   Lightbulb,
   ShieldAlert,
   Volume2,
+  VolumeX,
   Play,
   Pause,
 } from "lucide-react"
@@ -103,6 +104,7 @@ export default function ExamDetailPage() {
   const explanationAudioRef = useRef<HTMLAudioElement | null>(null)
   const [audioPlaying, setAudioPlaying] = useState(false)
   const [explanationAudioPlaying, setExplanationAudioPlaying] = useState(false)
+  const [soundOn, setSoundOn] = useState(true)
   const { t, lang } = useTranslation()
 
   const currentQuestion = questions[currentIndex]
@@ -255,7 +257,7 @@ export default function ExamDetailPage() {
     if (!el || !currentQuestion) return
     const audio = currentQuestion.audioTranslations
     const url = (audio && (audio[lang] || audio["nl"])) || null
-    if (!url) {
+    if (!url || !soundOn) {
       el.pause()
       el.removeAttribute("src")
       el.load()
@@ -270,14 +272,14 @@ export default function ExamDetailPage() {
       el.play().then(() => setAudioPlaying(true)).catch(() => setAudioPlaying(false))
     }, 0)
     return () => { clearTimeout(t); el.pause() }
-  }, [currentQuestion?.id, lang, showResults])
+  }, [currentQuestion?.id, lang, showResults, soundOn])
 
   useEffect(() => {
     const el = explanationAudioRef.current
     if (!el || !currentQuestion) return
     const audio = currentQuestion.explanationAudioTranslations
     const url = (audio && (audio[lang] || audio["nl"])) || null
-    const shouldPlay = hasAnswered && !!url
+    const shouldPlay = hasAnswered && !!url && soundOn
     if (!shouldPlay) {
       el.pause()
       el.removeAttribute("src")
@@ -297,7 +299,18 @@ export default function ExamDetailPage() {
       el.play().then(() => setExplanationAudioPlaying(true)).catch(() => setExplanationAudioPlaying(false))
     }, 0)
     return () => { clearTimeout(t); el.pause() }
-  }, [currentQuestion?.id, lang, hasAnswered, showResults])
+  }, [currentQuestion?.id, lang, hasAnswered, showResults, soundOn])
+
+  const handleToggleSound = useCallback(() => {
+    setSoundOn((prev) => {
+      const next = !prev
+      if (!next) {
+        if (audioRef.current) { audioRef.current.pause(); setAudioPlaying(false) }
+        if (explanationAudioRef.current) { explanationAudioRef.current.pause(); setExplanationAudioPlaying(false) }
+      }
+      return next
+    })
+  }, [])
 
   useEffect(() => {
     if (!examActive) return
@@ -848,6 +861,13 @@ export default function ExamDetailPage() {
           <div className="bg-secondary-container h-full transition-all" style={{ width: `${progressPct}%` }} />
         </div>
         <div className="flex items-center gap-3 shrink-0">
+          <button
+            onClick={handleToggleSound}
+            title={soundOn ? t("exam.soundOn") : t("exam.soundOff")}
+            className={`size-9 rounded-xl flex items-center justify-center shrink-0 active:scale-95 transition-transform ${soundOn ? "bg-primary/10 text-primary" : "bg-surface-container text-on-surface-variant"}`}
+          >
+            {soundOn ? <Volume2 size={20} /> : <VolumeX size={20} />}
+          </button>
           <LanguageSwitcher />
           {violations > 0 && (
             <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-red-50 border border-red-200" title={t("exam.violationsWarning")}>
