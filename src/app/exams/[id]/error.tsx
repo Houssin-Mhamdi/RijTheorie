@@ -27,6 +27,11 @@ export default function ExamError({
             {error.stack}
           </pre>
         )}
+        {(error as Error & { componentStack?: string }).componentStack && (
+          <pre className="text-left bg-surface-container rounded-xl p-4 overflow-auto text-label-xs text-on-surface-variant whitespace-pre-wrap mt-2" style={{ maxHeight: 400 }}>
+            {(error as Error & { componentStack?: string }).componentStack}
+          </pre>
+        )}
         <button
           onClick={reset}
           className="mt-4 px-6 py-3 bg-primary text-on-primary rounded-xl font-bold text-label-md hover:opacity-90 active:scale-95"
