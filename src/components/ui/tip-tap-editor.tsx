@@ -34,6 +34,15 @@ export default function TipTapEditor({ value, onChange, placeholder }: TipTapEdi
     },
   })
 
+  // Sync TipTap content when the external value changes (e.g. editing an existing record)
+  useEffect(() => {
+    if (!editor) return
+    const current = editor.getHTML() || ""
+    if (current !== (value || "")) {
+      editor.commands.setContent(value || "")
+    }
+  }, [value, editor])
+
   const toggleBold = useCallback(() => editor?.chain().focus().toggleBold().run(), [editor])
   const toggleItalic = useCallback(() => editor?.chain().focus().toggleItalic().run(), [editor])
   const toggleBulletList = useCallback(() => editor?.chain().focus().toggleBulletList().run(), [editor])
