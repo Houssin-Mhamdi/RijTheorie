@@ -844,43 +844,50 @@ export default function ExamDetailPage() {
 
   return (
     <div className="min-h-screen bg-surface flex flex-col">
-      <header className="bg-surface border-b border-outline-variant/50 px-4 py-3 md:px-6 flex items-center justify-between shrink-0 sticky top-0 z-40">
-        <div className="flex items-center gap-3 min-w-0">
-          <button
-            onClick={() => router.push("/exams")}
-            className="size-9 rounded-xl bg-surface-container flex items-center justify-center shrink-0 active:scale-95 transition-transform"
-          >
-            <ChevronLeft size={20} className="text-primary" />
-          </button>
-          <div className="min-w-0">
-            <span className="text-label-md font-bold text-primary truncate block">{exam?.title}</span>
-            <span className="text-body-md text-on-surface-variant">{t("exam.questionN", { n: currentIndex + 1 })} / {totalQuestions}</span>
-          </div>
-        </div>
-        <div className="hidden md:flex flex-1 mx-8 max-w-2xl bg-surface-container rounded-full h-3 overflow-hidden">
-          <div className="bg-secondary-container h-full transition-all" style={{ width: `${progressPct}%` }} />
-        </div>
-        <div className="flex items-center gap-3 shrink-0">
-          <button
-            onClick={handleToggleSound}
-            title={soundOn ? t("exam.soundOn") : t("exam.soundOff")}
-            className={`size-9 rounded-xl flex items-center justify-center shrink-0 active:scale-95 transition-transform ${soundOn ? "bg-primary/10 text-primary" : "bg-surface-container text-on-surface-variant"}`}
-          >
-            {soundOn ? <Volume2 size={20} /> : <VolumeX size={20} />}
-          </button>
-          <LanguageSwitcher />
-          {violations > 0 && (
-            <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-red-50 border border-red-200" title={t("exam.violationsWarning")}>
-              <ShieldAlert size={16} className="text-red-500" />
-              <span className="text-label-sm font-bold text-red-600">{violations}</span>
+      <header className="bg-surface border-b border-outline-variant/50 sticky top-0 z-40 shrink-0">
+        <div className="px-4 py-3 md:px-6 flex items-center justify-between gap-3">
+          <div className="flex items-center gap-3 min-w-0">
+            <button
+              onClick={() => router.push("/exams")}
+              className="size-9 rounded-xl bg-surface-container flex items-center justify-center shrink-0 active:scale-95 transition-transform"
+            >
+              <ChevronLeft size={20} className="text-primary" />
+            </button>
+            <div className="min-w-0">
+              <span className="text-label-md font-bold text-primary truncate block">{exam?.title}</span>
+              <span className="text-body-md text-on-surface-variant">{t("exam.questionN", { n: currentIndex + 1 })} / {totalQuestions}</span>
             </div>
-          )}
-          <div className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full ${timeLeft < 300 ? "bg-red-50 animate-pulse" : "bg-surface-container-high"}`}>
-            <Clock size={18} className={timeLeft < 300 ? "text-red-500" : "text-primary"} />
-            <span className={`text-label-md font-bold tabular-nums ${timeLeft < 300 ? "text-red-500" : "text-primary"}`}>
-              {formatTime(timeLeft)}
-            </span>
           </div>
+          <div className="hidden lg:flex flex-1 mx-8 max-w-2xl bg-surface-container rounded-full h-3 overflow-hidden">
+            <div className="bg-secondary-container h-full transition-all" style={{ width: `${progressPct}%` }} />
+          </div>
+          <div className="flex items-center gap-3 shrink-0">
+            <div className="hidden md:block shrink-0">
+              <LanguageSwitcher />
+            </div>
+            <button
+              onClick={handleToggleSound}
+              title={soundOn ? t("exam.soundOn") : t("exam.soundOff")}
+              className={`size-9 rounded-xl flex items-center justify-center shrink-0 active:scale-95 transition-transform ${soundOn ? "bg-primary/10 text-primary" : "bg-surface-container text-on-surface-variant"}`}
+            >
+              {soundOn ? <Volume2 size={20} /> : <VolumeX size={20} />}
+            </button>
+            {violations > 0 && (
+              <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-red-50 border border-red-200" title={t("exam.violationsWarning")}>
+                <ShieldAlert size={16} className="text-red-500" />
+                <span className="text-label-sm font-bold text-red-600">{violations}</span>
+              </div>
+            )}
+            <div className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full ${timeLeft < 300 ? "bg-red-50 animate-pulse" : "bg-surface-container-high"}`}>
+              <Clock size={18} className={timeLeft < 300 ? "text-red-500" : "text-primary"} />
+              <span className={`text-label-md font-bold tabular-nums ${timeLeft < 300 ? "text-red-500" : "text-primary"}`}>
+                {formatTime(timeLeft)}
+              </span>
+            </div>
+          </div>
+        </div>
+        <div className="px-4 md:px-6 pb-3 -mt-1 md:hidden flex justify-end">
+          <LanguageSwitcher />
         </div>
       </header>
 
