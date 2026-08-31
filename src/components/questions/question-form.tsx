@@ -105,14 +105,31 @@ export default function QuestionForm({ onSubmit, isPending, initialData, userId,
 
   const category = form.watch("category")
   const hasMedia = !!mediaPreview
-  const isImageHotspot = category === "Right of Way" && hasMedia && mediaMime.startsWith("image/")
-  const isVideoHotspot = category === "Right of Way" && hasMedia && mediaMime.startsWith("video/")
+
+  const [typeChoice, setTypeChoice] = useState<"normal" | "right-of-way" | "choose-images">(() =>
+    initialData?.category === "Right of Way"
+      ? "right-of-way"
+      : initialData?.category === "Choose Images"
+        ? "choose-images"
+        : "normal",
+  )
+
+  const isImageHotspot = typeChoice === "right-of-way" && hasMedia && mediaMime.startsWith("image/")
+  const isVideoHotspot = typeChoice === "right-of-way" && hasMedia && mediaMime.startsWith("video/")
   const isInteractive = isImageHotspot || isVideoHotspot
-  const isChooseImages = category === "Choose Images"
+  const isChooseImages = typeChoice === "choose-images"
+
 
   useEffect(() => {
     if (initialData) {
       form.reset(initialData)
+      setTypeChoice(
+        initialData.category === "Right of Way"
+          ? "right-of-way"
+          : initialData.category === "Choose Images"
+            ? "choose-images"
+            : "normal",
+      )
       if (initialData.translations?.length) {
         replaceTranslation(initialData.translations)
       }
@@ -123,6 +140,7 @@ export default function QuestionForm({ onSubmit, isPending, initialData, userId,
       }
     } else {
       form.reset()
+      setTypeChoice("normal")
       setMediaPreview(null)
       setMediaMime("")
       setStoredMediaUrl("")
@@ -274,7 +292,7 @@ export default function QuestionForm({ onSubmit, isPending, initialData, userId,
   }, [supportedLanguages, initialData])
 
   useEffect(() => {
-    if (isHotspot || category === "Right of Way") {
+    if (isHotspot) {
       fields.forEach((f, i) => {
         if (!f.isCorrect) update(i, { ...f, isCorrect: true })
       })
@@ -284,7 +302,33 @@ export default function QuestionForm({ onSubmit, isPending, initialData, userId,
   return (
     <Form {...form}>
       <form id="question-form" onSubmit={form.handleSubmit(onSubmit)} className="space-y-8">
-        <FormField control={form.control} name="category" render={({ field }) => (
+        <div className="space-y-6">
+          <FormItem>
+            <FormLabel>Question Type</FormLabel>
+            <FormControl>
+              <div className="relative">
+                <select
+                  value={typeChoice}
+                  onChange={(e) => { setTypeChoice(e.target.value as "normal" | "right-of-way" | "choose-images"); setShowTextOptions(false) }}
+                  className="w-full h-12 bg-white border rounded-xl px-4 appearance-none focus:ring-2 focus:ring-primary focus:border-primary text-body-md text-on-surface"
+                >
+                  <option value="normal">Normal (Multiple choice)</option>
+                  <option value="right-of-way">Right of Way (drag circles on media)</option>
+                  <option value="choose-images">Choose Images (pick the correct image)</option>
+                </select>
+                <ChevronDown size={20} className="absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none text-outline" />
+              </div>
+            </FormControl>
+            <p className="text-label-sm text-outline">
+              {typeChoice === "right-of-way"
+                ? "In dit type antwoordt de student door genummerde cirkels op de afbeelding/video te slepen."
+                : typeChoice === "choose-images"
+                  ? "In dit type kiest de student de juiste afbeelding."
+                  : "Normale meerkeuzevraag (A/B/C/D)."}
+            </p>
+          </FormItem>
+
+          <FormField control={form.control} name="category" render={({ field }) => (
           <FormItem>
             <FormLabel>Category</FormLabel>
             <FormControl>
@@ -302,8 +346,6 @@ export default function QuestionForm({ onSubmit, isPending, initialData, userId,
                   <option value="Priority">Priority</option>
                   <option value="Traffic">Traffic</option>
                   <option value="Lighting">Lighting</option>
-                  <option value="Right of Way">Right of Way</option>
-                  <option value="Choose Images">Choose Images</option>
                    <option value="Driving">Driving</option>
                    <option value="Parking">Parking</option>
                    <option value="Road Safety">Road Safety</option>
@@ -317,6 +359,7 @@ export default function QuestionForm({ onSubmit, isPending, initialData, userId,
             <FormMessage />
           </FormItem>
         )} />
+        </div>
 
         <FormField control={form.control} name="questionText" render={({ field }) => (
           <FormItem>
@@ -481,7 +524,7 @@ export default function QuestionForm({ onSubmit, isPending, initialData, userId,
                 )}
                 <button
                   type="button"
-                  onClick={() => append({ text: "", isCorrect: category === "Right of Way" })}
+                  onClick={() => append({ text: "", isCorrect: typeChoice === "right-of-way" })}
                   className="text-secondary font-label-md text-label-md flex items-center gap-1 hover:underline"
                 >
                   <Plus size={18} />

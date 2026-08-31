@@ -518,7 +518,8 @@ export default function ExamDetailPage() {
     currentQuestion.media != null &&
     currentQuestion.answerOptions.length > 0 &&
     currentQuestion.answerOptions.some((o) => o.x != null && o.y != null)
-  const isChooseImages = currentQuestion.category === "Choose Images"
+  const isChooseImages =
+    currentQuestion.answerOptions.length > 0 && currentQuestion.answerOptions.some((o) => o.imageUrl)
 
   const getOptionState = (idx: number) => {
     if (!hasAnswered) return "idle"
@@ -739,7 +740,7 @@ export default function ExamDetailPage() {
                 const qIsCorrect = qAnswerResult?.correct ?? qHotspotResult?.results.every((r) => r.correct) ?? false
                 const qExplanation = qAnswerResult?.explanation ?? qHotspotResult?.explanation ?? null
                 const qIsHotspot = q.media != null && q.answerOptions.some((o) => o.x != null && o.y != null)
-                const qIsChooseImages = q.category === "Choose Images"
+                const qIsChooseImages = q.answerOptions.length > 0 && q.answerOptions.some((o) => o.imageUrl)
 
                 return (
                   <div key={q.id} className="bg-surface-container-lowest border border-outline-variant/30 rounded-2xl overflow-hidden">
