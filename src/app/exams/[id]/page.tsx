@@ -917,7 +917,7 @@ export default function ExamDetailPage() {
 
       <main className="flex-1 w-full max-w-7xl mx-auto px-4 py-5 md:px-8 md:py-12">
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
-          <div className={`flex flex-col gap-6 ${isChooseImages ? "lg:col-span-4 lg:order-1" : "lg:col-span-9 lg:order-1"}`}>
+          <div className={`flex flex-col gap-6 ${isChooseImages ? "lg:col-span-5 lg:order-1" : "lg:col-span-9 lg:order-1"}`}>
             <section key={currentQuestion.id}>
                 <div className="bg-surface-container-lowest rounded-2xl overflow-hidden border border-outline-variant/10 p-6 md:p-8" style={{ boxShadow: "0px 4px 20px rgba(26,60,110,0.05)" }}>
                 <audio
@@ -1038,7 +1038,7 @@ export default function ExamDetailPage() {
             )}
           </div>
 
-          <div className={`flex flex-col gap-6 ${isChooseImages ? "lg:col-span-8 lg:order-2" : "lg:col-span-3 lg:order-2"}`}>
+          <div className={`flex flex-col gap-6 ${isChooseImages ? "lg:col-span-7 lg:order-2" : "lg:col-span-3 lg:order-2"}`}>
             {isChooseImages ? (
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 {currentQuestion.answerOptions.map((option, idx) => {
