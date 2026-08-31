@@ -304,8 +304,12 @@ export default function QuestionForm({ onSubmit, isPending, initialData, userId,
                   <option value="Lighting">Lighting</option>
                   <option value="Right of Way">Right of Way</option>
                   <option value="Choose Images">Choose Images</option>
-                  <option value="Driving">Driving</option>
-                  <option value="Parking">Parking</option>
+                   <option value="Driving">Driving</option>
+                   <option value="Parking">Parking</option>
+                   <option value="Road Safety">Road Safety</option>
+                   <option value="Signs">Signs</option>
+                   <option value="Environment">Environment</option>
+                   <option value="Vehicle">Vehicle</option>
                 </select>
                 <ChevronDown size={20} className="absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none text-outline" />
               </div>

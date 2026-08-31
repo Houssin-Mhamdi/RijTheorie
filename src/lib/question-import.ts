@@ -12,6 +12,13 @@ const VALID_CATEGORIES = [
   "Choose Images",
   "Traffic",
   "Lighting",
+  "Priority",
+  "Driving",
+  "Parking",
+  "Road Safety",
+  "Signs",
+  "Environment",
+  "Vehicle",
 ] as const
 
 export type ValidCategory = (typeof VALID_CATEGORIES)[number]
