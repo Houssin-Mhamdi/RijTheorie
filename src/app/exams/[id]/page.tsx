@@ -3,6 +3,7 @@
 import { useEffect, useState, useCallback, useRef } from "react"
 import { useParams, useRouter } from "next/navigation"
 import { supabase } from "@/lib/supabase"
+import { Howl } from "howler"
 import { Button } from "@/components/ui/button"
 import StudentHotspot from "@/components/questions/student-hotspot"
 import {
@@ -100,8 +101,8 @@ export default function ExamDetailPage() {
   const attemptIdRef = useRef<string | null>(null)
   const timeUpHandled = useRef(false)
   const examStartTime = useRef(Date.now())
-  const audioRef = useRef<HTMLAudioElement | null>(null)
-  const explanationAudioRef = useRef<HTMLAudioElement | null>(null)
+  const questionSoundRef = useRef<Howl | null>(null)
+  const explanationSoundRef = useRef<Howl | null>(null)
   const [audioPlaying, setAudioPlaying] = useState(false)
   const [explanationAudioPlaying, setExplanationAudioPlaying] = useState(false)
   const [soundOn, setSoundOn] = useState(true)
@@ -265,49 +266,69 @@ export default function ExamDetailPage() {
   }, [timeLeft, examActive])
 
   useEffect(() => {
-    const el = audioRef.current
-    if (!el || !currentQuestion) return
-    if (!currentAudioUrl || !soundOn) {
-      el.pause()
-      setAudioPlaying(false)
-      return
-    }
-    // Defer play() past React's commit; el.src is already owned by React (no imperative load())
+    questionSoundRef.current?.unload()
+    questionSoundRef.current = null
+    setAudioPlaying(false)
+    if (!currentQuestion || !currentAudioUrl || !soundOn) return
+    const sound = new Howl({
+      src: [currentAudioUrl],
+      html5: true,
+      preload: true,
+      volume: 1,
+      onplay: () => setAudioPlaying(true),
+      onpause: () => setAudioPlaying(false),
+      onstop: () => setAudioPlaying(false),
+      onend: () => setAudioPlaying(false),
+      onloaderror: () => setAudioPlaying(false),
+    })
+    questionSoundRef.current = sound
+    // Defer play() until after Howler has initialized the stream
     const t = setTimeout(() => {
-      if (!el.isConnected) return
-      el.play()
-        .then(() => setAudioPlaying(true))
-        .catch(() => {})
+      try {
+        sound.play()
+      } catch {
+        /* autoplay blocked or stream error — ignore */
+      }
     }, 0)
     return () => {
       clearTimeout(t)
-      el.pause()
+      sound.unload()
     }
   }, [currentQuestion?.id, lang, showResults, soundOn, currentAudioUrl])
 
   useEffect(() => {
-    const el = explanationAudioRef.current
-    if (!el || !currentQuestion) return
+    explanationSoundRef.current?.unload()
+    explanationSoundRef.current = null
+    setExplanationAudioPlaying(false)
     const shouldPlay = hasAnswered && !!currentExplanationAudioUrl && soundOn
-    if (!shouldPlay) {
-      el.pause()
-      setExplanationAudioPlaying(false)
-      return
-    }
-    if (audioRef.current && !audioRef.current.paused) {
-      audioRef.current.pause()
+    if (!shouldPlay) return
+    if (questionSoundRef.current) {
+      questionSoundRef.current.pause()
       setAudioPlaying(false)
     }
-    // Defer play() past React's commit; el.src is already owned by React (no imperative load())
+    const sound = new Howl({
+      src: [currentExplanationAudioUrl],
+      html5: true,
+      preload: true,
+      volume: 1,
+      onplay: () => setExplanationAudioPlaying(true),
+      onpause: () => setExplanationAudioPlaying(false),
+      onstop: () => setExplanationAudioPlaying(false),
+      onend: () => setExplanationAudioPlaying(false),
+      onloaderror: () => setExplanationAudioPlaying(false),
+    })
+    explanationSoundRef.current = sound
+    // Defer play() until after Howler has initialized the stream
     const t = setTimeout(() => {
-      if (!el.isConnected) return
-      el.play()
-        .then(() => setExplanationAudioPlaying(true))
-        .catch(() => {})
+      try {
+        sound.play()
+      } catch {
+        /* autoplay blocked or stream error — ignore */
+      }
     }, 0)
     return () => {
       clearTimeout(t)
-      el.pause()
+      sound.unload()
     }
   }, [currentQuestion?.id, lang, hasAnswered, showResults, soundOn, currentExplanationAudioUrl])
 
@@ -315,8 +336,8 @@ export default function ExamDetailPage() {
     setSoundOn((prev) => {
       const next = !prev
       if (!next) {
-        if (audioRef.current) { audioRef.current.pause(); setAudioPlaying(false) }
-        if (explanationAudioRef.current) { explanationAudioRef.current.pause(); setExplanationAudioPlaying(false) }
+        if (questionSoundRef.current) { questionSoundRef.current.stop(); setAudioPlaying(false) }
+        if (explanationSoundRef.current) { explanationSoundRef.current.stop(); setExplanationAudioPlaying(false) }
       }
       return next
     })
@@ -926,26 +947,6 @@ export default function ExamDetailPage() {
       </div>
 
       <main className="flex-1 w-full max-w-7xl mx-auto px-4 py-5 md:px-8 md:py-12">
-        <audio
-          ref={audioRef}
-          src={currentAudioUrl ?? undefined}
-          preload="auto"
-          playsInline
-          className="absolute w-0 h-0 opacity-0 pointer-events-none overflow-hidden"
-          onPlay={() => setAudioPlaying(true)}
-          onPause={() => setAudioPlaying(false)}
-          onEnded={() => setAudioPlaying(false)}
-        />
-        <audio
-          ref={explanationAudioRef}
-          src={currentExplanationAudioUrl ?? undefined}
-          preload="auto"
-          playsInline
-          className="absolute w-0 h-0 opacity-0 pointer-events-none overflow-hidden"
-          onPlay={() => setExplanationAudioPlaying(true)}
-          onPause={() => setExplanationAudioPlaying(false)}
-          onEnded={() => setExplanationAudioPlaying(false)}
-        />
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
           <div className={`flex flex-col gap-6 ${isChooseImages ? "lg:col-span-5 lg:order-1" : "lg:col-span-9 lg:order-1"}`}>
 <section key={currentQuestion.id}>
@@ -961,12 +962,12 @@ export default function ExamDetailPage() {
                       <div className="flex items-center gap-3 bg-surface-container rounded-xl px-3 py-2 w-fit">
                         <button
                           onClick={() => {
-                            const el = audioRef.current
-                            if (!el) return
-                            if (el.paused) {
-                              el.play().catch(() => {})
+                            const sound = questionSoundRef.current
+                            if (!sound) return
+                            if (sound.playing()) {
+                              sound.pause()
                             } else {
-                              el.pause()
+                              sound.play()
                             }
                           }}
                           className="size-10 rounded-full bg-primary text-on-primary flex items-center justify-center active:scale-95 transition-transform shrink-0"
@@ -1028,12 +1029,12 @@ export default function ExamDetailPage() {
                       <div className="flex items-center gap-3 bg-surface-container rounded-xl px-3 py-2 w-fit mt-3">
                         <button
                           onClick={() => {
-                            const el = explanationAudioRef.current
-                            if (!el) return
-                            if (el.paused) {
-                              el.play().catch(() => {})
+                            const sound = explanationSoundRef.current
+                            if (!sound) return
+                            if (sound.playing()) {
+                              sound.pause()
                             } else {
-                              el.pause()
+                              sound.play()
                             }
                           }}
                           className="size-9 rounded-full bg-secondary-container text-on-secondary-container flex items-center justify-center active:scale-95 transition-transform shrink-0"
