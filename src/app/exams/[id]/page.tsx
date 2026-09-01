@@ -113,6 +113,18 @@ export default function ExamDetailPage() {
   const answeredCount = Object.keys(submitted).length
   const examActive = !showResults && !examFinished && questions.length > 0
 
+  const currentAudioUrl = (() => {
+    const audio = currentQuestion?.audioTranslations
+    if (!audio || typeof audio !== "object") return null
+    return audio[lang] || audio["nl"] || null
+  })()
+
+  const currentExplanationAudioUrl = (() => {
+    const audio = currentQuestion?.explanationAudioTranslations
+    if (!audio || typeof audio !== "object") return null
+    return audio[lang] || audio["nl"] || null
+  })()
+
   useEffect(() => {
     const fetchExamData = async () => {
       setLoading(true)
@@ -255,35 +267,30 @@ export default function ExamDetailPage() {
   useEffect(() => {
     const el = audioRef.current
     if (!el || !currentQuestion) return
-    const audio = currentQuestion.audioTranslations
-    const url = (audio && (audio[lang] || audio["nl"])) || null
-    if (!url || !soundOn) {
+    if (!currentAudioUrl || !soundOn) {
       el.pause()
-      el.removeAttribute("src")
-      el.load()
       setAudioPlaying(false)
       return
     }
-    // Defer DOM mutations past React's commit to avoid removeChild reconciliation races
+    // Defer play() past React's commit; el.src is already owned by React (no imperative load())
     const t = setTimeout(() => {
-      if (!el.isConnected || el.getAttribute("src") === url) return
-      el.src = url
-      el.load()
-      el.play().then(() => setAudioPlaying(true)).catch(() => setAudioPlaying(false))
+      if (!el.isConnected) return
+      el.play()
+        .then(() => setAudioPlaying(true))
+        .catch(() => {})
     }, 0)
-    return () => { clearTimeout(t); el.pause() }
-  }, [currentQuestion?.id, lang, showResults, soundOn])
+    return () => {
+      clearTimeout(t)
+      el.pause()
+    }
+  }, [currentQuestion?.id, lang, showResults, soundOn, currentAudioUrl])
 
   useEffect(() => {
     const el = explanationAudioRef.current
     if (!el || !currentQuestion) return
-    const audio = currentQuestion.explanationAudioTranslations
-    const url = (audio && (audio[lang] || audio["nl"])) || null
-    const shouldPlay = hasAnswered && !!url && soundOn
+    const shouldPlay = hasAnswered && !!currentExplanationAudioUrl && soundOn
     if (!shouldPlay) {
       el.pause()
-      el.removeAttribute("src")
-      el.load()
       setExplanationAudioPlaying(false)
       return
     }
@@ -291,15 +298,18 @@ export default function ExamDetailPage() {
       audioRef.current.pause()
       setAudioPlaying(false)
     }
-    // Defer DOM mutations past React's commit to avoid removeChild reconciliation races
+    // Defer play() past React's commit; el.src is already owned by React (no imperative load())
     const t = setTimeout(() => {
-      if (!el.isConnected || el.getAttribute("src") === url) return
-      el.src = url
-      el.load()
-      el.play().then(() => setExplanationAudioPlaying(true)).catch(() => setExplanationAudioPlaying(false))
+      if (!el.isConnected) return
+      el.play()
+        .then(() => setExplanationAudioPlaying(true))
+        .catch(() => {})
     }, 0)
-    return () => { clearTimeout(t); el.pause() }
-  }, [currentQuestion?.id, lang, hasAnswered, showResults, soundOn])
+    return () => {
+      clearTimeout(t)
+      el.pause()
+    }
+  }, [currentQuestion?.id, lang, hasAnswered, showResults, soundOn, currentExplanationAudioUrl])
 
   const handleToggleSound = useCallback(() => {
     setSoundOn((prev) => {
@@ -916,28 +926,30 @@ export default function ExamDetailPage() {
       </div>
 
       <main className="flex-1 w-full max-w-7xl mx-auto px-4 py-5 md:px-8 md:py-12">
+        <audio
+          ref={audioRef}
+          src={currentAudioUrl ?? undefined}
+          preload="auto"
+          playsInline
+          className="absolute w-0 h-0 opacity-0 pointer-events-none overflow-hidden"
+          onPlay={() => setAudioPlaying(true)}
+          onPause={() => setAudioPlaying(false)}
+          onEnded={() => setAudioPlaying(false)}
+        />
+        <audio
+          ref={explanationAudioRef}
+          src={currentExplanationAudioUrl ?? undefined}
+          preload="auto"
+          playsInline
+          className="absolute w-0 h-0 opacity-0 pointer-events-none overflow-hidden"
+          onPlay={() => setExplanationAudioPlaying(true)}
+          onPause={() => setExplanationAudioPlaying(false)}
+          onEnded={() => setExplanationAudioPlaying(false)}
+        />
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
           <div className={`flex flex-col gap-6 ${isChooseImages ? "lg:col-span-5 lg:order-1" : "lg:col-span-9 lg:order-1"}`}>
-            <section key={currentQuestion.id}>
+<section key={currentQuestion.id}>
                 <div className="bg-surface-container-lowest rounded-2xl overflow-hidden border border-outline-variant/10 p-6 md:p-8" style={{ boxShadow: "0px 4px 20px rgba(26,60,110,0.05)" }}>
-                <audio
-                  ref={audioRef}
-                  preload="auto"
-                  playsInline
-                  className="absolute w-0 h-0 opacity-0 pointer-events-none overflow-hidden"
-                  onPlay={() => setAudioPlaying(true)}
-                  onPause={() => setAudioPlaying(false)}
-                  onEnded={() => setAudioPlaying(false)}
-                />
-                <audio
-                  ref={explanationAudioRef}
-                  preload="auto"
-                  playsInline
-                  className="absolute w-0 h-0 opacity-0 pointer-events-none overflow-hidden"
-                  onPlay={() => setExplanationAudioPlaying(true)}
-                  onPause={() => setExplanationAudioPlaying(false)}
-                  onEnded={() => setExplanationAudioPlaying(false)}
-                />
                 <div className="flex flex-col gap-6">
                   <h1 className="text-headline-md md:text-headline-xl text-on-surface leading-tight">{qText}</h1>
 
