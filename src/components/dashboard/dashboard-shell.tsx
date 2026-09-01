@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react"
 import { useRouter } from "next/navigation"
-import { useSession } from "@/hooks/use-auth"
+import { useSession, useProfile } from "@/hooks/use-auth"
 import { useActiveTracking } from "@/hooks/use-active-tracking"
 import { Loader2, Car, type LucideIcon } from "lucide-react"
 import Sidebar from "@/components/dashboard/sidebar"
@@ -17,6 +17,7 @@ interface DashboardShellProps {
   mobileNav?: NavItem[]
   bottomItems?: { href: string; label: string; icon: LucideIcon }[]
   hideTopBar?: boolean
+  requireAdmin?: boolean
 }
 
 export default function DashboardShell({
@@ -25,8 +26,10 @@ export default function DashboardShell({
   mobileNav = mobileNavItems,
   bottomItems = [settingsItem],
   hideTopBar = false,
+  requireAdmin = false,
 }: DashboardShellProps) {
   const { data: session, isLoading: sessionLoading } = useSession()
+  const { data: profile, isLoading: profileLoading } = useProfile()
   const router = useRouter()
   const [collapsed, setCollapsed] = useState(false)
 
@@ -38,13 +41,23 @@ export default function DashboardShell({
     }
   }, [session, sessionLoading, router])
 
-  if (sessionLoading) {
+  const isStudentBlocked = requireAdmin && !sessionLoading && !!session && !profileLoading && profile?.role === "student"
+
+  useEffect(() => {
+    if (isStudentBlocked) {
+      router.replace("/exams")
+    }
+  }, [isStudentBlocked, router])
+
+  if (sessionLoading || (requireAdmin && profileLoading)) {
     return (
       <div className="flex h-screen items-center justify-center">
         <Loader2 className="size-8 animate-spin text-primary" />
       </div>
     )
   }
+
+  if (isStudentBlocked) return null
 
   if (!session) return null
 

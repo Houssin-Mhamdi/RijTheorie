@@ -30,6 +30,12 @@ export default function LearnLayout({ children }: { children: React.ReactNode })
   }, [session, sessionLoading, router])
 
   useEffect(() => {
+    if (profile && profile.role === "student") {
+      router.replace("/exams")
+    }
+  }, [profile, router])
+
+  useEffect(() => {
     function handleClickOutside(e: MouseEvent) {
       if (dropdownRef.current && !dropdownRef.current.contains(e.target as Node)) {
         setDropdownOpen(false)

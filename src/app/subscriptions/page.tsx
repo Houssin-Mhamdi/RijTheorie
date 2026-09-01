@@ -153,7 +153,7 @@ export default function SubscriptionsPage() {
   const activeCount = allPlans.filter((p) => p.is_active).length
 
   return (
-    <DashboardShell>
+    <DashboardShell requireAdmin>
       <section className="px-4 md:px-6 py-8">
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 mb-8">
           <div>
