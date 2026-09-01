@@ -48,6 +48,7 @@ export function useLogin() {
       return data
     },
     onSuccess: async () => {
+      queryClient.clear()
       await queryClient.invalidateQueries({ queryKey: ["session"] })
       router.push("/dashboard")
     },
@@ -55,6 +56,8 @@ export function useLogin() {
 }
 
 export function useSignup() {
+  const queryClient = useQueryClient()
+
   return useMutation({
     mutationFn: async ({ name, email, password }: { name: string; email: string; password: string }) => {
       const { data, error } = await supabase.auth.signUp({
@@ -64,6 +67,9 @@ export function useSignup() {
       })
       if (error) throw error
       return data
+    },
+    onSuccess: () => {
+      queryClient.clear()
     },
   })
 }
