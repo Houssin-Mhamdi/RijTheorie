@@ -525,7 +525,7 @@ export default function ExamDetailPage() {
           {t("exam.attemptLimitDesc", { attempts: attemptBlocked.attempts, max: attemptBlocked.max_attempts })}
         </p>
         <div className="flex flex-col sm:flex-row gap-3 mt-2">
-          <Button onClick={() => router.push("/subscriptions")}>
+          <Button onClick={() => router.push("/exams")}>
             {t("exam.buySubscription")}
           </Button>
           <Button variant="outline" onClick={() => router.push("/exams")}>

@@ -47,6 +47,7 @@ export default function ExamsPage() {
   const dropdownRef = useRef<HTMLDivElement>(null)
 
   // Coupon state
+  const [paymentExpanded, setPaymentExpanded] = useState(false)
   const [couponInput, setCouponInput] = useState("")
   const [coupon, setCoupon] = useState<{ code: string; discount_percent: number; plan_ids: string[] } | null>(null)
   const [couponError, setCouponError] = useState("")
@@ -464,7 +465,10 @@ export default function ExamsPage() {
             {isLocked ? (
               <Button
                 className="w-full h-12 md:h-11 rounded-xl text-label-md font-bold bg-primary text-on-primary"
-                onClick={() => router.push("/subscriptions")}
+                onClick={() => {
+                  setPaymentExpanded(true)
+                  document.getElementById("payment-section")?.scrollIntoView({ behavior: "smooth", block: "start" })
+                }}
               >
                 <span className="flex items-center justify-center gap-2">
                   <Lock size={16} />
@@ -563,7 +567,15 @@ export default function ExamsPage() {
             const allExams = exams as Record<string, unknown>[]
             const freeExams = allExams.filter((e) => e.is_free === true)
             const paidExams = allExams.filter((e) => e.is_free !== true)
-            const showPaid = profile?.role !== "student" || subscription
+            // Students always see paid exams; they're individually gated (locked)
+            // by the attempt counter. Admin/staff see everything instantly.
+            const isStudent = profile?.role === "student"
+            const showPaid = true
+            // A student needs to (re)buy when they have no active subscription OR
+            // they have exhausted attempts on at least one exam.
+            const showPaymentCta =
+              isStudent && (!!subscription === false || anyLocked || paymentExpanded)
+            const paymentEligible = isStudent && (!!subscription === false || anyLocked)
 
             return (
               <div className="flex-1 px-4 sm:px-6 pb-4 space-y-6">
@@ -577,40 +589,41 @@ export default function ExamsPage() {
                   </>
                 )}
 
-                {/* Paid exams section */}
+                {/* Paid exams section — always visible */}
                 {paidExams.length > 0 && (
                   <>
                     <h2 className="text-headline-sm font-bold text-primary">
                       {showPaid ? t("exams.all") : t("exams.premium")}
                     </h2>
-                    {showPaid ? (
-                      <>
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6">
-                          {paidExams.map((exam) => renderExamCard(exam))}
-                        </div>
-                        {anyLocked && (
-                          <div className="bg-surface-container-lowest rounded-2xl border border-outline-variant/40 p-8 text-center">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6">
+                      {paidExams.map((exam) => renderExamCard(exam))}
+                    </div>
+
+                    {/* Purchase / reactivation CTA (scrolls into view from locked card) */}
+                    {showPaymentCta && (
+                      <div id="payment-section" className="bg-surface-container-lowest rounded-2xl border border-outline-variant/40 p-8 text-center">
+                        {paymentEligible && anyLocked ? (
+                          <>
                             <Lock size={36} className="text-outline-variant mx-auto mb-3" />
                             <p className="text-body-lg text-primary font-semibold mb-1">{t("exams.attemptsUsedTitle")}</p>
                             <p className="text-body-md text-on-surface-variant mb-6 max-w-md mx-auto">
                               {t("exams.attemptsUsedDesc")}
                             </p>
-                            {renderPlansGrid()}
-                          </div>
-                        )}
-                      </>
-                    ) : (
-                      <div className="bg-surface-container-lowest rounded-2xl border border-outline-variant/40 p-8 text-center">
-                        <Lock size={36} className="text-outline-variant mx-auto mb-3" />
-                        <p className="text-body-lg text-primary font-semibold mb-1">{t("exams.unlockTitle")}</p>
-                        <p className="text-body-md text-on-surface-variant mb-6 max-w-md mx-auto">
-                          {t("exams.unlockDesc")}
-                        </p>
-                        {freeExams.length > 0 && (
-                          <p className="text-label-sm text-on-surface-variant mb-6">
-                            {t("exams.freeAvailable")}
-                          </p>
-                        )}
+                          </>
+                        ) : paymentEligible ? (
+                          <>
+                            <Lock size={36} className="text-outline-variant mx-auto mb-3" />
+                            <p className="text-body-lg text-primary font-semibold mb-1">{t("exams.unlockTitle")}</p>
+                            <p className="text-body-md text-on-surface-variant mb-6 max-w-md mx-auto">
+                              {t("exams.unlockDesc")}
+                            </p>
+                            {freeExams.length > 0 && (
+                              <p className="text-label-sm text-on-surface-variant mb-6">
+                                {t("exams.freeAvailable")}
+                              </p>
+                            )}
+                          </>
+                        ) : null}
                         {renderPlansGrid()}
                       </div>
                     )}
