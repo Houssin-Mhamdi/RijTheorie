@@ -41,7 +41,8 @@ export default function BillingPage() {
       if (subsErr) return { data: null, error: subsErr }
       if (!subs || subs.length === 0) return { data: { total: 0, count: 0 }, error: null }
 
-      const planIds = [...new Set(subs.map((s: { plan_id: string }) => s.plan_id))]
+      const planIds = [...new Set(subs.map((s: { plan_id: string }) => s.plan_id).filter((p): p is string => !!p))]
+      if (planIds.length === 0) return { data: { total: 0, count: 0 }, error: null }
       const { data: plans, error: plansErr } = await supabase
         .from("subscription_plans")
         .select("id, price")
