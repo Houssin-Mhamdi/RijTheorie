@@ -127,7 +127,9 @@ export async function POST(req: Request) {
               currency: "eur",
               product_data: {
                 name: planData.name as string,
-                description: planData.description as string | undefined,
+                ...(typeof planData.description === "string" && planData.description.trim().length > 0
+                  ? { description: planData.description }
+                  : {}),
               },
               unit_amount: finalCents,
             },
