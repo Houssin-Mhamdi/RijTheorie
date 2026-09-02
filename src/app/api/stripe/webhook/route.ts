@@ -58,12 +58,24 @@ export async function POST(req: Request) {
     const userId = session.client_reference_id
     const planId = session.metadata?.plan_id
     const durationDays = parseInt(session.metadata?.duration_days || "30", 10)
-    const platformFee = ((session as unknown as { application_fee_amount?: number }).application_fee_amount ?? 0) / 100
     const endDate = new Date(Date.now() + durationDays * 86400000).toISOString()
 
     if (!userId || !planId || !session.id) {
       console.error("Webhook: missing metadata", { userId, planId, sessionId: session.id })
       return NextResponse.json({ error: "Missing metadata" }, { status: 400 })
+    }
+
+    // The connected-account application fee lives on the PaymentIntent
+    // (it was set under payment_intent_data when the session was created).
+    let platformFeeEuro = 0
+    try {
+      if (typeof session.payment_intent === "string") {
+        const pi = await stripe.paymentIntents.retrieve(session.payment_intent)
+        platformFeeEuro = ((pi.application_fee_amount ?? 0)) / 100
+      }
+    } catch (feeErr) {
+      const fErr = feeErr as { message?: string }
+      console.error("Webhook: failed to read application fee", fErr.message ?? feeErr)
     }
 
     // Atomically activate the subscription (idempotent). Attempt reset is
@@ -118,7 +130,7 @@ export async function POST(req: Request) {
       .maybeSingle()
     if (!existingPayout) {
       await sb.from("payouts").insert({
-        amount: platformFee,
+        amount: platformFeeEuro,
         description: `Platform fee - ${session.id}`,
         status: "pending",
         checkout_session_id: session.id,

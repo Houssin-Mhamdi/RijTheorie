@@ -141,9 +141,13 @@ export async function POST(req: Request) {
           connected_account: connectedAccountId,
           ...(couponId ? { coupon_id: couponId, discount_percent: String(discountPercent) } : {}),
         },
-        application_fee_amount: applicationFeeCents,
-        transfer_data: {
-          destination: connectedAccountId,
+        // In this Stripe API version (payment mode), the connected-account
+        // fee + destination transfer are nested under payment_intent_data.
+        payment_intent_data: {
+          application_fee_amount: applicationFeeCents,
+          transfer_data: {
+            destination: connectedAccountId,
+          },
         },
         success_url: `${req.headers.get("origin") || "http://localhost:3000"}/exams?subscription=success`,
         cancel_url: `${req.headers.get("origin") || "http://localhost:3000"}/exams?subscription=cancelled`,
