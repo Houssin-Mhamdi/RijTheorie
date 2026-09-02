@@ -51,7 +51,23 @@ export async function POST(req: Request) {
 
     const stripe = new Stripe(platformSecretKey)
 
-    let accountId = existingAccountId
+    let accountId: string | null = existingAccountId ?? null
+
+    // Verify any previously stored connected account still exists on the
+    // CURRENT Stripe account/mode. This is what makes the test -> live switch
+    // (or a replaced key) safe: if the stored ID is a test account but we're
+    // now on a live key (or it was deleted), we discard it and create a fresh
+    // connected account tied to the active key.
+    if (accountId) {
+      try {
+        await stripe.accounts.retrieve(accountId)
+      } catch {
+        accountId = null
+        await sb.from("site_settings").update({
+          ...(paymentSettings ? { payment_settings: { ...paymentSettings, stripe_account_id: null } } : {}),
+        }).eq("id", 1)
+      }
+    }
 
     if (!accountId) {
       const account = await stripe.accounts.create({
