@@ -3,7 +3,6 @@
 import { useRef, useState, useCallback, useEffect } from "react"
 import { Play, CheckCircle, XCircle } from "lucide-react"
 import { Button } from "@/components/ui/button"
-import { useVideoPoster } from "@/hooks/use-video-poster"
 import { useTranslation } from "@/lib/i18n/translations"
 import SmartImage from "@/components/ui/smart-image"
 
@@ -40,7 +39,6 @@ export default function StudentHotspot({ media, mediaMime, correctOptions, onCom
   const positionsRef = useRef(initialPositions ?? correctOptions.map((_, i) => ({ x: 15 + i * 22, y: 88 })))
 
   const isVideo = mediaMime?.startsWith("video/")
-  const poster = useVideoPoster(isVideo ? media : null, pauseAt)
 
   const [playing, setPlaying] = useState(false)
   const [paused, setPaused] = useState(false)
@@ -211,10 +209,9 @@ export default function StudentHotspot({ media, mediaMime, correctOptions, onCom
             <video
               ref={videoRef}
               src={media}
-              poster={poster}
-              className="w-full max-h-[500px] block pointer-events-none"
+              className="w-full max-h-[500px] block pointer-events-none bg-neutral-950"
               playsInline
-              preload="auto"
+              preload="none"
             />
             {showOverlay && (
               <button
