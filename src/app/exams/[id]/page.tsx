@@ -618,7 +618,7 @@ export default function ExamDetailPage() {
 
     return (
       <div className="min-h-screen bg-surface flex flex-col">
-        <header className="bg-surface border-b border-outline-variant/50 px-4 py-3 flex items-center justify-between shrink-0 sticky top-0 z-40">
+        <header className="bg-surface border-b border-outline-variant/50 px-4 py-3 flex items-center justify-between shrink-0 z-40">
           <div className="flex items-center gap-3 min-w-0">
             <button
               onClick={() => router.push("/exams")}
@@ -877,7 +877,7 @@ export default function ExamDetailPage() {
 
   return (
     <div className="min-h-screen bg-surface flex flex-col">
-      <header className="bg-surface border-b border-outline-variant/50 sticky top-0 z-40 shrink-0">
+      <header className="bg-surface border-b border-outline-variant/50 z-40 shrink-0">
         <div className="px-4 py-3 md:px-6 flex items-center justify-between gap-3">
           <div className="flex items-center gap-3 min-w-0">
             <button
