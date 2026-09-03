@@ -21,6 +21,7 @@ import {
   X,
   Lock,
   Infinity as InfinityIcon,
+  RefreshCw,
 } from "lucide-react"
 
 type AttemptLimit = {
@@ -48,6 +49,7 @@ export default function ExamsPage() {
 
   // Coupon state
   const [paymentExpanded, setPaymentExpanded] = useState(false)
+  const [pendingActivation, setPendingActivation] = useState(false)
   const [couponInput, setCouponInput] = useState("")
   const [coupon, setCoupon] = useState<{ code: string; discount_percent: number; plan_ids: string[] } | null>(null)
   const [couponError, setCouponError] = useState("")
@@ -144,11 +146,17 @@ export default function ExamsPage() {
   useEffect(() => {
     const params = new URLSearchParams(window.location.search)
     if (params.get("subscription") === "success") {
+      const code = params.get("code") ?? ""
+      const sessionId = params.get("session_id") ?? ""
       setStatusMessage({ type: "success", text: "Betaling gelukt! Abonnement wordt geactiveerd..." })
       window.history.replaceState({}, "", "/exams")
 
-      // Poll until webhook creates the subscription (retries every 2s, up to 30s)
+      // For card payments the webhook fires almost instantly. For iDEAL the
+      // bank confirmation is asynchronous (can take a couple of minutes), so
+      // we poll longer and never tell the user their payment failed — we show
+      // a friendly "pending activation" state and offer a manual refresh.
       let attempts = 0
+      const maxAttempts = 120 // ~4 minutes
       const interval = setInterval(async () => {
         attempts++
         const { data: { user } } = await supabase.auth.getUser()
@@ -166,11 +174,24 @@ export default function ExamsPage() {
           })
           setStatusMessage({ type: "success", text: "Betaling gelukt! Je abonnement is geactiveerd." })
           clearInterval(interval)
-        } else if (attempts > 15) {
-          setStatusMessage({ type: "error", text: "Betaling verwerkt, maar activering duurt langer dan verwacht. Ververs de pagina of neem contact op." })
+        } else if (attempts >= maxAttempts) {
+          // Don't claim failure. The webhook may still be pending (iDEAL).
+          setStatusMessage({ type: "success", text: "Betaling verwerkt. Je abonnement wordt binnen enkele minuten geactiveerd — klik op 'Status verversen' om te controleren." })
+          setPendingActivation(true)
           clearInterval(interval)
         }
       }, 2000)
+
+      // Stop polling if the tab is hidden; resume when it becomes visible again
+      // so the network/api usage doesn't run in the background.
+      const onVisibility = () => {
+        if (document.hidden) clearInterval(interval)
+      }
+      document.addEventListener("visibilitychange", onVisibility)
+      return () => {
+        clearInterval(interval)
+        document.removeEventListener("visibilitychange", onVisibility)
+      }
     } else if (params.get("subscription") === "cancelled") {
       setStatusMessage({ type: "error", text: "Betaling geannuleerd. Je kunt het later opnieuw proberen." })
       window.history.replaceState({}, "", "/exams")
@@ -178,6 +199,7 @@ export default function ExamsPage() {
       setStatusMessage({ type: "error", text: "Je hebt een actief abonnement nodig om dit examen te maken." })
       window.history.replaceState({}, "", "/exams")
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
   useEffect(() => {
@@ -288,6 +310,25 @@ export default function ExamsPage() {
     } catch (e) {
       setStatusMessage({ type: "error", text: e instanceof Error ? e.message : "Subscription failed" })
       setSubscribing(null)
+    }
+  }
+
+  // Manually re-check the subscription status (used after an iDEAL payment
+  // whose activation is still pending).
+  const checkSubscriptionStatus = async () => {
+    setPendingActivation(false)
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) return
+    const { data } = await supabase.from("user_subscriptions")
+      .select("*")
+      .eq("user_id", user.id).eq("is_active", true).gte("end_date", new Date().toISOString())
+      .order("end_date", { ascending: false }).limit(1)
+    if (data && data.length > 0) {
+      setSubscription({ plan: { name: "", features: [] }, end_date: data[0].end_date as string })
+      setStatusMessage({ type: "success", text: "Je abonnement is geactiveerd." })
+    } else {
+      setPendingActivation(true)
+      setStatusMessage({ type: "success", text: "Nog niet geactiveerd. Probeer het over een minuut opnieuw." })
     }
   }
 
@@ -549,6 +590,17 @@ export default function ExamsPage() {
             <span>{statusMessage.type === "success" ? "✓" : "✕"}</span>
             <span>{statusMessage.text}</span>
           </div>
+          {pendingActivation && (
+            <div className="mt-3">
+              <button
+                onClick={checkSubscriptionStatus}
+                className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-green-600 text-white text-label-sm font-bold hover:opacity-90 active:scale-[0.97] transition-all"
+              >
+                <RefreshCw size={16} />
+                Status verversen
+              </button>
+            </div>
+          )}
         </div>
       )}
 
