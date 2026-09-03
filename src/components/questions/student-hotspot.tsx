@@ -70,6 +70,22 @@ export default function StudentHotspot({ media, mediaMime, correctOptions, onCom
     positionsRef.current = studentPositions
   }, [studentPositions])
 
+  // Prevent the mobile `removeChild` NotFoundError: pause + clear the src
+  // before React unmounts this video (e.g. navigating between exam questions).
+  useEffect(() => {
+    const video = videoRef.current
+    return () => {
+      if (!video) return
+      try {
+        video.pause()
+        video.removeAttribute("src")
+        video.load()
+      } catch {
+        /* ignore teardown errors */
+      }
+    }
+  }, [])
+
   function handlePlay() {
     const video = videoRef.current
     if (!video) return

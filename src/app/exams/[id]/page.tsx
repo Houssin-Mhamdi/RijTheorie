@@ -33,6 +33,7 @@ import DOMPurify from "dompurify"
 import { useTranslation } from "@/lib/i18n/translations"
 import { LanguageSwitcher } from "@/components/language-switcher"
 import SmartImage from "@/components/ui/smart-image"
+import QuestionVideo from "@/components/questions/question-video"
 
 type AnswerOption = {
   text: string
@@ -791,7 +792,7 @@ export default function ExamDetailPage() {
                       {q.media && !qIsHotspot && !qIsChooseImages && (
                         <div className="rounded-xl overflow-hidden aspect-video border border-outline-variant/30 bg-surface-container">
                           {q.mediaMime?.startsWith("video/") ? (
-                            <video src={q.media} controls preload="metadata" className="w-full h-full object-cover" />
+                            <QuestionVideo src={q.media} className="w-full h-full object-cover" />
                           ) : (
                             <SmartImage src={q.media} alt="" className="w-full h-full object-cover" />
                           )}
@@ -983,7 +984,7 @@ export default function ExamDetailPage() {
                   {currentQuestion.media && !isHotspot && !isChooseImages && (
                     <div className="relative -mx-6 md:-mx-8 -mb-6 md:-mb-8 bg-surface-container flex items-center justify-center">
                       {currentQuestion.mediaMime?.startsWith("video/") ? (
-                        <video src={currentQuestion.media} controls preload="metadata" className="w-full max-h-[60vh] object-contain" />
+                        <QuestionVideo src={currentQuestion.media} className="w-full max-h-[60vh] object-contain" />
                       ) : (
                         <SmartImage src={currentQuestion.media} alt="Traffic situation" lazy={false} className="w-full max-h-[60vh] object-contain" />
                       )}
