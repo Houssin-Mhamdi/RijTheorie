@@ -154,8 +154,10 @@ export async function POST(req: Request) {
         success_url: `${req.headers.get("origin") || "http://localhost:3000"}/exams?subscription=success`,
         cancel_url: `${req.headers.get("origin") || "http://localhost:3000"}/exams?subscription=cancelled`,
       } as Stripe.Checkout.SessionCreateParams,
-      // Idempotency key: prevents a retry from creating a duplicate session.
-      { idempotencyKey: `checkout_session_${user.id}_${planId}` },
+      // Idempotency key: a unique nonce per request ensures Stripe won't
+      // charge twice if our server retries, while never colliding across
+      // distinct requests (different params/plans/coupons).
+      { idempotencyKey: `checkout_session_${user.id}_${crypto.randomUUID()}` },
     )
 
     return NextResponse.json({ url: session.url })
