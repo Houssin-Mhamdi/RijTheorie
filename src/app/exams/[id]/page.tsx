@@ -792,7 +792,7 @@ export default function ExamDetailPage() {
                       {q.media && !qIsHotspot && !qIsChooseImages && (
                         <div className="rounded-xl overflow-hidden aspect-video border border-outline-variant/30 bg-surface-container">
                           {q.mediaMime?.startsWith("video/") ? (
-                            <QuestionVideo src={q.media} className="w-full h-full object-cover" />
+                            <QuestionVideo src={q.media} autoPlay muted className="w-full h-full object-cover" />
                           ) : (
                             <SmartImage src={q.media} alt="" className="w-full h-full object-cover" />
                           )}
