@@ -151,7 +151,7 @@
   position: relative;
   display: flex;
   justify-content: center;
-  align-items: stretch;
+  align-items: flex-start;
   gap: 24px;
   padding: 0 20px 60px;
   max-width: 1100px;
@@ -176,12 +176,14 @@
   box-shadow: 0 16px 48px rgba(0, 0, 0, 0.18);
 }
 
+/* Gentle upward arc: the outer cards sit slightly higher than the middle. */
 .cardLeft {
   z-index: 2;
+  transform: translateY(-28px);
 }
 
 .cardLeft:hover {
-  transform: translateY(-5px);
+  transform: translateY(-33px);
 }
 
 .cardMiddle {
@@ -194,10 +196,11 @@
 
 .cardRight {
   z-index: 2;
+  transform: translateY(-28px);
 }
 
 .cardRight:hover {
-  transform: translateY(-5px);
+  transform: translateY(-33px);
 }
 
 .cardImageWrapper {
