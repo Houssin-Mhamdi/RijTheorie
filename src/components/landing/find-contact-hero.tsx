@@ -2,7 +2,7 @@
 
 import { useState } from "react"
 import type { ReactNode } from "react"
-import { Copy, Check, Star, Zap, ArrowDown, FileQuestion, PlayCircle } from "lucide-react"
+import { Copy, Check, Star, ArrowDown, ArrowRight, FileQuestion, PlayCircle } from "lucide-react"
 import styles from "./find-contact-hero.module.css"
 
 export interface ContactPerson {
@@ -223,11 +223,15 @@ export function FindContactHero({
               <ArrowDown size={26} className={styles.pointerIcon} />
               <span className={styles.pointerLabel}>Gratis proberen</span>
             </div>
-            <button type="button" onClick={handleStart} className={styles.signupButton}>
-              <Zap size={22} className={styles.buttonIcon} fill="currentColor" />
-              {cta}
-              <Zap size={22} className={styles.buttonIcon} fill="currentColor" />
-            </button>
+            <div className={styles.btnGroup}>
+              <button type="button" onClick={handleStart} className={styles.signupButton}>
+                <span className={styles.btnGradient} />
+                <span className={styles.btnInner}>
+                  <span className={styles.btnText}>{cta}</span>
+                  <ArrowRight size={24} className={styles.btnArrow} />
+                </span>
+              </button>
+            </div>
           </div>
 
           <p className={styles.termsText}>{terms}</p>
