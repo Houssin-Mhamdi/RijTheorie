@@ -1,4 +1,4 @@
-import { Header, Hero, HowItWorks, Features, Pricing, Testimonials, Cta, Footer, BackgroundDecor } from "@/components/landing"
+import { Header, FindContactHero, Hero, HowItWorks, Features, Pricing, Testimonials, Cta, Footer, BackgroundDecor } from "@/components/landing"
 
 export default function Home() {
   return (
@@ -6,6 +6,7 @@ export default function Home() {
       <BackgroundDecor />
       <Header />
       <main className="flex-1">
+        <FindContactHero />
         <Hero />
         <HowItWorks />
         <Features />

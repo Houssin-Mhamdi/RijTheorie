@@ -1,0 +1,533 @@
+.heroSection {
+  position: relative;
+  min-height: 100vh;
+  background: linear-gradient(180deg, #f5f7ff 0%, #eef2ff 20%, #dce5f8 40%, #c8d8f0 60%, #b0c4e8 80%, #9ab0e0 100%);
+  padding: 60px 20px 40px;
+  text-align: center;
+  overflow: hidden;
+}
+
+.heroSection::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: radial-gradient(ellipse at 50% 0%, rgba(255, 255, 255, 0.8) 0%, transparent 60%);
+  pointer-events: none;
+}
+
+.heroContent {
+  position: relative;
+  z-index: 2;
+  max-width: 900px;
+  margin: 0 auto;
+}
+
+.heroTitle {
+  font-size: 56px;
+  font-weight: 800;
+  color: #1a1a2e;
+  letter-spacing: -1.5px;
+  line-height: 1.1;
+  margin-bottom: 20px;
+}
+
+.heroSubtitle {
+  font-size: 17px;
+  color: #4a4a6a;
+  max-width: 520px;
+  margin: 0 auto 35px;
+  line-height: 1.6;
+}
+
+.signupForm {
+  display: flex;
+  max-width: 520px;
+  margin: 0 auto 15px;
+  background: white;
+  border-radius: 12px;
+  overflow: hidden;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+  border: 1px solid #e0e4f0;
+}
+
+.signupForm input {
+  flex: 1;
+  padding: 16px 20px;
+  border: none;
+  outline: none;
+  font-size: 15px;
+  color: #333;
+  background: transparent;
+  font-family: inherit;
+}
+
+.signupForm input::placeholder {
+  color: #999;
+}
+
+.formIcon {
+  display: flex;
+  align-items: center;
+  padding: 0 12px;
+  color: #e74c3c;
+}
+
+.signupButton {
+  padding: 16px 28px;
+  background: #3b6cf5;
+  color: white;
+  border: none;
+  font-size: 15px;
+  font-weight: 600;
+  cursor: pointer;
+  font-family: inherit;
+  transition: background 0.3s;
+  white-space: nowrap;
+}
+
+.signupButton:hover {
+  background: #2d5ae0;
+}
+
+.termsText {
+  font-size: 12px;
+  color: #888;
+  max-width: 480px;
+  margin: 0 auto 25px;
+  line-height: 1.5;
+}
+
+.termsText a {
+  color: #3b6cf5;
+  text-decoration: none;
+}
+
+.termsText a:hover {
+  text-decoration: underline;
+}
+
+.ratingSection {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  margin-bottom: 50px;
+}
+
+.g2Logo {
+  width: 24px;
+  height: 24px;
+  background: #3b6cf5;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: white;
+  font-weight: 700;
+  font-size: 12px;
+}
+
+.stars {
+  display: flex;
+  gap: 2px;
+  color: #3b6cf5;
+}
+
+.ratingText {
+  font-size: 14px;
+  color: #4a4a6a;
+  font-weight: 600;
+}
+
+.ratingText strong {
+  font-weight: 700;
+  color: #1a1a2e;
+}
+
+.cardsWithAnnotation {
+  position: relative;
+  display: flex;
+  justify-content: center;
+  align-items: flex-start;
+  padding: 0 20px 60px;
+  max-width: 1100px;
+  margin: 0 auto;
+  flex-wrap: nowrap;
+}
+
+.profileCard {
+  background: white;
+  border-radius: 16px;
+  padding: 20px;
+  width: 280px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.12);
+  text-align: left;
+  position: relative;
+  transition: transform 0.4s ease, box-shadow 0.4s ease;
+  flex-shrink: 0;
+  transform-origin: top center;
+  margin: 0 15px;
+}
+
+.profileCard:hover {
+  box-shadow: 0 16px 48px rgba(0, 0, 0, 0.18);
+}
+
+.cardLeft {
+  transform: rotate(-10deg);
+  z-index: 2;
+}
+
+.cardLeft:hover {
+  transform: rotate(-10deg) translateY(-5px);
+}
+
+.cardMiddle {
+  transform: none;
+  z-index: 3;
+}
+
+.cardMiddle:hover {
+  transform: translateY(-5px);
+}
+
+.cardRight {
+  transform: rotate(10deg);
+  z-index: 2;
+}
+
+.cardRight:hover {
+  transform: rotate(10deg) translateY(-5px);
+}
+
+.cardImageWrapper {
+  position: relative;
+  width: 100%;
+  height: 220px;
+  border-radius: 12px;
+  overflow: hidden;
+  margin-bottom: 16px;
+  background: linear-gradient(135deg, #f0f4ff 0%, #e0e8f8 100%);
+}
+
+.cardImageWrapper img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: top center;
+}
+
+.cardCompanyIcon {
+  position: absolute;
+  bottom: 10px;
+  right: 10px;
+  width: 32px;
+  height: 32px;
+  background: white;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.cardName {
+  font-size: 18px;
+  font-weight: 700;
+  color: #1a1a2e;
+  margin-bottom: 4px;
+}
+
+.cardTitle {
+  font-size: 13px;
+  color: #666;
+  margin-bottom: 14px;
+}
+
+.cardTitle .company {
+  color: #3b6cf5;
+  font-weight: 600;
+}
+
+.cardInfoRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 0;
+  border-top: 1px solid #f0f0f5;
+}
+
+.cardInfoRow:first-of-type {
+  border-top: none;
+}
+
+.cardInfoLeft {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  color: #4a4a6a;
+  min-width: 0;
+  overflow: hidden;
+}
+
+.cardInfoLeft span:last-child {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.copyBtn {
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: #999;
+  padding: 4px;
+  transition: color 0.2s;
+  flex-shrink: 0;
+}
+
+.copyBtn:hover {
+  color: #3b6cf5;
+}
+
+.annotationContainer {
+  position: relative;
+}
+
+.handwrittenNote {
+  position: absolute;
+  right: -220px;
+  top: 20px;
+  font-family: var(--font-caveat), cursive;
+  font-size: 26px;
+  color: #2a2a4a;
+  transform: rotate(-5deg);
+  max-width: 220px;
+  line-height: 1.4;
+  z-index: 10;
+}
+
+.handwrittenNote .badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  background: #3b6cf5;
+  color: white;
+  padding: 2px 10px;
+  border-radius: 14px;
+  font-size: 15px;
+  font-weight: 600;
+  vertical-align: middle;
+}
+
+.noteArrow {
+  position: absolute;
+  right: -180px;
+  top: 130px;
+  z-index: 10;
+}
+
+.noteArrow svg {
+  width: 140px;
+  height: 80px;
+}
+
+.miniAvatars {
+  position: absolute;
+  right: -260px;
+  top: -10px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  z-index: 10;
+}
+
+.miniAvatar {
+  width: 38px;
+  height: 38px;
+  border-radius: 50%;
+  border: 2.5px solid white;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.12);
+  overflow: hidden;
+  margin-left: auto;
+}
+
+.miniAvatar img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.miniAvatar:nth-child(2) {
+  margin-left: 10px;
+}
+
+.miniAvatar:nth-child(3) {
+  margin-left: -5px;
+}
+
+.heroBottomGradient {
+  height: 200px;
+  background: linear-gradient(180deg, transparent 0%, #e8edf8 50%, #f5f7ff 100%);
+  position: relative;
+  z-index: 1;
+}
+
+.bottomSection {
+  position: relative;
+  z-index: 2;
+  text-align: center;
+  padding: 50px 20px 30px;
+  background: linear-gradient(180deg, #9ab0e0 0%, #e8edf8 30%, #f5f7ff 100%);
+}
+
+.bottomText {
+  font-size: 16px;
+  color: #4a4a6a;
+  margin-bottom: 40px;
+  max-width: 700px;
+  margin-left: auto;
+  margin-right: auto;
+  line-height: 1.6;
+}
+
+.bottomText strong {
+  color: #1a1a2e;
+  font-weight: 700;
+}
+
+.companyLogos {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 40px;
+  flex-wrap: wrap;
+  padding: 20px;
+  max-width: 900px;
+  margin: 0 auto;
+}
+
+.companyLogo {
+  font-size: 20px;
+  font-weight: 700;
+  color: #4a4a6a;
+  opacity: 0.7;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.logoIheart {
+  font-size: 18px;
+  font-weight: 800;
+  color: #333;
+}
+
+.logoIheart span {
+  font-weight: 400;
+}
+
+.logoAdp {
+  font-size: 22px;
+  font-weight: 800;
+  color: #333;
+  font-style: italic;
+}
+
+.logoOracle {
+  font-size: 20px;
+  font-weight: 700;
+  color: #c74634;
+  letter-spacing: 2px;
+}
+
+.logoIntercom {
+  font-size: 14px;
+  font-weight: 600;
+  color: #333;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.logoIntercom .icon {
+  width: 20px;
+  height: 20px;
+  background: #333;
+  border-radius: 4px;
+}
+
+.logoLogitech {
+  font-size: 20px;
+  font-weight: 700;
+  color: #333;
+}
+
+.logoMongodb {
+  font-size: 18px;
+  font-weight: 700;
+  color: #333;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+@media (max-width: 1100px) {
+  .handwrittenNote,
+  .noteArrow,
+  .miniAvatars {
+    display: none;
+  }
+}
+
+@media (max-width: 900px) {
+  .cardsWithAnnotation {
+    flex-wrap: wrap;
+    gap: 20px;
+    align-items: center;
+  }
+  .profileCard {
+    margin: 0;
+  }
+  .cardLeft,
+  .cardMiddle,
+  .cardRight {
+    transform: none;
+  }
+}
+
+@media (max-width: 768px) {
+  .heroTitle {
+    font-size: 36px;
+  }
+  .heroSubtitle {
+    font-size: 15px;
+  }
+  .signupForm {
+    flex-direction: column;
+    border-radius: 12px;
+  }
+  .signupButton {
+    border-radius: 0 0 12px 12px;
+  }
+  .profileCard {
+    width: 260px;
+  }
+  .companyLogos {
+    gap: 20px;
+  }
+}
+
+@media (max-width: 480px) {
+  .heroTitle {
+    font-size: 28px;
+  }
+  .profileCard {
+    width: 100%;
+    max-width: 300px;
+  }
+}

@@ -1,5 +1,7 @@
 export { Header } from "./header"
 export { Hero } from "./hero"
+export { FindContactHero } from "./find-contact-hero"
+export type { ContactPerson } from "./find-contact-hero"
 export { HowItWorks } from "./how-it-works"
 export { Features } from "./features"
 export { Pricing } from "./pricing"
