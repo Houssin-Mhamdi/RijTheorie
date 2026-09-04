@@ -2,7 +2,8 @@
 
 import { useState } from "react"
 import type { ReactNode } from "react"
-import { Copy, Check, Star, ArrowDown, ArrowRight, FileQuestion, PlayCircle } from "lucide-react"
+import { Copy, Check, Star, ArrowDown, ArrowRight, FileQuestion, PlayCircle, X, Loader2, GraduationCap } from "lucide-react"
+import { supabase } from "@/lib/supabase"
 import styles from "./find-contact-hero.module.css"
 
 export interface ContactPerson {
@@ -206,9 +207,32 @@ export function FindContactHero({
   ),
   logos,
 }: FindContactHeroProps) {
-  const handleStart = () => {
-    // Start the free exam (or send to signup). Adjust route as needed.
-    window.location.href = "/exams"
+  const [freeExams, setFreeExams] = useState<{ id: string; title: string; description?: string | null }[]>([])
+  const [modalOpen, setModalOpen] = useState(false)
+  const [modalLoading, setModalLoading] = useState(false)
+  const [modalError, setModalError] = useState<string | null>(null)
+
+  const handleStart = async () => {
+    setModalOpen(true)
+    setModalLoading(true)
+    setModalError(null)
+    try {
+      const { data, error } = await supabase
+        .from("exams")
+        .select("id, title, description")
+        .eq("is_free", true)
+        .order("created_at", { ascending: true })
+        .limit(20)
+      if (error) throw error
+      setFreeExams((data as { id: string; title: string; description?: string | null }[]) ?? [])
+      if (!data || data.length === 0) {
+        setModalError("Er zijn momenteel geen gratis examens beschikbaar.")
+      }
+    } catch {
+      setModalError("Kon de gratis examens niet laden.")
+    } finally {
+      setModalLoading(false)
+    }
   }
 
   return (
@@ -301,6 +325,55 @@ export function FindContactHero({
           </div>
         )}
       </section>
+
+      {modalOpen && (
+        <div className={styles.modalOverlay} onClick={() => setModalOpen(false)}>
+          <div className={styles.modalCard} onClick={(e) => e.stopPropagation()}>
+            <div className={styles.modalHeader}>
+              <div>
+                <h3 className={styles.modalTitle}>Kies een gratis examen</h3>
+                <p className={styles.modalSubtitle}>Geen account nodig — niets wordt opgeslagen.</p>
+              </div>
+              <button className={styles.modalClose} onClick={() => setModalOpen(false)} aria-label="Sluiten">
+                <X size={20} />
+              </button>
+            </div>
+
+            <div className={styles.modalBody}>
+              {modalLoading ? (
+                <div className={styles.modalLoading}>
+                  <Loader2 size={28} className={styles.modalSpinner} />
+                  <span>Examen laden…</span>
+                </div>
+              ) : modalError ? (
+                <p className={styles.modalError}>{modalError}</p>
+              ) : (
+                <div className={styles.modalList}>
+                  {freeExams.map((ex) => (
+                    <button
+                      key={ex.id}
+                      className={styles.modalItem}
+                      onClick={() => {
+                        window.location.href = `/gratis-examen/${ex.id}`
+                      }}
+                    >
+                      <span className={styles.modalItemIcon}>
+                        <GraduationCap size={20} />
+                      </span>
+                      <span className={styles.modalItemText}>
+                        <span className={styles.modalItemTitle}>{ex.title}</span>
+                        {ex.description && <span className={styles.modalItemDesc}>{ex.description}</span>}
+                        <span className={styles.modalItemBadge}>Gratis</span>
+                      </span>
+                      <ArrowRight size={18} className={styles.modalItemArrow} />
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
     </>
   )
 }
