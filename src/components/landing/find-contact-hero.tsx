@@ -35,8 +35,7 @@ const DEFAULT_PEOPLE: ContactPerson[] = [
     name: "Richard Jefferson",
     title: "VP of Engineering at",
     company: "Pedalton",
-    image:
-      "https://image.qwenlm.ai/public_source/a92f22b4-8f4b-4626-8c02-a8c51b8bf13f/171e6dcc7-f6ae-40e4-8a95-7c5005351fda.png",
+    image: "/hero/hero-1.png",
     email: "richard.j@pedalton.com",
     phone: "(678) 367-2035",
     companyColor: "#2ecc71",
@@ -46,8 +45,7 @@ const DEFAULT_PEOPLE: ContactPerson[] = [
     name: "Ashley Stapleton",
     title: "Director of Tech at",
     company: "Dealsforce",
-    image:
-      "https://image.qwenlm.ai/public_source/a92f22b4-8f4b-4626-8c02-a8c51b8bf13f/1dbc96c8a-94d0-493b-b022-76eb13aa7ad1.png",
+    image: "/hero/hero-2.png",
     email: "ashley@dealsforce.com",
     phone: "(323) 463-4001",
     companyColor: "#3b6cf5",
@@ -57,8 +55,7 @@ const DEFAULT_PEOPLE: ContactPerson[] = [
     name: "Joseph Graham",
     title: "Sr. Manager at",
     company: "Fakebook",
-    image:
-      "https://image.qwenlm.ai/public_source/a92f22b4-8f4b-4626-8c02-a8c51b8bf13f/199691a6e-67d3-417c-a587-f31c204dc38f.png",
+    image: "/hero/hero-3.png",
     email: "josephg@fakebook.com",
     phone: "(296) 562-7775",
     companyColor: "#e74c3c",
