@@ -151,7 +151,8 @@
   position: relative;
   display: flex;
   justify-content: center;
-  align-items: flex-start;
+  align-items: stretch;
+  gap: 24px;
   padding: 0 20px 60px;
   max-width: 1100px;
   margin: 0 auto;
@@ -169,7 +170,6 @@
   transition: transform 0.4s ease, box-shadow 0.4s ease;
   flex-shrink: 0;
   transform-origin: top center;
-  margin: 0 15px;
 }
 
 .profileCard:hover {
@@ -177,16 +177,14 @@
 }
 
 .cardLeft {
-  transform: rotate(-10deg);
   z-index: 2;
 }
 
 .cardLeft:hover {
-  transform: rotate(-10deg) translateY(-5px);
+  transform: translateY(-5px);
 }
 
 .cardMiddle {
-  transform: none;
   z-index: 3;
 }
 
@@ -195,12 +193,11 @@
 }
 
 .cardRight {
-  transform: rotate(10deg);
   z-index: 2;
 }
 
 .cardRight:hover {
-  transform: rotate(10deg) translateY(-5px);
+  transform: translateY(-5px);
 }
 
 .cardImageWrapper {
