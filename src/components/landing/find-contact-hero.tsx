@@ -1,8 +1,8 @@
 "use client"
 
 import { useState } from "react"
-import type { ReactNode, FormEvent } from "react"
-import { Mail, Phone, Copy, Check, Star } from "lucide-react"
+import type { ReactNode } from "react"
+import { Copy, Check, Star, Zap, ArrowDown, FileQuestion, PlayCircle } from "lucide-react"
 import styles from "./find-contact-hero.module.css"
 
 export interface ContactPerson {
@@ -32,32 +32,32 @@ interface FindContactHeroProps {
 
 const DEFAULT_PEOPLE: ContactPerson[] = [
   {
-    name: "Richard Jefferson",
-    title: "VP of Engineering at",
-    company: "Pedalton",
+    name: "Voorrang",
+    title: "Oefen het",
+    company: "rechts voorrang",
     image: "/hero/hero-1.png",
-    email: "richard.j@pedalton.com",
-    phone: "(678) 367-2035",
+    email: "50 examenvragen",
+    phone: "met hotspots",
     companyColor: "#2ecc71",
     companyIcon: "circle",
   },
   {
-    name: "Ashley Stapleton",
-    title: "Director of Tech at",
-    company: "Dealsforce",
+    name: "Verkeersregels",
+    title: "Oefen het",
+    company: "borden & strepen",
     image: "/hero/hero-2.png",
-    email: "ashley@dealsforce.com",
-    phone: "(323) 463-4001",
+    email: "60 examenvragen",
+    phone: "incl. video",
     companyColor: "#3b6cf5",
     companyIcon: "circle",
   },
   {
-    name: "Joseph Graham",
-    title: "Sr. Manager at",
-    company: "Fakebook",
+    name: "Gevaarherkenning",
+    title: "Oefen het",
+    company: "25 situaties",
     image: "/hero/hero-3.png",
-    email: "josephg@fakebook.com",
-    phone: "(296) 562-7775",
+    email: "reactiesnelheid",
+    phone: "examenmodules",
     companyColor: "#e74c3c",
     companyIcon: "square",
   },
@@ -126,7 +126,7 @@ function ProfileCard({
       {person.email && (
         <div className={styles.cardInfoRow}>
           <div className={styles.cardInfoLeft}>
-            <Mail size={14} className={styles.cardInfoIcon} />
+            <FileQuestion size={14} className={styles.cardInfoIcon} />
             <span>{person.email}</span>
           </div>
           <CopyButton text={person.email} onCopy={onCopy} personName={person.name} />
@@ -135,7 +135,7 @@ function ProfileCard({
       {person.phone && (
         <div className={styles.cardInfoRow}>
           <div className={styles.cardInfoLeft}>
-            <Phone size={14} className={styles.cardInfoIcon} />
+            <PlayCircle size={14} className={styles.cardInfoIcon} />
             <span>{person.phone}</span>
           </div>
           <CopyButton text={person.phone} onCopy={onCopy} personName={person.name} />
@@ -185,35 +185,30 @@ function CopyButton({
 }
 
 export function FindContactHero({
-  title = "Find contact info for anyone",
-  subtitle = "Real-time research and validation on over 1.3 billion+ business contacts and 121 million+ companies.",
-  placeholder = "Business Email",
-  cta = "Sign up for free",
-  ratingScore = "4.4/5",
-  ratingCount = "5,000+ REVIEWS",
-  terms = "By submitting this form, you agree to our Terms of Use, Privacy Policy, and consent to receiving marketing communications from us.",
+  title = "Slaag voor je theorie-examen",
+  subtitle = "Oefen met realistische verkeerssituaties, hotspots en honderden examenvragen. Klaar voor het echte CBR-examen?",
+  cta = "Gratis examen",
+  ratingScore = "4.9/5",
+  ratingCount = "2.500+ REVIEWS",
+  terms = "Begin direct met oefenen — geen creditcard nodig.",
   people = DEFAULT_PEOPLE,
   noteText = (
     <>
-      build lists of<br />
-      dream prospects<br />
-      with <span className={styles.badge}>Seamless.AI</span>
+      oefen met<br />
+      echte situaties<br />
+      en <span className={styles.badge}>RijTheorie Pro</span>
     </>
   ),
   logoText = (
     <>
-      <strong>Over 1,000,000+ salespeople</strong> find leads, book appointments, and close more sales
-      with Seamless.AI
+      <strong>Meer dan 50.000 cursisten</strong> slaagden al met RijTheorie Pro voor hun theorie-examen.
     </>
   ),
   logos,
 }: FindContactHeroProps) {
-  const [email, setEmail] = useState("")
-
-  const handleSubmit = (e: FormEvent) => {
-    e.preventDefault()
-    // Extendable: connect to your signup / onboarding flow here.
-    console.log("Signup email:", email)
+  const handleStart = () => {
+    // Start the free exam (or send to signup). Adjust route as needed.
+    window.location.href = "/exams"
   }
 
   return (
@@ -223,21 +218,17 @@ export function FindContactHero({
           <h1 className={styles.heroTitle}>{title}</h1>
           <p className={styles.heroSubtitle}>{subtitle}</p>
 
-          <form className={styles.signupForm} onSubmit={handleSubmit}>
-            <input
-              type="email"
-              placeholder={placeholder}
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              required
-            />
-            <div className={styles.formIcon}>
-              <Mail size={20} />
+          <div className={styles.ctaWrap}>
+            <div className={styles.pointer}>
+              <ArrowDown size={26} className={styles.pointerIcon} />
+              <span className={styles.pointerLabel}>Gratis proberen</span>
             </div>
-            <button type="submit" className={styles.signupButton}>
+            <button type="button" onClick={handleStart} className={styles.signupButton}>
+              <Zap size={22} className={styles.buttonIcon} fill="currentColor" />
               {cta}
+              <Zap size={22} className={styles.buttonIcon} fill="currentColor" />
             </button>
-          </form>
+          </div>
 
           <p className={styles.termsText}>{terms}</p>
 
