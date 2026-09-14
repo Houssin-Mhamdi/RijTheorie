@@ -16,6 +16,7 @@ import { toast } from "sonner"
 import { Dialog, DialogTrigger, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter, DialogClose } from "@/components/ui/dialog"
 import { Button } from "@/components/ui/button"
 import { cn } from "@/lib/utils"
+import { useQueryClient } from "@tanstack/react-query"
 
 function mapQuestion(q: Record<string, unknown>) {
   const options = (q.answer_options as Array<{ text: string; isCorrect: boolean }>) || []
@@ -32,6 +33,8 @@ function mapQuestion(q: Record<string, unknown>) {
 }
 
 export default function QuestionsPage() {
+  const queryClient = useQueryClient()
+  const ITEMS_PER_PAGE = 10
   const [currentPage, setCurrentPage] = useState(1)
   const [slideOverOpen, setSlideOverOpen] = useState(false)
   const [editId, setEditId] = useState<string | null>(null)
@@ -148,6 +151,7 @@ export default function QuestionsPage() {
 
       toast.success("Question deleted")
       setDeleteTarget(null)
+      queryClient.invalidateQueries({ queryKey: ["questions"] })
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Failed to delete question")
     }
@@ -207,6 +211,12 @@ export default function QuestionsPage() {
   })
 
   const activeFilterCount = [filterCategory !== "all", filterMedia !== "all", filterAnswers !== "all", searchQuery.length > 0].filter(Boolean).length
+
+  const totalPages = Math.max(1, Math.ceil(filteredQuestions.length / ITEMS_PER_PAGE))
+  const safePage = Math.min(currentPage, totalPages)
+  const paginatedQuestions = filteredQuestions.slice((safePage - 1) * ITEMS_PER_PAGE, safePage * ITEMS_PER_PAGE)
+  const pageFrom = filteredQuestions.length === 0 ? 0 : (safePage - 1) * ITEMS_PER_PAGE + 1
+  const pageTo = Math.min(safePage * ITEMS_PER_PAGE, filteredQuestions.length)
 
   return (
     <section className="px-4 md:px-6 py-8">
@@ -339,7 +349,7 @@ export default function QuestionsPage() {
         )}
 
         <QuestionsTable
-          questions={filteredQuestions}
+          questions={paginatedQuestions}
           isLoading={isLoading}
           onEdit={(q) => handleEdit(q as unknown as Record<string, unknown>)}
           onDelete={(q) => setDeleteTarget(q)}
@@ -347,10 +357,10 @@ export default function QuestionsPage() {
 
         <div className="px-6 py-4 border-t border-surface-container">
           <Pagination
-            currentPage={currentPage}
-            totalPages={Math.max(1, Math.ceil(filteredQuestions.length / 10))}
-            from={filteredQuestions.length > 0 ? 1 : 0}
-            to={Math.min(filteredQuestions.length, 10)}
+            currentPage={safePage}
+            totalPages={totalPages}
+            from={pageFrom}
+            to={pageTo}
             total={filteredQuestions.length}
             onPageChange={setCurrentPage}
           />
