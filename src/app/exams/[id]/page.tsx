@@ -66,6 +66,7 @@ type Question = {
   pauseAt?: number
   media: string | null
   mediaMime: string | null
+  multipleCorrect?: boolean
   answerOptions: AnswerOption[]
   explanation: string | null
   translations?: Record<string, Translation>
@@ -86,9 +87,10 @@ export default function ExamDetailPage() {
   const [currentIndex, setCurrentIndex] = useState(0)
   const [answers, setAnswers] = useState<Record<string, number | null>>({})
   const [submitted, setSubmitted] = useState<Record<string, boolean>>({})
-  const [answerResults, setAnswerResults] = useState<Record<string, { correct: boolean; correct_index: number; explanation: string | null }>>({})
+  const [answerResults, setAnswerResults] = useState<Record<string, { correct: boolean; correct_index: number; correct_indices?: number[]; explanation: string | null }>>({})
   const [hotspotResults, setHotspotResults] = useState<Record<string, { results: { index: number; correct: boolean; distance: number | null }[]; explanation: string | null }>>({})
   const [hotspotAnswers, setHotspotAnswers] = useState<Record<string, { positions: { x: number; y: number }[] }>>({})
+  const [multiSelections, setMultiSelections] = useState<Record<string, number[]>>({})
   const [timeLeft, setTimeLeft] = useState(45 * 60)
   const [showError, setShowError] = useState(false)
   const [showResults, setShowResults] = useState(false)
@@ -190,6 +192,7 @@ export default function ExamDetailPage() {
           pauseAt: (q as Record<string, unknown>).pause_at as number ?? 3,
           media,
           mediaMime: mime,
+          multipleCorrect: !!q.multiple_correct,
           answerOptions: (q.answer_options as AnswerOption[]) ?? [],
           explanation: null,
           translations,
@@ -372,10 +375,54 @@ export default function ExamDetailPage() {
     }
   }, [examActive])
 
+  const toggleMultiSelect = useCallback(
+    (optionIndex: number) => {
+      if (!currentQuestion) return
+      setShowError(false)
+      const qId = currentQuestion.id
+      setMultiSelections((prev) => {
+        const current = prev[qId] ?? []
+        const next = current.includes(optionIndex) ? current.filter((i) => i !== optionIndex) : [...current, optionIndex]
+        return { ...prev, [qId]: next }
+      })
+    },
+    [currentQuestion],
+  )
+
+  const submitMultiSelect = useCallback(
+    async () => {
+      if (!currentQuestion) return
+      const qId = currentQuestion.id
+      const selected = multiSelections[qId] ?? []
+      setShowError(false)
+      if (selected.length === 0) {
+        setShowError(true)
+        return
+      }
+
+      const { data, error } = await supabase.rpc("check_answer_multi", {
+        p_question_id: qId,
+        p_selected_indices: selected,
+      })
+      if (error || !data) {
+        setSubmitted((prev) => ({ ...prev, [qId]: true }))
+        return
+      }
+      setAnswerResults((prev) => ({ ...prev, [qId]: data as { correct: boolean; correct_index: number; correct_indices?: number[]; explanation: string | null } }))
+      setSubmitted((prev) => ({ ...prev, [qId]: true }))
+    },
+    [currentQuestion, multiSelections],
+  )
+
   const handleSelect = useCallback(
     async (optionIndex: number) => {
       if (!currentQuestion) return
       if (hasAnswered) return
+
+      if (currentQuestion.multipleCorrect) {
+        toggleMultiSelect(optionIndex)
+        return
+      }
 
       setShowError(false)
       const questionId = currentQuestion.id
@@ -389,10 +436,10 @@ export default function ExamDetailPage() {
         setSubmitted((prev) => ({ ...prev, [questionId]: true }))
         return
       }
-      setAnswerResults((prev) => ({ ...prev, [questionId]: data as { correct: boolean; correct_index: number; explanation: string | null } }))
+      setAnswerResults((prev) => ({ ...prev, [questionId]: data as { correct: boolean; correct_index: number; correct_indices?: number[]; explanation: string | null } }))
       setSubmitted((prev) => ({ ...prev, [questionId]: true }))
     },
-    [currentQuestion, hasAnswered],
+    [currentQuestion, hasAnswered, toggleMultiSelect],
   )
 
   const goToQuestion = useCallback(
@@ -407,12 +454,16 @@ export default function ExamDetailPage() {
   const goNext = useCallback(() => {
     if (!currentQuestion) return
     if (!hasAnswered) {
-      setShowError(true)
+      if (currentQuestion.multipleCorrect) {
+        submitMultiSelect()
+      } else {
+        setShowError(true)
+      }
       return
     }
     setShowError(false)
     goToQuestion(currentIndex + 1)
-  }, [currentQuestion, hasAnswered, currentIndex, goToQuestion])
+  }, [currentQuestion, hasAnswered, currentIndex, goToQuestion, submitMultiSelect])
 
   const handleFinish = useCallback(() => {
     setShowResults(true)
@@ -545,6 +596,8 @@ export default function ExamDetailPage() {
   const answerResult = answerResults[currentQuestion.id]
   const hotspotResult = hotspotResults[currentQuestion.id]
   const correctIndex = answerResult?.correct_index ?? -1
+  const correctIndices = answerResult?.correct_indices ?? (correctIndex >= 0 ? [correctIndex] : [])
+  const selectedIndices = multiSelections[currentQuestion?.id] ?? (selectedIndex != null ? [selectedIndex] : [])
   const explanationText = answerResult?.explanation ?? hotspotResult?.explanation ?? null
   const isHotspot =
     currentQuestion.media != null &&
@@ -555,9 +608,11 @@ export default function ExamDetailPage() {
 
   const getOptionState = (idx: number) => {
     if (!hasAnswered) return "idle"
-    if (idx === selectedIndex && idx === correctIndex) return "correct-selected"
-    if (idx === selectedIndex && idx !== correctIndex) return "wrong-selected"
-    if (idx !== selectedIndex && idx === correctIndex) return "correct-unselected"
+    const isCorrect = correctIndices.includes(idx)
+    const isSelected = selectedIndices.includes(idx)
+    if (isCorrect && isSelected) return "correct-selected"
+    if (!isCorrect && isSelected) return "wrong-selected"
+    if (isCorrect && !isSelected) return "correct-unselected"
     return "dimmed"
   }
 
@@ -769,6 +824,8 @@ export default function ExamDetailPage() {
                 const qHotspotResult = hotspotResults[q.id]
                 const qSelectedIndex = answers[q.id]
                 const qCorrectIndex = qAnswerResult?.correct_index ?? -1
+                const qCorrectIndices = qAnswerResult?.correct_indices ?? (qCorrectIndex >= 0 ? [qCorrectIndex] : [])
+                const qSelectedMulti = multiSelections[q.id] ?? []
                 const qIsCorrect = qAnswerResult?.correct ?? qHotspotResult?.results.every((r) => r.correct) ?? false
                 const qExplanation = qAnswerResult?.explanation ?? qHotspotResult?.explanation ?? null
                 const qIsHotspot = q.media != null && q.answerOptions.some((o) => o.x != null && o.y != null)
@@ -802,8 +859,8 @@ export default function ExamDetailPage() {
                       {qIsChooseImages ? (
                         <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
                           {q.answerOptions.map((opt, oi) => {
-                            const isSelected = qSelectedIndex === oi
-                            const isCorrectOpt = qCorrectIndex === oi
+                            const isSelected = qSelectedMulti.length > 0 ? qSelectedMulti.includes(oi) : qSelectedIndex === oi
+                            const isCorrectOpt = qCorrectIndices.includes(oi)
                             const borderColor = isCorrectOpt ? "border-green-500" : isSelected && !isCorrectOpt ? "border-red-500" : "border-outline-variant/30"
                             return (
                               <div key={oi} className={`relative rounded-xl overflow-hidden border-2 ${borderColor} ${isCorrectOpt ? "bg-green-50" : isSelected ? "bg-red-50" : ""}`}>
@@ -824,8 +881,8 @@ export default function ExamDetailPage() {
                         <div className="space-y-2">
                           {q.answerOptions.map((opt, oi) => {
                             const prefix = String.fromCharCode(65 + oi)
-                            const isSelected = qSelectedIndex === oi
-                            const isCorrectOpt = qCorrectIndex === oi
+                            const isSelected = qSelectedMulti.length > 0 ? qSelectedMulti.includes(oi) : qSelectedIndex === oi
+                            const isCorrectOpt = qCorrectIndices.includes(oi)
                             const borderColor = isCorrectOpt ? "border-green-500" : isSelected && !isCorrectOpt ? "border-red-500" : "border-outline-variant/30"
                             const bgColor = isCorrectOpt ? "bg-green-50" : isSelected ? "bg-red-50" : "bg-surface"
                             return (
@@ -954,6 +1011,16 @@ export default function ExamDetailPage() {
                 <div className="bg-surface-container-lowest rounded-2xl overflow-hidden border border-outline-variant/10 p-6 md:p-8" style={{ boxShadow: "0px 4px 20px rgba(26,60,110,0.05)" }}>
                 <div className="flex flex-col gap-6">
                   <h1 className="text-headline-md md:text-headline-xl text-on-surface leading-tight">{qText}</h1>
+
+                  {currentQuestion.multipleCorrect && (
+                    <div className="flex flex-wrap items-center gap-2">
+                      <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-primary/10 border border-primary/20 text-primary text-label-sm font-bold">
+                        <CheckCircle size={14} />
+                        {t("exam.multipleAnswers")}
+                      </span>
+                      <span className="text-label-sm text-on-surface-variant">{t("exam.selectAllCorrect")}</span>
+                    </div>
+                  )}
 
                   {(() => {
                     const audio = currentQuestion.audioTranslations
@@ -1098,18 +1165,19 @@ export default function ExamDetailPage() {
                   const optionText = getOptionText(idx)
 
                   if (state === "idle") {
+                    const isMultiSelected = selectedIndices.includes(idx)
                     return (
                       <div
                         key={idx}
                         role="button"
                         tabIndex={0}
-                        onClick={() => handleSelect(idx)}
-                        onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); handleSelect(idx) } }}
-                        className="group relative flex items-center w-full bg-surface-container-lowest p-6 rounded-2xl border-2 border-transparent hover:border-secondary transition-all text-left outline-none active:scale-[0.98] cursor-pointer"
+                        onClick={() => (currentQuestion.multipleCorrect ? toggleMultiSelect(idx) : handleSelect(idx))}
+                        onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); currentQuestion.multipleCorrect ? toggleMultiSelect(idx) : handleSelect(idx) } }}
+                        className={`group relative flex items-center w-full bg-surface-container-lowest p-6 rounded-2xl border-2 transition-all text-left outline-none active:scale-[0.98] cursor-pointer ${isMultiSelected ? "border-primary" : "border-transparent hover:border-secondary"}`}
                         style={{ boxShadow: "0px 4px 20px rgba(26,60,110,0.05)" }}
                       >
-                        <div className="flex-shrink-0 w-12 h-12 flex items-center justify-center rounded-full bg-surface-container text-primary group-hover:bg-secondary-fixed group-hover:text-on-secondary-fixed transition-colors font-bold text-headline-md mr-4">
-                          {prefix}
+                        <div className={`flex-shrink-0 w-12 h-12 flex items-center justify-center rounded-full font-bold text-headline-md mr-4 transition-colors ${isMultiSelected ? "bg-primary text-on-primary" : "bg-surface-container text-primary group-hover:bg-secondary-fixed group-hover:text-on-secondary-fixed"}`}>
+                          {currentQuestion.multipleCorrect && isMultiSelected ? <Check size={20} /> : prefix}
                         </div>
                         <span className="text-body-lg text-on-surface flex-grow">{optionText}</span>
                       </div>

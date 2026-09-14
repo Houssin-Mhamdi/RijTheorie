@@ -69,11 +69,16 @@ BEGIN
     JSONB_BUILD_OBJECT(
       'id', q.id,
       'category', q.category,
-      'question_text', q.question_text,
+'question_text', q.question_text,
       'media', q.media,
       'answer_options', (
         SELECT JSONB_AGG(ao - 'isCorrect')
         FROM JSONB_ARRAY_ELEMENTS(q.answer_options) AS ao
+      ),
+      'multiple_correct', (
+        SELECT COUNT(*) > 1
+        FROM JSONB_ARRAY_ELEMENTS(q.answer_options) AS ao
+        WHERE (ao->>'isCorrect')::boolean
       ),
       'explanation', NULL,
       'translations', q.translations,
@@ -119,9 +124,70 @@ BEGIN
     END IF;
   END LOOP;
 
-  RETURN JSONB_BUILD_OBJECT(
+RETURN JSONB_BUILD_OBJECT(
     'correct', (q_record.answer_options->p_selected_index->>'isCorrect')::boolean,
     'correct_index', correct_idx,
+    'explanation', q_record.explanation
+  );
+END;
+$$;
+
+-- RPC: Check a multi-answer question (exact set match)
+CREATE OR REPLACE FUNCTION public.check_answer_multi(
+  p_question_id UUID,
+  p_selected_indices JSONB
+)
+RETURNS JSONB
+LANGUAGE plpgsql SECURITY DEFINER
+SET search_path = ''
+AS $$
+DECLARE
+  q_record RECORD;
+  correct_arr INT[] := '{}';
+  selected_arr INT[] := '{}';
+  matched INT := 0;
+  total_correct INT;
+  total_selected INT;
+  i INT;
+  v_val TEXT;
+  sel INT;
+BEGIN
+  SELECT * INTO q_record FROM public.questions WHERE id = p_question_id;
+  IF NOT FOUND THEN
+    RETURN JSONB_BUILD_OBJECT('error', 'Question not found');
+  END IF;
+
+  FOR i IN 0..JSONB_ARRAY_LENGTH(q_record.answer_options) - 1
+  LOOP
+    IF (q_record.answer_options->i->>'isCorrect')::boolean THEN
+      correct_arr := array_append(correct_arr, i);
+    END IF;
+  END LOOP;
+
+  FOR i IN 0..JSONB_ARRAY_LENGTH(p_selected_indices) - 1
+  LOOP
+    v_val := p_selected_indices->>i;
+    IF v_val IS NOT NULL AND v_val ~ '^-?[0-9]{1,9}$' THEN
+      sel := v_val::INT;
+      IF NOT (sel = ANY(selected_arr)) THEN
+        selected_arr := array_append(selected_arr, sel);
+      END IF;
+    END IF;
+  END LOOP;
+
+  total_correct := COALESCE(array_length(correct_arr, 1), 0);
+  total_selected := COALESCE(array_length(selected_arr, 1), 0);
+
+  FOR i IN 1..total_correct
+  LOOP
+    IF correct_arr[i] = ANY(selected_arr) THEN
+      matched := matched + 1;
+    END IF;
+  END LOOP;
+
+  RETURN JSONB_BUILD_OBJECT(
+    'correct', total_correct > 1 AND total_selected = total_correct AND matched = total_correct,
+    'correct_indices', to_jsonb(correct_arr),
     'explanation', q_record.explanation
   );
 END;
@@ -683,6 +749,9 @@ GRANT EXECUTE ON FUNCTION public.get_exam_questions(UUID) TO authenticated;
 
 REVOKE EXECUTE ON FUNCTION public.check_answer(UUID, INT) FROM PUBLIC, anon;
 GRANT EXECUTE ON FUNCTION public.check_answer(UUID, INT) TO authenticated;
+
+REVOKE EXECUTE ON FUNCTION public.check_answer_multi(UUID, JSONB) FROM PUBLIC, anon;
+GRANT EXECUTE ON FUNCTION public.check_answer_multi(UUID, JSONB) TO authenticated;
 
 REVOKE EXECUTE ON FUNCTION public.check_hotspot(UUID, JSONB) FROM PUBLIC, anon;
 GRANT EXECUTE ON FUNCTION public.check_hotspot(UUID, JSONB) TO authenticated;

@@ -39,6 +39,7 @@ type FreeQuestion = {
   pauseAt?: number
   media: string | null
   mediaMime: string | null
+  multipleCorrect?: boolean
   answerOptions: AnswerOption[]
   translations?: Record<string, { question_text?: string; answer_options?: { text: string }[]; explanation?: string }>
   audioTranslations?: Record<string, string>
@@ -58,9 +59,10 @@ export default function GratisExamenPage() {
   const [currentIndex, setCurrentIndex] = useState(0)
   const [answers, setAnswers] = useState<Record<string, number | null>>({})
   const [submitted, setSubmitted] = useState<Record<string, boolean>>({})
-  const [answerResults, setAnswerResults] = useState<Record<string, { correct: boolean; correct_index: number; explanation: string | null }>>({})
+  const [answerResults, setAnswerResults] = useState<Record<string, { correct: boolean; correct_index: number; correct_indices?: number[]; explanation: string | null }>>({})
   const [hotspotResults, setHotspotResults] = useState<Record<string, { results: { index: number; correct: boolean; distance: number | null }[]; explanation: string | null }>>({})
   const [hotspotAnswers, setHotspotAnswers] = useState<Record<string, { positions: { x: number; y: number }[] }>>({})
+  const [multiSelections, setMultiSelections] = useState<Record<string, number[]>>({})
   const [timeLeft, setTimeLeft] = useState(45 * 60)
   const [showError, setShowError] = useState(false)
   const [showResults, setShowResults] = useState(false)
@@ -111,17 +113,52 @@ export default function GratisExamenPage() {
     return res.json()
   }, [])
 
+  const toggleMultiSelect = useCallback(
+    (optionIndex: number) => {
+      if (!currentQuestion) return
+      setShowError(false)
+      const qId = currentQuestion.id
+      setMultiSelections((prev) => {
+        const current = prev[qId] ?? []
+        const next = current.includes(optionIndex) ? current.filter((i) => i !== optionIndex) : [...current, optionIndex]
+        return { ...prev, [qId]: next }
+      })
+    },
+    [currentQuestion],
+  )
+
+  const submitMultiSelect = useCallback(
+    async () => {
+      if (!currentQuestion) return
+      const qId = currentQuestion.id
+      const selected = multiSelections[qId] ?? []
+      setShowError(false)
+      if (selected.length === 0) {
+        setShowError(true)
+        return
+      }
+      const data = await check(qId, { type: "multi", selectedIndices: selected })
+      setAnswerResults((prev) => ({ ...prev, [qId]: data as { correct: boolean; correct_index: number; correct_indices?: number[]; explanation: string | null } }))
+      setSubmitted((prev) => ({ ...prev, [qId]: true }))
+    },
+    [currentQuestion, multiSelections, check],
+  )
+
   const handleSelect = useCallback(
     async (optionIndex: number) => {
       if (!currentQuestion || hasAnswered) return
       setShowError(false)
+      if (currentQuestion.multipleCorrect) {
+        toggleMultiSelect(optionIndex)
+        return
+      }
       const qId = currentQuestion.id
       setAnswers((prev) => ({ ...prev, [qId]: optionIndex }))
       const data = await check(qId, { type: "choice", selectedIndex: optionIndex })
-      setAnswerResults((prev) => ({ ...prev, [qId]: data as { correct: boolean; correct_index: number; explanation: string | null } }))
+      setAnswerResults((prev) => ({ ...prev, [qId]: data as { correct: boolean; correct_index: number; correct_indices?: number[]; explanation: string | null } }))
       setSubmitted((prev) => ({ ...prev, [qId]: true }))
     },
-    [currentQuestion, hasAnswered, check],
+    [currentQuestion, hasAnswered, check, toggleMultiSelect],
   )
 
   const handleHotspotSubmit = useCallback(
@@ -140,12 +177,16 @@ export default function GratisExamenPage() {
   const goNext = useCallback(() => {
     if (!currentQuestion) return
     if (!hasAnswered) {
-      setShowError(true)
+      if (currentQuestion.multipleCorrect) {
+        submitMultiSelect()
+      } else {
+        setShowError(true)
+      }
       return
     }
     setShowError(false)
     setCurrentIndex((i) => Math.min(i + 1, totalQuestions - 1))
-  }, [currentQuestion, hasAnswered, totalQuestions])
+  }, [currentQuestion, hasAnswered, totalQuestions, submitMultiSelect])
 
   const goPrev = useCallback(() => {
     setShowError(false)
@@ -197,6 +238,8 @@ export default function GratisExamenPage() {
   const answerResult = answerResults[currentQuestion.id]
   const hotspotResult = hotspotResults[currentQuestion.id]
   const correctIndex = answerResult?.correct_index ?? -1
+  const correctIndices = answerResult?.correct_indices ?? (correctIndex >= 0 ? [correctIndex] : [])
+  const selectedIndices = multiSelections[currentQuestion?.id] ?? (selectedIndex != null ? [selectedIndex] : [])
   const explanationText = answerResult?.explanation ?? hotspotResult?.explanation ?? null
   const isLastQuestion = currentIndex === totalQuestions - 1
 
@@ -210,9 +253,11 @@ export default function GratisExamenPage() {
 
   const getOptionState = (idx: number) => {
     if (!hasAnswered) return "idle"
-    if (idx === selectedIndex && idx === correctIndex) return "correct-selected"
-    if (idx === selectedIndex && idx !== correctIndex) return "wrong-selected"
-    if (idx !== selectedIndex && idx === correctIndex) return "correct-unselected"
+    const isCorrect = correctIndices.includes(idx)
+    const isSelected = selectedIndices.includes(idx)
+    if (isCorrect && isSelected) return "correct-selected"
+    if (!isCorrect && isSelected) return "wrong-selected"
+    if (isCorrect && !isSelected) return "correct-unselected"
     return "dimmed"
   }
 
@@ -256,6 +301,8 @@ export default function GratisExamenPage() {
                 const qHot = hotspotResults[q.id]
                 const qSel = answers[q.id]
                 const qCorrectIdx = qRes?.correct_index ?? -1
+                const qCorrectIndices = qRes?.correct_indices ?? (qCorrectIdx >= 0 ? [qCorrectIdx] : [])
+                const qSelectedMulti = multiSelections[q.id] ?? []
                 const qCorrect = qRes?.correct ?? qHot?.results.every((r) => r.correct) ?? false
                 const qExpl = qRes?.explanation ?? qHot?.explanation ?? null
                 const qHotQ = q.media != null && q.answerOptions.some((o) => o.x != null && o.y != null)
@@ -282,8 +329,8 @@ export default function GratisExamenPage() {
                       {qChoose ? (
                         <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
                           {q.answerOptions.map((opt, oi) => {
-                            const isCorrectOpt = qCorrectIdx === oi
-                            const isSel = qSel === oi
+                            const isCorrectOpt = qCorrectIndices.includes(oi)
+                            const isSel = qSelectedMulti.length > 0 ? qSelectedMulti.includes(oi) : qSel === oi
                             return (
                               <div key={oi} className={`relative rounded-xl overflow-hidden border-2 ${isCorrectOpt ? "border-green-500" : isSel ? "border-red-500" : "border-slate-200"}`}>
                                 {opt.imageUrl && <SmartImage src={opt.imageUrl} alt="" className="w-full aspect-square object-cover" />}
@@ -294,8 +341,8 @@ export default function GratisExamenPage() {
                       ) : !qHotQ ? (
                         <div className="space-y-2">
                           {q.answerOptions.map((opt, oi) => {
-                            const isCorrectOpt = qCorrectIdx === oi
-                            const isSel = qSel === oi
+                            const isCorrectOpt = qCorrectIndices.includes(oi)
+                            const isSel = qSelectedMulti.length > 0 ? qSelectedMulti.includes(oi) : qSel === oi
                             return (
                               <div key={oi} className={`flex items-center p-3 border-2 rounded-xl ${isCorrectOpt ? "border-green-500 bg-green-50" : isSel ? "border-red-500 bg-red-50" : "border-slate-200"}`}>
                                 <span className="text-sm flex-1">{opt.text}</span>
@@ -372,6 +419,15 @@ export default function GratisExamenPage() {
                 </span>
               )}
               <h1 className="text-xl md:text-2xl font-bold text-slate-900 leading-tight">{currentQuestion.questionText}</h1>
+              {currentQuestion.multipleCorrect && (
+                <div className="flex flex-wrap items-center gap-2">
+                  <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-blue-50 border border-blue-200 text-blue-700 text-xs font-bold">
+                    <CheckCircle size={14} />
+                    Meerdere antwoorden juist
+                  </span>
+                  <span className="text-xs text-slate-500">Selecteer alle juiste antwoorden</span>
+                </div>
+              )}
               {currentQuestion.media && !isHotspot && !isChooseImages && (
                 <div className="rounded-xl overflow-hidden aspect-video bg-slate-100">
                   {currentQuestion.mediaMime?.startsWith("video/") ? (
@@ -451,14 +507,15 @@ export default function GratisExamenPage() {
               const state = getOptionState(idx)
               const prefix = String.fromCharCode(65 + idx)
               if (state === "idle") {
+                const isMultiSelected = selectedIndices.includes(idx)
                 return (
                   <button
                     key={idx}
-                    onClick={() => handleSelect(idx)}
-                    className="w-full flex items-center p-4 bg-white border-2 border-slate-200 rounded-xl hover:border-primary hover:shadow-sm active:scale-[0.99] transition-all cursor-pointer text-left"
+                    onClick={() => (currentQuestion.multipleCorrect ? toggleMultiSelect(idx) : handleSelect(idx))}
+                    className={`w-full flex items-center p-4 border-2 rounded-xl transition-all cursor-pointer text-left active:scale-[0.99] ${isMultiSelected ? "border-primary bg-blue-50" : "border-slate-200 bg-white hover:border-primary hover:shadow-sm"}`}
                   >
-                    <span className="size-9 rounded-full bg-slate-100 flex items-center justify-center font-bold text-sm text-slate-600 mr-3">
-                      {prefix}
+                    <span className={`size-9 rounded-full flex items-center justify-center font-bold text-sm mr-3 transition-colors ${isMultiSelected ? "bg-primary text-white" : "bg-slate-100 text-slate-600"}`}>
+                      {currentQuestion.multipleCorrect && isMultiSelected ? <Check size={16} /> : prefix}
                     </span>
                     <span className="text-sm md:text-base text-slate-800 flex-1">{option.text}</span>
                   </button>

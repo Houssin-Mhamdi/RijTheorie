@@ -52,6 +52,7 @@ export async function POST(req: Request) {
       pauseAt: (q.pause_at as number) ?? 3,
       media,
       mediaMime: mime,
+      multipleCorrect: !!q.multiple_correct,
       answerOptions: q.answer_options ?? [],
       translations: q.translations ?? undefined,
       audioTranslations: q.audio_translations ?? {},

@@ -536,6 +536,15 @@ export default function QuestionForm({ onSubmit, isPending, initialData, userId,
                 </button>
               </div>
             </div>
+            {(() => {
+              const n = fields.filter((f) => f.isCorrect).length
+              if (n <= 1) return null
+              return (
+                <p className="text-label-sm text-secondary bg-secondary-container/30 border border-secondary-container rounded-lg px-3 py-2">
+                  {n} correct answers selected — students must select all of them to get this question right.
+                </p>
+              )
+            })()}
             {fields.map((field, index) => (
               <div key={field.id} className="flex gap-3 items-center group">
                 <div className="size-8 rounded-full bg-primary flex items-center justify-center text-white font-bold text-sm shrink-0 mt-3">
