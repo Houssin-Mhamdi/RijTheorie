@@ -8,7 +8,7 @@ export async function POST(req: Request) {
     return Response.json({ error: "Server misconfigured" }, { status: 500 })
   }
 
-  let body: { questionId?: string; type?: string; selectedIndex?: number; selectedIndices?: number[]; positions?: { x: number; y: number }[] }
+  let body: { questionId?: string; type?: string; selectedIndex?: number; selectedIndices?: number[]; positions?: { x: number; y: number }[]; final?: boolean }
   try {
     body = await req.json()
   } catch {
@@ -33,6 +33,7 @@ export async function POST(req: Request) {
     const { data, error } = await admin.rpc("check_answer_multi", {
       p_question_id: body.questionId,
       p_selected_indices: body.selectedIndices ?? [],
+      p_final: body.final ?? false,
     })
     if (error) return Response.json({ error: error.message }, { status: 500 })
     return Response.json(data)

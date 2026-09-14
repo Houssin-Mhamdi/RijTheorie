@@ -103,6 +103,7 @@ export default function ExamDetailPage() {
   const attemptCreated = useRef(false)
   const attemptIdRef = useRef<string | null>(null)
   const timeUpHandled = useRef(false)
+  const autoAdvanceTimer = useRef<number | null>(null)
   const examStartTime = useRef(Date.now())
   const questionSoundRef = useRef<Howl | null>(null)
   const explanationSoundRef = useRef<Howl | null>(null)
@@ -375,43 +376,66 @@ export default function ExamDetailPage() {
     }
   }, [examActive])
 
-  const toggleMultiSelect = useCallback(
-    (optionIndex: number) => {
-      if (!currentQuestion) return
+  const goToQuestion = useCallback(
+    (index: number) => {
+      if (index < 0 || index >= totalQuestions) return
+      if (autoAdvanceTimer.current) {
+        window.clearTimeout(autoAdvanceTimer.current)
+        autoAdvanceTimer.current = null
+      }
       setShowError(false)
-      const qId = currentQuestion.id
-      setMultiSelections((prev) => {
-        const current = prev[qId] ?? []
-        const next = current.includes(optionIndex) ? current.filter((i) => i !== optionIndex) : [...current, optionIndex]
-        return { ...prev, [qId]: next }
-      })
+      setCurrentIndex(index)
     },
-    [currentQuestion],
+    [totalQuestions],
   )
 
-  const submitMultiSelect = useCallback(
-    async () => {
-      if (!currentQuestion) return
-      const qId = currentQuestion.id
-      const selected = multiSelections[qId] ?? []
-      setShowError(false)
+  const submitMultiSelection = useCallback(
+    async (qId: string, selected: number[], final: boolean): Promise<{ status?: string; correct: boolean } | null> => {
       if (selected.length === 0) {
-        setShowError(true)
-        return
+        if (final) setShowError(true)
+        return null
       }
 
       const { data, error } = await supabase.rpc("check_answer_multi", {
         p_question_id: qId,
         p_selected_indices: selected,
+        p_final: final,
       })
       if (error || !data) {
-        setSubmitted((prev) => ({ ...prev, [qId]: true }))
-        return
+        if (final) setShowError(true)
+        return null
       }
-      setAnswerResults((prev) => ({ ...prev, [qId]: data as { correct: boolean; correct_index: number; correct_indices?: number[]; explanation: string | null } }))
+      const result = data as { status?: string; correct: boolean; correct_index: number; correct_indices?: number[]; explanation: string | null }
+      if (result.status === "partial") return result
+      setShowError(false)
+      setAnswerResults((prev) => ({ ...prev, [qId]: result }))
       setSubmitted((prev) => ({ ...prev, [qId]: true }))
+      return result
     },
-    [currentQuestion, multiSelections],
+    [],
+  )
+
+  const toggleMultiSelect = useCallback(
+    (optionIndex: number) => {
+      if (!currentQuestion || hasAnswered) return
+      setShowError(false)
+      const qId = currentQuestion.id
+      const current = multiSelections[qId] ?? []
+      const next = current.includes(optionIndex) ? current.filter((i) => i !== optionIndex) : [...current, optionIndex]
+      setMultiSelections((prev) => ({ ...prev, [qId]: next }))
+      if (next.length === 0) return
+      void submitMultiSelection(qId, next, false).then((result) => {
+        if (!result || result.status !== "correct") return
+        if (currentIndex < totalQuestions - 1) {
+          const timer = window.setTimeout(() => {
+            goToQuestion(currentIndex + 1)
+          }, 900)
+          if (autoAdvanceTimer.current) window.clearTimeout(autoAdvanceTimer.current)
+          autoAdvanceTimer.current = timer
+        }
+      })
+    },
+    [currentQuestion, hasAnswered, multiSelections, submitMultiSelection, currentIndex, totalQuestions, goToQuestion],
   )
 
   const handleSelect = useCallback(
@@ -442,20 +466,11 @@ export default function ExamDetailPage() {
     [currentQuestion, hasAnswered, toggleMultiSelect],
   )
 
-  const goToQuestion = useCallback(
-    (index: number) => {
-      if (index < 0 || index >= totalQuestions) return
-      setShowError(false)
-      setCurrentIndex(index)
-    },
-    [totalQuestions],
-  )
-
   const goNext = useCallback(() => {
     if (!currentQuestion) return
     if (!hasAnswered) {
       if (currentQuestion.multipleCorrect) {
-        submitMultiSelect()
+        void submitMultiSelection(currentQuestion.id, multiSelections[currentQuestion.id] ?? [], true)
       } else {
         setShowError(true)
       }
@@ -463,7 +478,7 @@ export default function ExamDetailPage() {
     }
     setShowError(false)
     goToQuestion(currentIndex + 1)
-  }, [currentQuestion, hasAnswered, currentIndex, goToQuestion, submitMultiSelect])
+  }, [currentQuestion, hasAnswered, currentIndex, goToQuestion, submitMultiSelection, multiSelections])
 
   const handleFinish = useCallback(() => {
     setShowResults(true)

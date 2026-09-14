@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useState, useCallback } from "react"
+import { useEffect, useState, useCallback, useRef } from "react"
 import { useParams, useRouter } from "next/navigation"
 import {
   ChevronLeft,
@@ -66,6 +66,7 @@ export default function GratisExamenPage() {
   const [timeLeft, setTimeLeft] = useState(45 * 60)
   const [showError, setShowError] = useState(false)
   const [showResults, setShowResults] = useState(false)
+  const autoAdvanceTimer = useRef<number | null>(null)
 
   const currentQuestion = questions[currentIndex]
   const totalQuestions = questions.length
@@ -113,35 +114,48 @@ export default function GratisExamenPage() {
     return res.json()
   }, [])
 
-  const toggleMultiSelect = useCallback(
-    (optionIndex: number) => {
-      if (!currentQuestion) return
+  const submitMultiSelection = useCallback(
+    async (qId: string, selected: number[], final: boolean): Promise<{ status?: string; correct: boolean } | null> => {
+      if (selected.length === 0) {
+        if (final) setShowError(true)
+        return null
+      }
+      const data = await check(qId, { type: "multi", selectedIndices: selected, final })
+      if (!data || typeof data !== "object") {
+        if (final) setShowError(true)
+        return null
+      }
+      const result = data as { status?: string; correct: boolean; correct_index: number; correct_indices?: number[]; explanation: string | null }
+      if (result.status === "partial") return result
       setShowError(false)
-      const qId = currentQuestion.id
-      setMultiSelections((prev) => {
-        const current = prev[qId] ?? []
-        const next = current.includes(optionIndex) ? current.filter((i) => i !== optionIndex) : [...current, optionIndex]
-        return { ...prev, [qId]: next }
-      })
+      setAnswerResults((prev) => ({ ...prev, [qId]: result }))
+      setSubmitted((prev) => ({ ...prev, [qId]: true }))
+      return result
     },
-    [currentQuestion],
+    [check],
   )
 
-  const submitMultiSelect = useCallback(
-    async () => {
-      if (!currentQuestion) return
-      const qId = currentQuestion.id
-      const selected = multiSelections[qId] ?? []
+  const toggleMultiSelect = useCallback(
+    (optionIndex: number) => {
+      if (!currentQuestion || hasAnswered) return
       setShowError(false)
-      if (selected.length === 0) {
-        setShowError(true)
-        return
-      }
-      const data = await check(qId, { type: "multi", selectedIndices: selected })
-      setAnswerResults((prev) => ({ ...prev, [qId]: data as { correct: boolean; correct_index: number; correct_indices?: number[]; explanation: string | null } }))
-      setSubmitted((prev) => ({ ...prev, [qId]: true }))
+      const qId = currentQuestion.id
+      const current = multiSelections[qId] ?? []
+      const next = current.includes(optionIndex) ? current.filter((i) => i !== optionIndex) : [...current, optionIndex]
+      setMultiSelections((prev) => ({ ...prev, [qId]: next }))
+      if (next.length === 0) return
+      void submitMultiSelection(qId, next, false).then((result) => {
+        if (!result || result.status !== "correct") return
+        if (currentIndex < totalQuestions - 1) {
+          const timer = window.setTimeout(() => {
+            setCurrentIndex((i) => Math.min(i + 1, totalQuestions - 1))
+          }, 900)
+          if (autoAdvanceTimer.current) window.clearTimeout(autoAdvanceTimer.current)
+          autoAdvanceTimer.current = timer
+        }
+      })
     },
-    [currentQuestion, multiSelections, check],
+    [currentQuestion, hasAnswered, multiSelections, submitMultiSelection, currentIndex, totalQuestions],
   )
 
   const handleSelect = useCallback(
@@ -176,9 +190,13 @@ export default function GratisExamenPage() {
 
   const goNext = useCallback(() => {
     if (!currentQuestion) return
+    if (autoAdvanceTimer.current) {
+      window.clearTimeout(autoAdvanceTimer.current)
+      autoAdvanceTimer.current = null
+    }
     if (!hasAnswered) {
       if (currentQuestion.multipleCorrect) {
-        submitMultiSelect()
+        void submitMultiSelection(currentQuestion.id, multiSelections[currentQuestion.id] ?? [], true)
       } else {
         setShowError(true)
       }
@@ -186,9 +204,13 @@ export default function GratisExamenPage() {
     }
     setShowError(false)
     setCurrentIndex((i) => Math.min(i + 1, totalQuestions - 1))
-  }, [currentQuestion, hasAnswered, totalQuestions, submitMultiSelect])
+  }, [currentQuestion, hasAnswered, totalQuestions, submitMultiSelection, multiSelections])
 
   const goPrev = useCallback(() => {
+    if (autoAdvanceTimer.current) {
+      window.clearTimeout(autoAdvanceTimer.current)
+      autoAdvanceTimer.current = null
+    }
     setShowError(false)
     setCurrentIndex((i) => Math.max(i - 1, 0))
   }, [])

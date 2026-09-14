@@ -395,10 +395,11 @@ RETURN JSONB_BUILD_OBJECT(
 END;
 $$;
 
--- RPC: Check a multi-answer question (exact set match)
+-- RPC: Check a multi-answer question (exact set match, immediate status feedback)
 CREATE OR REPLACE FUNCTION public.check_answer_multi(
   p_question_id UUID,
-  p_selected_indices JSONB
+  p_selected_indices JSONB,
+  p_final BOOLEAN DEFAULT false
 )
 RETURNS JSONB
 LANGUAGE plpgsql SECURITY DEFINER
@@ -414,6 +415,9 @@ DECLARE
   i INT;
   v_val TEXT;
   sel INT;
+  has_wrong BOOLEAN := false;
+  complete BOOLEAN := false;
+  status TEXT;
 BEGIN
   SELECT * INTO q_record FROM public.questions WHERE id = p_question_id;
   IF NOT FOUND THEN
@@ -441,17 +445,44 @@ BEGIN
   total_correct := COALESCE(array_length(correct_arr, 1), 0);
   total_selected := COALESCE(array_length(selected_arr, 1), 0);
 
-  FOR i IN 1..total_correct
+  matched := 0;
+  FOR i IN 1..total_selected
   LOOP
-    IF correct_arr[i] = ANY(selected_arr) THEN
+    IF selected_arr[i] = ANY(correct_arr) THEN
       matched := matched + 1;
     END IF;
   END LOOP;
+  has_wrong := matched < total_selected;
+
+  complete := true;
+  FOR i IN 1..total_correct
+  LOOP
+    IF NOT (correct_arr[i] = ANY(selected_arr)) THEN
+      complete := false;
+    END IF;
+  END LOOP;
+
+  IF total_selected = 0 THEN
+    status := 'empty';
+  ELSIF has_wrong THEN
+    status := 'wrong';
+  ELSIF complete THEN
+    status := 'correct';
+  ELSE
+    status := 'partial';
+  END IF;
+
+  IF p_final AND status = 'partial' THEN
+    status := 'wrong';
+  END IF;
 
   RETURN JSONB_BUILD_OBJECT(
-    'correct', total_correct > 1 AND total_selected = total_correct AND matched = total_correct,
-    'correct_indices', to_jsonb(correct_arr),
-    'explanation', q_record.explanation
+    'status', status,
+    'correct', status = 'correct',
+    'correct_indices',
+      CASE WHEN status IN ('correct', 'wrong') THEN to_jsonb(correct_arr) ELSE NULL END,
+    'explanation',
+      CASE WHEN status IN ('correct', 'wrong') THEN q_record.explanation ELSE NULL END
   );
 END;
 $$;
@@ -947,8 +978,8 @@ GRANT EXECUTE ON FUNCTION public.get_exam_questions(UUID) TO authenticated;
 REVOKE EXECUTE ON FUNCTION public.check_answer(UUID, INT) FROM PUBLIC, anon;
 GRANT EXECUTE ON FUNCTION public.check_answer(UUID, INT) TO authenticated;
 
-REVOKE EXECUTE ON FUNCTION public.check_answer_multi(UUID, JSONB) FROM PUBLIC, anon;
-GRANT EXECUTE ON FUNCTION public.check_answer_multi(UUID, JSONB) TO authenticated;
+REVOKE EXECUTE ON FUNCTION public.check_answer_multi(UUID, JSONB, BOOLEAN) FROM PUBLIC, anon;
+GRANT EXECUTE ON FUNCTION public.check_answer_multi(UUID, JSONB, BOOLEAN) TO authenticated;
 
 REVOKE EXECUTE ON FUNCTION public.check_hotspot(UUID, JSONB) FROM PUBLIC, anon;
 GRANT EXECUTE ON FUNCTION public.check_hotspot(UUID, JSONB) TO authenticated;
