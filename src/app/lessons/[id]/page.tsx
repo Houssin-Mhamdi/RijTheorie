@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useRef, useState } from "react"
 import { useParams, useRouter } from "next/navigation"
 import { supabase } from "@/lib/supabase"
 import { useSupabaseQuery, useSupabaseMutation } from "@/lib/supabase-queries"
@@ -19,6 +19,7 @@ export default function CourseDetailPage() {
   const router = useRouter()
   const [slideOverOpen, setSlideOverOpen] = useState(false)
   const [editingExam, setEditingExam] = useState<Record<string, unknown> | null>(null)
+  const savingRef = useRef(false)
 
   const { data: courseData, isLoading: courseLoading } = useSupabaseQuery(
     ["course", id],
@@ -56,6 +57,8 @@ export default function CourseDetailPage() {
   const exams = (examsData as Record<string, unknown>[] | undefined) || []
 
   async function handleSubmit(data: ExamInput) {
+    if (savingRef.current) return
+    savingRef.current = true
     try {
       if (editingExam) {
         await updateMutation.mutateAsync(data)
@@ -69,6 +72,8 @@ export default function CourseDetailPage() {
       refetchExams()
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Failed to save exam")
+    } finally {
+      savingRef.current = false
     }
   }
 
