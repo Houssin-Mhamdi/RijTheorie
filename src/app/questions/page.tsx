@@ -129,6 +129,8 @@ export default function QuestionsPage() {
   async function handleDelete() {
     if (!deleteTarget) return
     try {
+      await supabase.from("questions").delete().eq("id", deleteTarget.id)
+
       const { deleteCloudinaryAsset } = await import("@/lib/cloudinary")
       const rows = (questionsData as Record<string, unknown>[] | undefined) || []
       const q = rows.find((r) => r.id === deleteTarget.id)
@@ -141,10 +143,9 @@ export default function QuestionsPage() {
         const expAudio = (q.explanation_audio_translations as Record<string, string>) || {}
         for (const v of Object.values(audio)) if (v) urls.push(v)
         for (const v of Object.values(expAudio)) if (v) urls.push(v)
-        await Promise.allSettled(urls.map((u) => deleteCloudinaryAsset(u)))
+        Promise.allSettled(urls.map((u) => deleteCloudinaryAsset(u)))
       }
 
-      await supabase.from("questions").delete().eq("id", deleteTarget.id)
       toast.success("Question deleted")
       setDeleteTarget(null)
     } catch (e) {
