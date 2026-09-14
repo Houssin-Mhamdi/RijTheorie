@@ -69,6 +69,15 @@ function AudioField({ lang, value, disabled, onSelect, onRemove }: AudioFieldPro
   )
 }
 
+function detectType(data: QuestionInput): "normal" | "right-of-way" | "choose-images" {
+  if (data.category === "Right of Way") return "right-of-way"
+  if (data.category === "Choose Images") return "choose-images"
+  const opts = data.answerOptions ?? []
+  if (opts.some((o) => o.x != null && o.y != null)) return "right-of-way"
+  if (opts.some((o) => o.imageUrl)) return "choose-images"
+  return "normal"
+}
+
 export default function QuestionForm({ onSubmit, isPending, initialData, userId, onUploadingChange }: QuestionFormProps) {
   const form = useForm<QuestionInput>({
     resolver: zodResolver(questionSchema) as Resolver<QuestionInput>,
@@ -106,13 +115,12 @@ export default function QuestionForm({ onSubmit, isPending, initialData, userId,
   const category = form.watch("category")
   const hasMedia = !!mediaPreview
 
-  const [typeChoice, setTypeChoice] = useState<"normal" | "right-of-way" | "choose-images">(() =>
-    initialData?.category === "Right of Way"
-      ? "right-of-way"
-      : initialData?.category === "Choose Images"
-        ? "choose-images"
-        : "normal",
-  )
+  const [typeChoice, setTypeChoice] = useState<"normal" | "right-of-way" | "choose-images">(() => {
+    if (initialData) {
+      return detectType(initialData)
+    }
+    return "normal"
+  })
 
   const isImageHotspot = typeChoice === "right-of-way" && hasMedia && mediaMime.startsWith("image/")
   const isVideoHotspot = typeChoice === "right-of-way" && hasMedia && mediaMime.startsWith("video/")
@@ -123,13 +131,7 @@ export default function QuestionForm({ onSubmit, isPending, initialData, userId,
   useEffect(() => {
     if (initialData) {
       form.reset(initialData)
-      setTypeChoice(
-        initialData.category === "Right of Way"
-          ? "right-of-way"
-          : initialData.category === "Choose Images"
-            ? "choose-images"
-            : "normal",
-      )
+      setTypeChoice(detectType(initialData))
       if (initialData.translations?.length) {
         replaceTranslation(initialData.translations)
       }
@@ -342,6 +344,8 @@ export default function QuestionForm({ onSubmit, isPending, initialData, userId,
                   )}
                 >
                    <option value="" disabled>Select a category</option>
+                  <option value="Right of Way">Right of Way</option>
+                  <option value="Choose Images">Choose Images</option>
                   <option value="Hazard Perception">Hazard Perception</option>
                   <option value="Priority">Priority</option>
                   <option value="Traffic">Traffic</option>
