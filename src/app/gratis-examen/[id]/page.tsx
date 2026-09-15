@@ -66,6 +66,7 @@ export default function GratisExamenPage() {
   const [timeLeft, setTimeLeft] = useState(45 * 60)
   const [showError, setShowError] = useState(false)
   const [showResults, setShowResults] = useState(false)
+  const [locking, setLocking] = useState<string | null>(null)
   const autoAdvanceTimer = useRef<number | null>(null)
 
   const currentQuestion = questions[currentIndex]
@@ -168,7 +169,9 @@ export default function GratisExamenPage() {
       }
       const qId = currentQuestion.id
       setAnswers((prev) => ({ ...prev, [qId]: optionIndex }))
+      setLocking(qId)
       const data = await check(qId, { type: "choice", selectedIndex: optionIndex })
+      setLocking(null)
       setAnswerResults((prev) => ({ ...prev, [qId]: data as { correct: boolean; correct_index: number; correct_indices?: number[]; explanation: string | null } }))
       setSubmitted((prev) => ({ ...prev, [qId]: true }))
     },
@@ -499,6 +502,18 @@ export default function GratisExamenPage() {
             {currentQuestion.answerOptions.map((option, idx) => {
               const state = getOptionState(idx)
               if (state === "idle") {
+                const isLocked = locking === currentQuestion.id
+                if (isLocked) {
+                  return (
+                    <div
+                      key={idx}
+                      className={`relative rounded-xl overflow-hidden border-2 transition-all cursor-not-allowed ${answers[currentQuestion.id] === idx ? "border-primary" : "border-slate-200 opacity-40"}`}
+                      aria-disabled="true"
+                    >
+                      {option.imageUrl && <SmartImage src={option.imageUrl} alt="" className="w-full aspect-square object-cover" />}
+                    </div>
+                  )
+                }
                 return (
                   <button
                     key={idx}
@@ -530,6 +545,22 @@ export default function GratisExamenPage() {
               const prefix = String.fromCharCode(65 + idx)
               if (state === "idle") {
                 const isMultiSelected = selectedIndices.includes(idx)
+                const isLocked = !currentQuestion.multipleCorrect && locking === currentQuestion.id
+                const isChosen = answers[currentQuestion.id] === idx
+                if (isLocked) {
+                  return (
+                    <div
+                      key={idx}
+                      className={`w-full flex items-center p-4 border-2 rounded-xl transition-all cursor-not-allowed ${isChosen ? "border-primary bg-blue-50" : "border-slate-200 opacity-50"}`}
+                      aria-disabled="true"
+                    >
+                      <span className={`size-9 rounded-full flex items-center justify-center font-bold text-sm mr-3 ${isChosen ? "bg-primary text-white" : "bg-slate-100 text-slate-400"}`}>
+                        {prefix}
+                      </span>
+                      <span className="text-sm md:text-base text-slate-800 flex-1">{option.text}</span>
+                    </div>
+                  )
+                }
                 return (
                   <button
                     key={idx}

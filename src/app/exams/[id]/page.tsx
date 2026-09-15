@@ -91,6 +91,7 @@ export default function ExamDetailPage() {
   const [hotspotResults, setHotspotResults] = useState<Record<string, { results: { index: number; correct: boolean; distance: number | null }[]; explanation: string | null }>>({})
   const [hotspotAnswers, setHotspotAnswers] = useState<Record<string, { positions: { x: number; y: number }[] }>>({})
   const [multiSelections, setMultiSelections] = useState<Record<string, number[]>>({})
+  const [locking, setLocking] = useState<string | null>(null)
   const [timeLeft, setTimeLeft] = useState(45 * 60)
   const [showError, setShowError] = useState(false)
   const [showResults, setShowResults] = useState(false)
@@ -451,11 +452,13 @@ export default function ExamDetailPage() {
       setShowError(false)
       const questionId = currentQuestion.id
       setAnswers((prev) => ({ ...prev, [questionId]: optionIndex }))
+      setLocking(questionId)
 
       const { data, error } = await supabase.rpc("check_answer", {
         p_question_id: questionId,
         p_selected_index: optionIndex,
       })
+      setLocking(null)
       if (error || !data) {
         setSubmitted((prev) => ({ ...prev, [questionId]: true }))
         return
@@ -1140,6 +1143,19 @@ export default function ExamDetailPage() {
                 {currentQuestion.answerOptions.map((option, idx) => {
                   const state = getOptionState(idx)
                   if (state === "idle") {
+                    const isLocked = locking === currentQuestion.id
+                    const isChosen = answers[currentQuestion.id] === idx
+                    if (isLocked) {
+                      return (
+                        <div
+                          key={idx}
+                          className={`relative rounded-xl overflow-hidden border-2 transition-all cursor-not-allowed ${isChosen ? "border-primary" : "border-outline-variant opacity-40"}`}
+                          aria-disabled="true"
+                        >
+                          {option.imageUrl && <SmartImage src={option.imageUrl} alt="" lazy={false} className="w-full aspect-square object-cover" />}
+                        </div>
+                      )
+                    }
                     return (
                       <div key={idx} role="button" tabIndex={0} onClick={() => handleSelect(idx)}
                         onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); handleSelect(idx) } }}
@@ -1181,6 +1197,26 @@ export default function ExamDetailPage() {
 
                   if (state === "idle") {
                     const isMultiSelected = selectedIndices.includes(idx)
+                    const isLocked = !currentQuestion.multipleCorrect && locking === currentQuestion.id
+                    const isChosen = answers[currentQuestion.id] === idx
+                    const inner = (
+                      <div className={`flex-shrink-0 w-12 h-12 flex items-center justify-center rounded-full font-bold text-headline-md mr-4 transition-colors ${isMultiSelected ? "bg-primary text-on-primary" : "bg-surface-container text-primary group-hover:bg-secondary-fixed group-hover:text-on-secondary-fixed"}`}>
+                        {currentQuestion.multipleCorrect && isMultiSelected ? <Check size={20} /> : prefix}
+                      </div>
+                    )
+                    if (isLocked) {
+                      return (
+                        <div
+                          key={idx}
+                          className={`group relative flex items-center w-full bg-surface-container-lowest p-6 rounded-2xl border-2 transition-all text-left cursor-not-allowed ${isChosen ? "border-primary bg-primary/5" : "border-transparent opacity-50"}`}
+                          style={{ boxShadow: "0px 4px 20px rgba(26,60,110,0.05)" }}
+                          aria-disabled="true"
+                        >
+                          {inner}
+                          <span className="text-body-lg text-on-surface flex-grow">{optionText}</span>
+                        </div>
+                      )
+                    }
                     return (
                       <div
                         key={idx}
@@ -1191,9 +1227,7 @@ export default function ExamDetailPage() {
                         className={`group relative flex items-center w-full bg-surface-container-lowest p-6 rounded-2xl border-2 transition-all text-left outline-none active:scale-[0.98] cursor-pointer ${isMultiSelected ? "border-primary" : "border-transparent hover:border-secondary"}`}
                         style={{ boxShadow: "0px 4px 20px rgba(26,60,110,0.05)" }}
                       >
-                        <div className={`flex-shrink-0 w-12 h-12 flex items-center justify-center rounded-full font-bold text-headline-md mr-4 transition-colors ${isMultiSelected ? "bg-primary text-on-primary" : "bg-surface-container text-primary group-hover:bg-secondary-fixed group-hover:text-on-secondary-fixed"}`}>
-                          {currentQuestion.multipleCorrect && isMultiSelected ? <Check size={20} /> : prefix}
-                        </div>
+                        {inner}
                         <span className="text-body-lg text-on-surface flex-grow">{optionText}</span>
                       </div>
                     )
