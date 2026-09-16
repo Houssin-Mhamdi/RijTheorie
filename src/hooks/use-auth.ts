@@ -63,7 +63,11 @@ export function useSignup() {
       const { data, error } = await supabase.auth.signUp({
         email,
         password,
-        options: { data: { name } },
+        options: {
+          data: { name },
+          emailRedirectTo:
+            typeof window !== "undefined" ? `${window.location.origin}/login` : undefined,
+        },
       })
       if (error) throw error
       return data
