@@ -66,7 +66,9 @@ export function useSignup() {
         options: {
           data: { name },
           emailRedirectTo:
-            typeof window !== "undefined" ? `${window.location.origin}/login` : undefined,
+            typeof window !== "undefined"
+              ? `${window.location.origin}/auth/callback?next=/login`
+              : undefined,
         },
       })
       if (error) throw error
