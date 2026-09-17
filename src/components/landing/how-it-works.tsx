@@ -13,7 +13,7 @@ export function HowItWorks() {
         <div className="hidden md:block absolute left-[10%] right-[10%] top-4 h-28 z-0 pointer-events-none" aria-hidden>
           <svg className="w-full h-full" viewBox="0 0 1000 120" preserveAspectRatio="none" fill="none" xmlns="http://www.w3.org/2000/svg">
             <path
-              d="M120 55 L320 105 L500 35 L680 105 L880 45"
+              d="M120 55 C 220 55, 220 105, 320 105 C 420 105, 420 35, 500 35 C 600 35, 600 105, 680 105 C 780 105, 780 45, 880 45"
               stroke="var(--color-outline-variant)"
               strokeWidth="2.5"
               strokeDasharray="8 8"
