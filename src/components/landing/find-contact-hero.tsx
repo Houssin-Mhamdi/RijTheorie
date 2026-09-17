@@ -27,8 +27,6 @@ interface FindContactHeroProps {
   terms?: ReactNode
   people?: ContactPerson[]
   noteText?: ReactNode
-  logoText?: ReactNode
-  logos?: ReactNode
 }
 
 const DEFAULT_PEOPLE: ContactPerson[] = [
@@ -200,12 +198,6 @@ export function FindContactHero({
       en <span className={styles.badge}>RijTheorie Pro</span>
     </>
   ),
-  logoText = (
-    <>
-      <strong>Meer dan 50.000 cursisten</strong> slaagden al met RijTheorie Pro voor hun theorie-examen.
-    </>
-  ),
-  logos,
 }: FindContactHeroProps) {
   const [freeExams, setFreeExams] = useState<{ id: string; title: string; description?: string | null }[]>([])
   const [modalOpen, setModalOpen] = useState(false)
@@ -295,35 +287,6 @@ export function FindContactHero({
             <MiniAvatarStack people={people} />
           </div>
         </div>
-      </section>
-
-      <div className={styles.heroBottomGradient} />
-
-      <section className={styles.bottomSection}>
-        <p className={styles.bottomText}>{logoText}</p>
-        {logos ? (
-          logos
-        ) : (
-          <div className={styles.companyLogos}>
-            <div className={`${styles.companyLogo} ${styles.logoIheart}`}>
-              <Star size={24} fill="#333" color="#333" />
-              iHeart<span>MEDIA</span>
-            </div>
-            <div className={`${styles.companyLogo} ${styles.logoAdp}`}>ADP</div>
-            <div className={`${styles.companyLogo} ${styles.logoOracle}`}>ORACLE</div>
-            <div className={`${styles.companyLogo} ${styles.logoIntercom}`}>
-              <span className={styles.icon} />
-              INTERCOM
-            </div>
-            <div className={`${styles.companyLogo} ${styles.logoLogitech}`}>logitech</div>
-            <div className={`${styles.companyLogo} ${styles.logoMongodb}`}>
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="#333">
-                <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5" />
-              </svg>
-              MongoDB
-            </div>
-          </div>
-        )}
       </section>
 
       {modalOpen && (
