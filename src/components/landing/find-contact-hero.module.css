@@ -18,6 +18,17 @@
   pointer-events: none;
 }
 
+.heroBottomFade {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 240px;
+  background: linear-gradient(180deg, transparent 0%, #f8f9ff 100%);
+  pointer-events: none;
+  z-index: 1;
+}
+
 .heroContent {
   position: relative;
   z-index: 2;

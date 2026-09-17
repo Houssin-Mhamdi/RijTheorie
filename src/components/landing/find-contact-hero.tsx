@@ -230,6 +230,7 @@ export function FindContactHero({
   return (
     <>
       <section className={styles.heroSection}>
+        <div className={styles.heroBottomFade} />
         <div className={styles.heroContent}>
           <h1 className={styles.heroTitle}>{title}</h1>
           <p className={styles.heroSubtitle}>{subtitle}</p>
