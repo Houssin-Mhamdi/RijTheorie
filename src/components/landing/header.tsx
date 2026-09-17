@@ -6,6 +6,7 @@ import { Menu } from "lucide-react"
 import { useHeaderScroll } from "@/hooks/use-scroll-animation"
 import { useTranslation } from "@/lib/i18n/translations"
 import Drawer from "@/components/ui/drawer"
+import { LanguageSwitcher } from "@/components/language-switcher"
 
 
 export function Header() {
@@ -41,6 +42,7 @@ export function Header() {
           ))}
         </nav>
         <div className="flex items-center gap-2 sm:gap-4">
+          <LanguageSwitcher />
           <button onClick={() => router.push("/login")} className="hidden sm:block text-on-surface-variant dark:text-on-tertiary-container font-medium text-label-md px-3 sm:px-4 py-2 hover:bg-surface-container-low rounded-lg transition-all">{t("auth.login")}</button>
           <button onClick={() => router.push("/login")} className="bg-secondary-container text-on-secondary-container font-bold text-label-md px-4 sm:px-6 py-2 sm:py-3 rounded-xl hover:opacity-90 active:scale-95 transition-all shadow-md whitespace-nowrap">{t("landing.freeStart")}</button>
           <button onClick={() => setMenuOpen(true)} aria-label="Menu" className="md:hidden flex items-center justify-center w-10 h-10 rounded-lg text-on-surface-variant dark:text-on-tertiary-container hover:bg-surface-container-low transition-all active:scale-95">
@@ -63,6 +65,7 @@ export function Header() {
           ))}
         </nav>
         <div className="mt-4 flex flex-col gap-3">
+          <LanguageSwitcher />
           <button
             onClick={() => { close(); router.push("/login") }}
             className="w-full px-4 py-4 rounded-xl border-2 border-outline-variant text-primary font-bold text-label-md hover:bg-surface-container-low transition-all active:scale-[0.98]"
