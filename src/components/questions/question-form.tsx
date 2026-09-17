@@ -131,7 +131,6 @@ export default function QuestionForm({ onSubmit, isPending, initialData, userId,
   useEffect(() => {
     if (initialData) {
       form.reset(initialData)
-      setTypeChoice(detectType(initialData))
       if (initialData.translations?.length) {
         replaceTranslation(initialData.translations)
       }
@@ -142,12 +141,19 @@ export default function QuestionForm({ onSubmit, isPending, initialData, userId,
       }
     } else {
       form.reset()
-      setTypeChoice("normal")
       setMediaPreview(null)
       setMediaMime("")
       setStoredMediaUrl("")
     }
   }, [initialData])
+
+  function handleFormSubmit(data: QuestionInput) {
+    let options = data.answerOptions ?? []
+    if (typeChoice === "normal") {
+      options = options.map((o) => ({ text: o.text, isCorrect: o.isCorrect }))
+    }
+    onSubmit({ ...data, answerOptions: options })
+  }
 
 
 
@@ -303,7 +309,7 @@ export default function QuestionForm({ onSubmit, isPending, initialData, userId,
 
   return (
     <Form {...form}>
-      <form id="question-form" onSubmit={form.handleSubmit(onSubmit)} className="space-y-8">
+      <form id="question-form" onSubmit={form.handleSubmit(handleFormSubmit)} className="space-y-8">
         <div className="space-y-6">
           <FormItem>
             <FormLabel>Question Type</FormLabel>
