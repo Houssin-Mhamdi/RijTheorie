@@ -9,22 +9,22 @@ const HERO_PICS = ["/hero/hero-1.png", "/hero/hero-2.png", "/hero/hero-3.png"]
 
 const HERO_SLIDES = [
   {
-    question: "Je nadert dit kruispunt. Wie heeft hier voorrang?",
-    options: ["De rode auto", "De blauwe auto", "Jij"],
+    questionKey: "hero.slide1.question",
+    optionKeys: ["hero.slide1.o1", "hero.slide1.o2", "hero.slide1.o3"],
     correct: 1,
-    explanation: "Je verleent voorrang aan verkeer van rechts op gelijkwaardige kruispunten.",
+    explanationKey: "hero.slide1.explanation",
   },
   {
-    question: "Mag je hier inhalen?",
-    options: ["Ja", "Nee", "Alleen als het rustig is"],
+    questionKey: "hero.slide2.question",
+    optionKeys: ["hero.slide2.o1", "hero.slide2.o2", "hero.slide2.o3"],
     correct: 0,
-    explanation: "Bij een doorgetrokken streep mag je niet inhalen.",
+    explanationKey: "hero.slide2.explanation",
   },
   {
-    question: "Wat is de maximumsnelheid binnen de bebouwde kom?",
-    options: ["30 km/u", "50 km/u", "70 km/u"],
+    questionKey: "hero.slide3.question",
+    optionKeys: ["hero.slide3.o1", "hero.slide3.o2", "hero.slide3.o3"],
     correct: 1,
-    explanation: "Binnen de bebouwde kom geldt tenzij anders aangegeven 50 km/u.",
+    explanationKey: "hero.slide3.explanation",
   },
 ]
 
@@ -108,7 +108,7 @@ export function Hero() {
               <div className="absolute bottom-4 left-4 px-3 py-1 bg-primary text-white font-medium text-label-sm rounded-lg opacity-90">{t("hero.imageLabel")}</div>
               <div className="absolute bottom-4 right-4 px-3 py-1 bg-black/50 text-white font-medium text-label-sm rounded-lg">{slide + 1}/{HERO_SLIDES.length}</div>
             </div>
-            <p key={`q-${slide}`} className="text-headline-md text-on-surface mb-6 fade-in">{active.question}</p>
+            <p key={`q-${slide}`} className="text-headline-md text-on-surface mb-6 fade-in">{t(active.questionKey)}</p>
             <div className="space-y-3 mb-6">
               {options.map((optIdx, i) => {
                 const isCorrect = optIdx === active.correct
@@ -125,7 +125,7 @@ export function Hero() {
                     }`}>
                       {isCorrect ? <Check size={16} className="text-white" /> : letter[i]}
                     </div>
-                    <span className={`text-body-md ${isCorrect ? "font-semibold text-secondary" : "text-on-surface-variant"}`}>{active.options[optIdx]}</span>
+                    <span className={`text-body-md ${isCorrect ? "font-semibold text-secondary" : "text-on-surface-variant"}`}>{t(active.optionKeys[optIdx])}</span>
                   </div>
                 )
               })}
@@ -134,7 +134,7 @@ export function Hero() {
               <div className="flex items-center gap-2 mb-1 text-secondary font-bold text-label-md">
                 <Info size={16} /> {t("exam.explanation")}
               </div>
-              <p className="font-semibold text-label-md text-on-surface-variant">{active.explanation}</p>
+              <p className="font-semibold text-label-md text-on-surface-variant">{t(active.explanationKey)}</p>
             </div>
           </div>
           <div className="relative z-10 flex justify-center gap-2 mt-5">

@@ -5,6 +5,7 @@ import type { ReactNode } from "react"
 import { Copy, Check, Star, ArrowDown, ArrowRight, FileQuestion, PlayCircle, X, Loader2, GraduationCap } from "lucide-react"
 import { supabase } from "@/lib/supabase"
 import styles from "./find-contact-hero.module.css"
+import { useTranslation } from "@/lib/i18n/translations"
 
 export interface ContactPerson {
   name: string
@@ -28,39 +29,6 @@ interface FindContactHeroProps {
   people?: ContactPerson[]
   noteText?: ReactNode
 }
-
-const DEFAULT_PEOPLE: ContactPerson[] = [
-  {
-    name: "Voorrang",
-    title: "Oefen het",
-    company: "rechts voorrang",
-    image: "/hero/hero-1.png",
-    email: "50 examenvragen",
-    phone: "met hotspots",
-    companyColor: "#2ecc71",
-    companyIcon: "circle",
-  },
-  {
-    name: "Verkeersregels",
-    title: "Oefen het",
-    company: "borden & strepen",
-    image: "/hero/hero-2.png",
-    email: "60 examenvragen",
-    phone: "incl. video",
-    companyColor: "#3b6cf5",
-    companyIcon: "circle",
-  },
-  {
-    name: "Gevaarherkenning",
-    title: "Oefen het",
-    company: "25 situaties",
-    image: "/hero/hero-3.png",
-    email: "reactiesnelheid",
-    phone: "examenmodules",
-    companyColor: "#e74c3c",
-    companyIcon: "square",
-  },
-]
 
 const STAR_PATH =
   "M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"
@@ -184,21 +152,65 @@ function CopyButton({
 }
 
 export function FindContactHero({
-  title = "Slaag voor je theorie-examen",
-  subtitle = "Oefen met realistische verkeerssituaties, hotspots en honderden examenvragen. Klaar voor het echte CBR-examen?",
-  cta = "Gratis examen",
+  title,
+  subtitle,
+  cta,
   ratingScore = "4.9/5",
-  ratingCount = "2.500+ REVIEWS",
-  terms = "Begin direct met oefenen — geen creditcard nodig.",
-  people = DEFAULT_PEOPLE,
-  noteText = (
-    <>
-      oefen met<br />
-      echte situaties<br />
-      en <span className={styles.badge}>RijTheorie Pro</span>
-    </>
-  ),
+  ratingCount,
+  terms,
+  people,
+  noteText,
 }: FindContactHeroProps) {
+  const { t } = useTranslation()
+  const resolvedPeople =
+    people ??
+    [
+      {
+        name: t("hero2.card1.name"),
+        title: t("hero2.card1.practice"),
+        company: t("hero2.card1.company"),
+        image: "/hero/hero-1.png",
+        email: t("hero2.card1.count"),
+        phone: t("hero2.card1.extra"),
+        companyColor: "#2ecc71",
+        companyIcon: "circle" as const,
+      },
+      {
+        name: t("hero2.card2.name"),
+        title: t("hero2.card2.practice"),
+        company: t("hero2.card2.company"),
+        image: "/hero/hero-2.png",
+        email: t("hero2.card2.count"),
+        phone: t("hero2.card2.extra"),
+        companyColor: "#3b6cf5",
+        companyIcon: "circle" as const,
+      },
+      {
+        name: t("hero2.card3.name"),
+        title: t("hero2.card3.practice"),
+        company: t("hero2.card3.company"),
+        image: "/hero/hero-3.png",
+        email: t("hero2.card3.count"),
+        phone: t("hero2.card3.extra"),
+        companyColor: "#e74c3c",
+        companyIcon: "square" as const,
+      },
+    ]
+  const resolvedTitle = title ?? t("hero2.title")
+  const resolvedSubtitle = subtitle ?? t("hero2.subtitle")
+  const resolvedCta = cta ?? t("hero2.cta")
+  const resolvedRatingCount = ratingCount ?? t("hero2.ratingCount")
+  const resolvedTerms = terms ?? t("hero2.terms")
+  const resolvedNote =
+    noteText ?? (
+      <>
+        {t("hero2.noteLine1")}
+        <br />
+        {t("hero2.noteLine2")}
+        <br />
+        {t("hero2.noteWord")} <span className={styles.badge}>RijTheorie Pro</span>
+      </>
+    )
   const [freeExams, setFreeExams] = useState<{ id: string; title: string; description?: string | null }[]>([])
   const [modalOpen, setModalOpen] = useState(false)
   const [modalLoading, setModalLoading] = useState(false)
@@ -218,10 +230,10 @@ export function FindContactHero({
       if (error) throw error
       setFreeExams((data as { id: string; title: string; description?: string | null }[]) ?? [])
       if (!data || data.length === 0) {
-        setModalError("Er zijn momenteel geen gratis examens beschikbaar.")
+        setModalError(t("hero2.modalErrorEmpty"))
       }
     } catch {
-      setModalError("Kon de gratis examens niet laden.")
+      setModalError(t("hero2.modalErrorLoad"))
     } finally {
       setModalLoading(false)
     }
@@ -232,26 +244,26 @@ export function FindContactHero({
       <section className={styles.heroSection}>
         <div className={styles.heroBottomFade} />
         <div className={styles.heroContent}>
-          <h1 className={styles.heroTitle}>{title}</h1>
-          <p className={styles.heroSubtitle}>{subtitle}</p>
+          <h1 className={styles.heroTitle}>{resolvedTitle}</h1>
+          <p className={styles.heroSubtitle}>{resolvedSubtitle}</p>
 
           <div className={styles.ctaWrap}>
             <div className={styles.pointer}>
               <ArrowDown size={26} className={styles.pointerIcon} />
-              <span className={styles.pointerLabel}>Gratis proberen</span>
+              <span className={styles.pointerLabel}>{t("hero2.pointerLabel")}</span>
             </div>
             <div className={styles.btnGroup}>
               <button type="button" onClick={handleStart} className={styles.signupButton}>
                 <span className={styles.btnGradient} />
                 <span className={styles.btnInner}>
-                  <span className={styles.btnText}>{cta}</span>
+                  <span className={styles.btnText}>{resolvedCta}</span>
                   <ArrowRight size={24} className={styles.btnArrow} />
                 </span>
               </button>
             </div>
           </div>
 
-          <p className={styles.termsText}>{terms}</p>
+          <p className={styles.termsText}>{resolvedTerms}</p>
 
           <div className={styles.ratingSection}>
             <div className={styles.g2Logo}>G</div>
@@ -261,18 +273,18 @@ export function FindContactHero({
               ))}
             </div>
             <span className={styles.ratingText}>
-              <strong>{ratingScore}</strong> | {ratingCount}
+              <strong>{ratingScore}</strong> | {resolvedRatingCount}
             </span>
           </div>
         </div>
 
         <div className={styles.cardsWithAnnotation}>
-          <ProfileCard person={people[0]} position="left" onCopy={() => {}} />
-          <ProfileCard person={people[1]} position="middle" onCopy={() => {}} />
+          <ProfileCard person={resolvedPeople[0]} position="left" onCopy={() => {}} />
+          <ProfileCard person={resolvedPeople[1]} position="middle" onCopy={() => {}} />
 
           <div className={styles.annotationContainer}>
-            <ProfileCard person={people[2]} position="right" onCopy={() => {}} />
-            <div className={styles.handwrittenNote}>{noteText}</div>
+            <ProfileCard person={resolvedPeople[2]} position="right" onCopy={() => {}} />
+            <div className={styles.handwrittenNote}>{resolvedNote}</div>
             <div className={styles.noteArrow}>
               <svg viewBox="0 0 140 80" fill="none" xmlns="http://www.w3.org/2000/svg">
                 <path
@@ -285,7 +297,7 @@ export function FindContactHero({
                 <path d="M95 45 L102 52 L92 52 Z" fill="#2a2a4a" />
               </svg>
             </div>
-            <MiniAvatarStack people={people} />
+            <MiniAvatarStack people={resolvedPeople} />
           </div>
         </div>
       </section>
@@ -295,10 +307,10 @@ export function FindContactHero({
           <div className={styles.modalCard} onClick={(e) => e.stopPropagation()}>
             <div className={styles.modalHeader}>
               <div>
-                <h3 className={styles.modalTitle}>Kies een gratis examen</h3>
-                <p className={styles.modalSubtitle}>Geen account nodig — niets wordt opgeslagen.</p>
+                <h3 className={styles.modalTitle}>{t("hero2.modalTitle")}</h3>
+                <p className={styles.modalSubtitle}>{t("hero2.modalSubtitle")}</p>
               </div>
-              <button className={styles.modalClose} onClick={() => setModalOpen(false)} aria-label="Sluiten">
+              <button className={styles.modalClose} onClick={() => setModalOpen(false)} aria-label={t("hero2.modalClose")}>
                 <X size={20} />
               </button>
             </div>
@@ -307,7 +319,7 @@ export function FindContactHero({
               {modalLoading ? (
                 <div className={styles.modalLoading}>
                   <Loader2 size={28} className={styles.modalSpinner} />
-                  <span>Examen laden…</span>
+                  <span>{t("hero2.modalLoading")}</span>
                 </div>
               ) : modalError ? (
                 <p className={styles.modalError}>{modalError}</p>
@@ -327,7 +339,7 @@ export function FindContactHero({
                       <span className={styles.modalItemText}>
                         <span className={styles.modalItemTitle}>{ex.title}</span>
                         {ex.description && <span className={styles.modalItemDesc}>{ex.description}</span>}
-                        <span className={styles.modalItemBadge}>Gratis</span>
+                        <span className={styles.modalItemBadge}>{t("hero2.freeBadge")}</span>
                       </span>
                       <ArrowRight size={18} className={styles.modalItemArrow} />
                     </button>

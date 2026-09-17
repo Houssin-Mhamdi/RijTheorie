@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react"
 import { CheckCircle, Loader2 } from "lucide-react"
 import { supabase } from "@/lib/supabase"
+import { useTranslation } from "@/lib/i18n/translations"
 
 interface Plan {
   id: string
@@ -15,6 +16,7 @@ interface Plan {
 }
 
 export function Pricing() {
+  const { t } = useTranslation()
   const [plans, setPlans] = useState<Plan[]>([])
   const [loading, setLoading] = useState(true)
 
@@ -34,15 +36,15 @@ export function Pricing() {
     <section className="py-24 bg-white" id="prijzen">
       <div className="max-w-container-max-width mx-auto px-margin-desktop">
         <div className="text-center mb-16">
-          <h2 className="text-headline-lg text-primary mb-4">Transparante Prijzen</h2>
-          <p className="text-body-lg text-on-surface-variant max-w-2xl mx-auto">Kies het plan dat past bij de omvang van jouw rijschool. Altijd inclusief updates.</p>
+          <h2 className="text-headline-lg text-primary mb-4">{t("landing.sectionPricingTitle")}</h2>
+          <p className="text-body-lg text-on-surface-variant max-w-2xl mx-auto">{t("landing.sectionPricingSubtitle")}</p>
         </div>
         {loading ? (
           <div className="flex justify-center py-16">
             <Loader2 className="size-8 animate-spin text-primary" />
           </div>
         ) : plans.length === 0 ? (
-          <p className="text-center text-on-surface-variant py-16">Nog geen abonnementen beschikbaar.</p>
+          <p className="text-center text-on-surface-variant py-16">{t("landing.noPlans")}</p>
         ) : (
           <div className="grid md:grid-cols-3 gap-8 items-stretch pt-6">
             {plans.map((plan, i) => {
@@ -58,7 +60,7 @@ export function Pricing() {
                 >
                   {featured && (
                     <div className="absolute -top-4 left-1/2 -translate-x-1/2 bg-secondary-container text-on-secondary-container text-label-sm px-5 py-1.5 rounded-full font-bold uppercase tracking-wider shadow-md whitespace-nowrap z-20">
-                      Meest Gekozen
+                      {t("landing.mostChosen")}
                     </div>
                   )}
                   <h3 className={`text-headline-md font-bold mb-1 ${featured ? "text-white" : "text-primary"}`}>{plan.name}</h3>
@@ -94,7 +96,7 @@ export function Pricing() {
                         : "bg-primary text-on-primary hover:opacity-90 shadow-md"
                     }`}
                   >
-                    Start {plan.name}
+                    {t("pricing.start")} {plan.name}
                   </button>
                 </div>
               )
