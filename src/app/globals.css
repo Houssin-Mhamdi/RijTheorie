@@ -142,6 +142,11 @@
     font-size: 0.875rem;
     line-height: 1.25rem;
   }
+  .text-label-lg {
+    font-family: var(--font-inter);
+    font-size: 1rem;
+    line-height: 1.5rem;
+  }
   .text-label-sm {
     font-family: var(--font-inter);
     font-size: 0.75rem;

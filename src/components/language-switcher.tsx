@@ -22,8 +22,8 @@ export function LanguageSwitcher() {
   return (
     <Select value={lang} onValueChange={(value) => setLang(value as LangCode)}>
       <SelectTrigger
-        size="sm"
-        className="gap-1.5 text-on-surface-variant dark:text-on-tertiary-container [&_svg]:text-current"
+        size="default"
+        className="gap-1.5 text-label-md text-on-surface-variant dark:text-on-tertiary-container [&_svg]:text-current"
         aria-label="Taal / Language"
       >
         <Languages className="size-4 shrink-0" />
