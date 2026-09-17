@@ -70,8 +70,6 @@ function AudioField({ lang, value, disabled, onSelect, onRemove }: AudioFieldPro
 }
 
 function detectType(data: QuestionInput): "normal" | "right-of-way" | "choose-images" {
-  if (data.category === "Right of Way") return "right-of-way"
-  if (data.category === "Choose Images") return "choose-images"
   const opts = data.answerOptions ?? []
   if (opts.some((o) => o.x != null && o.y != null)) return "right-of-way"
   if (opts.some((o) => o.imageUrl)) return "choose-images"
