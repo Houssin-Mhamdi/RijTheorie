@@ -61,7 +61,7 @@ export function Features() {
               className="relative overflow-hidden bento-card group bg-white p-8 rounded-2xl border border-surface-container-highest shadow-sm hover:shadow-xl hover:-translate-y-1.5 transition-all duration-300"
             >
               <div
-                className="absolute top-0 right-0 h-28 w-28 rounded-bl-[2.5rem] opacity-50 transition-transform duration-300 group-hover:scale-110"
+                className="absolute top-0 right-0 h-28 w-28 rounded-bl-[2.5rem] opacity-30 transition-transform duration-300 group-hover:scale-110"
                 style={{ backgroundColor: feature.color, transformOrigin: "top right" }}
               />
               <div className="relative z-10">
