@@ -52,7 +52,7 @@ export function Pricing() {
                   key={plan.id}
                   className={`relative flex flex-col p-8 rounded-3xl transition-all duration-300 hover:-translate-y-1 ${
                     featured
-                      ? "bg-gradient-to-br from-secondary-fixed via-primary to-primary text-on-primary shadow-2xl md:scale-105 z-10 border-0"
+                      ? "bg-gradient-to-br from-[#3b6cf5] via-[#2450d8] to-[#0f2f7a] text-white shadow-2xl md:scale-105 z-10 border-0"
                       : "bg-white border border-outline-variant/40 shadow-sm hover:shadow-xl"
                   }`}
                 >
