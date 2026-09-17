@@ -16,6 +16,7 @@ export function Header() {
   const close = () => setMenuOpen(false)
 
   const navItems = [
+    { label: t("landing.home"), href: "/" },
     { label: t("landing.features"), href: "#functies" },
     { label: t("landing.pricing"), href: "#prijzen" },
     { label: t("landing.blog"), href: "/blog" },
@@ -31,9 +32,9 @@ export function Header() {
             : "max-w-container-max-width h-20 px-margin-desktop mx-auto bg-surface dark:bg-primary-container"
         }`}
       >
-        <div className="text-headline-md text-primary dark:text-on-primary-container flex items-center gap-2">
+        <button onClick={() => router.push("/")} aria-label="Home" className="text-headline-md text-primary dark:text-on-primary-container flex items-center gap-2 transition-transform active:scale-95">
           <img src="/screen.png" alt="RijTheorie Pro" className="h-8 w-auto" />
-        </div>
+        </button>
         <nav className="hidden md:flex gap-8 items-center">
           {navItems.map((item) => (
             <a key={item.href} className="text-on-surface-variant dark:text-on-tertiary-container font-medium text-label-md hover:text-secondary dark:hover:text-secondary-fixed transition-colors duration-200" href={item.href}>{item.label}</a>

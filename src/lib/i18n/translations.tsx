@@ -46,6 +46,7 @@ const translations: Record<LangCode, Record<string, string>> = {
     "auth.minChars": "Minimaal 8 tekens",
 
     // Landing
+    "landing.home": "Home",
     "landing.features": "Functies",
     "landing.pricing": "Prijzen",
     "landing.contact": "Contact",
@@ -451,6 +452,7 @@ const translations: Record<LangCode, Record<string, string>> = {
     "auth.minChars": "Minimum 8 characters",
 
     // Landing
+    "landing.home": "Home",
     "landing.features": "Features",
     "landing.pricing": "Pricing",
     "landing.contact": "Contact",
@@ -857,6 +859,7 @@ const translations: Record<LangCode, Record<string, string>> = {
     "auth.minChars": "8 أحرف على الأقل",
 
     // Landing
+    "landing.home": "الرئيسية",
     "landing.features": "الميزات",
     "landing.pricing": "الأسعار",
     "landing.contact": "اتصل بنا",
