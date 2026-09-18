@@ -28,6 +28,7 @@ import {
   VolumeX,
   Play,
   Pause,
+  ListChecks,
 } from "lucide-react"
 import DOMPurify from "dompurify"
 import { useTranslation } from "@/lib/i18n/translations"
@@ -95,6 +96,8 @@ export default function ExamDetailPage() {
   const [timeLeft, setTimeLeft] = useState(45 * 60)
   const [showError, setShowError] = useState(false)
   const [showResults, setShowResults] = useState(false)
+  const [reviewOpen, setReviewOpen] = useState(false)
+  const [reviewMode, setReviewMode] = useState(false)
   const [saveError, setSaveError] = useState<string | null>(null)
   const [attemptNumber, setAttemptNumber] = useState(1)
   const [violations, setViolations] = useState(0)
@@ -275,7 +278,7 @@ export default function ExamDetailPage() {
     questionSoundRef.current?.unload()
     questionSoundRef.current = null
     setAudioPlaying(false)
-    if (!currentQuestion || !currentAudioUrl || !soundOn) return
+    if (!currentQuestion || !currentAudioUrl || !soundOn || reviewMode) return
     const sound = new Howl({
       src: [currentAudioUrl],
       html5: true,
@@ -300,7 +303,7 @@ export default function ExamDetailPage() {
       clearTimeout(t)
       sound.unload()
     }
-  }, [currentQuestion?.id, lang, showResults, soundOn, currentAudioUrl])
+  }, [currentQuestion?.id, lang, showResults, soundOn, currentAudioUrl, reviewMode])
 
   useEffect(() => {
     explanationSoundRef.current?.unload()
@@ -486,6 +489,7 @@ export default function ExamDetailPage() {
   const handleFinish = useCallback(() => {
     setShowResults(true)
     setExamFinished(true)
+    setReviewMode(false)
     setSaveError(null)
     const correct = questions.filter((q) => {
       const r = answerResults[q.id]
@@ -786,17 +790,24 @@ export default function ExamDetailPage() {
 
           <div className="flex flex-col sm:flex-row items-center justify-center gap-4 mb-16">
             <button
-              onClick={() => { setShowResults(false); setCurrentIndex(0); setAnswers({}); setSubmitted({}); setAnswerResults({}); setHotspotResults({}); setTimeLeft(examDuration * 60) }}
+              onClick={() => setReviewOpen(true)}
+              className="w-full sm:w-auto px-8 py-4 bg-primary text-on-primary font-bold rounded-xl transition-all active:scale-[0.98] shadow-md hover:shadow-lg flex items-center justify-center gap-2"
+            >
+              <ListChecks size={20} />
+              {t("exam.review")}
+            </button>
+            <button
+              onClick={() => { setReviewOpen(false); setReviewMode(false); setShowResults(false); setExamFinished(false); setCurrentIndex(0); setAnswers({}); setSubmitted({}); setAnswerResults({}); setHotspotResults({}); setTimeLeft(examDuration * 60) }}
               className="w-full sm:w-auto px-8 py-4 bg-secondary-container text-on-secondary-container font-bold rounded-xl transition-all active:scale-[0.98] shadow-md hover:shadow-lg flex items-center justify-center gap-2"
             >
-              <Eye size={20} />
-              {t("exam.review")}
+              <RotateCcw size={20} />
+              {t("exam.retryExam")}
             </button>
             <button
               onClick={() => router.push("/exams")}
               className="w-full sm:w-auto px-8 py-4 border-2 border-primary text-primary font-bold rounded-xl transition-all hover:bg-surface-container-low active:scale-[0.98] flex items-center justify-center gap-2"
             >
-              <RotateCcw size={20} />
+              <Eye size={20} />
               {t("exam.newExam")}
             </button>
           </div>
@@ -943,6 +954,50 @@ export default function ExamDetailPage() {
             </button>
           </div>
         </main>
+
+        {reviewOpen && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm px-4" onClick={() => setReviewOpen(false)}>
+            <div className="bg-surface-container-lowest rounded-3xl p-6 md:p-8 max-w-lg w-full max-h-[85vh] overflow-y-auto shadow-2xl border border-outline-variant/20" onClick={(e) => e.stopPropagation()}>
+              <div className="flex items-center justify-between mb-1">
+                <h2 className="text-headline-md text-on-surface font-bold">{t("exam.reviewModalTitle")}</h2>
+                <button
+                  onClick={() => setReviewOpen(false)}
+                  aria-label={t("common.close")}
+                  className="size-9 rounded-xl bg-surface-container flex items-center justify-center shrink-0 active:scale-95 transition-transform"
+                >
+                  <X size={18} className="text-primary" />
+                </button>
+              </div>
+              <p className="text-body-md text-on-surface-variant mb-6">{t("exam.reviewModalHint")}</p>
+              <div className="grid grid-cols-6 sm:grid-cols-8 gap-2.5">
+                {questions.map((q, idx) => {
+                  const rr = answerResults[q.id]
+                  const rh = hotspotResults[q.id]
+                  const isCorrect = rr ? rr.correct : rh ? rh.results.every((r) => r.correct) : false
+                  return (
+                    <button
+                      key={q.id}
+                      onClick={() => { setReviewOpen(false); setReviewMode(true); setShowResults(false); goToQuestion(idx) }}
+                      className={`aspect-square w-full rounded-lg flex items-center justify-center font-bold text-label-md text-white transition-all active:scale-90 shadow-sm ${
+                        isCorrect ? "bg-green-500 hover:bg-green-600" : "bg-red-500 hover:bg-red-600"
+                      }`}
+                    >
+                      {idx + 1}
+                    </button>
+                  )
+                })}
+              </div>
+              <div className="flex items-center justify-center gap-5 mt-6">
+                <span className="flex items-center gap-2 text-label-md text-on-surface-variant">
+                  <span className="w-3.5 h-3.5 rounded bg-green-500" /> {t("exam.reviewCorrect")}
+                </span>
+                <span className="flex items-center gap-2 text-label-md text-on-surface-variant">
+                  <span className="w-3.5 h-3.5 rounded bg-red-500" /> {t("exam.reviewWrong")}
+                </span>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     )
   }
@@ -1295,13 +1350,21 @@ export default function ExamDetailPage() {
                 <span className="hidden sm:inline">{t("exam.previous")}</span>
               </button>
 
-              {isLastQuestion && hasAnswered ? (
+              {isLastQuestion && hasAnswered && !reviewMode ? (
                 <button
                   onClick={handleFinish}
                   className="flex-1 sm:flex-none flex items-center justify-center gap-2 bg-secondary-container text-on-secondary-container px-8 py-4 rounded-full font-label-md text-label-md shadow-md hover:opacity-90 transition-all active:scale-[0.98]"
                 >
                   <BarChart3 size={18} />
                   {t("exam.showResult")}
+                </button>
+              ) : isLastQuestion && reviewMode ? (
+                <button
+                  onClick={() => { setReviewMode(false); setShowResults(true) }}
+                  className="flex-1 sm:flex-none flex items-center justify-center gap-2 bg-secondary-container text-on-secondary-container px-8 py-4 rounded-full font-label-md text-label-md shadow-md hover:opacity-90 transition-all active:scale-[0.98]"
+                >
+                  <BarChart3 size={18} />
+                  {t("exam.backToResults")}
                 </button>
               ) : (
                 <button
@@ -1332,13 +1395,21 @@ export default function ExamDetailPage() {
             {t("exam.previous")}
           </button>
         )}
-        {isLastQuestion && hasAnswered ? (
+        {isLastQuestion && hasAnswered && !reviewMode ? (
           <button
             onClick={handleFinish}
             className="flex-1 bg-secondary-container text-on-secondary-container py-4 rounded-xl font-label-md text-label-md shadow-md active:scale-[0.98] flex items-center justify-center gap-2"
           >
             <BarChart3 size={18} />
             {t("exam.showResult")}
+          </button>
+        ) : isLastQuestion && reviewMode ? (
+          <button
+            onClick={() => { setReviewMode(false); setShowResults(true) }}
+            className="flex-1 bg-secondary-container text-on-secondary-container py-4 rounded-xl font-label-md text-label-md shadow-md active:scale-[0.98] flex items-center justify-center gap-2"
+          >
+            <BarChart3 size={18} />
+            {t("exam.backToResults")}
           </button>
         ) : (
           <button
