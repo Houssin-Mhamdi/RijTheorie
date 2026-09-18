@@ -22,6 +22,8 @@ import {
   Lock,
   Infinity as InfinityIcon,
   RefreshCw,
+  Check,
+  Sparkles,
 } from "lucide-react"
 
 type AttemptLimit = {
@@ -332,51 +334,87 @@ export default function ExamsPage() {
     }
   }
 
-  const renderPlanCard = (plan: { id: string; name: string; price: number; features: string[] }) => {
+  const renderPlanCard = (plan: { id: string; name: string; price: number; features: string[] }, index: number) => {
     const hasDiscount = coupon && coupon.plan_ids.includes(plan.id)
+    const finalPrice = hasDiscount ? discountedPrice(plan.id, plan.price) : plan.price
+    const featured = plans.length > 1 && index === Math.floor(plans.length / 2)
     return (
-    <div key={plan.id} className="bg-surface rounded-xl border border-outline-variant/30 p-5 text-left">
-      <h3 className="text-headline-sm font-bold text-primary mb-1">{plan.name}</h3>
-      <p className="text-headline-lg font-bold text-primary mb-3">
-        {hasDiscount ? (
-          <>
-            <span className="text-label-md text-on-surface-variant line-through mr-2">&euro;{plan.price.toFixed(2)}</span>
-            &euro;{discountedPrice(plan.id, plan.price).toFixed(2)}
-          </>
-        ) : (
-          <>&euro;{plan.price.toFixed(2)}</>
-        )}
-      </p>
-      {hasDiscount && (
-        <span className="inline-block mb-3 px-2.5 py-1 rounded-full bg-green-100 text-green-700 text-label-sm font-bold">
-          -{coupon!.discount_percent}% {coupon!.code}
-        </span>
-      )}
-      <div className="space-y-1.5 mb-5">
-        {(plan.features as string[]).map((f, i) => (
-          <div key={i} className="flex items-center gap-2 text-label-sm text-on-surface-variant">
-            <span className="size-1.5 rounded-full bg-primary shrink-0" />
-            {f}
-          </div>
-        ))}
-      </div>
-      <button
-        onClick={() => handleSubscribe(plan.id)}
-        disabled={subscribing === plan.id}
-        className={`w-full py-2.5 rounded-xl text-label-md font-bold transition-all active:scale-[0.97] disabled:opacity-50 disabled:active:scale-100 ${
-          hasDiscount ? "bg-green-600 text-white hover:opacity-90" : "bg-primary text-on-primary hover:opacity-90"
+      <div
+        key={plan.id}
+        className={`relative flex flex-col rounded-3xl border p-6 md:p-7 text-left transition-all active:scale-[0.97] ${
+          featured
+            ? "border-transparent bg-gradient-to-br from-[#003a7a] via-primary to-[#0f2f7a] text-white shadow-xl"
+            : "bg-surface-container-lowest border-outline-variant/40 shadow-sm hover:-translate-y-0.5 hover:shadow-md"
         }`}
       >
-        {subscribing === plan.id ? (
-          <span className="flex items-center justify-center gap-2">
-            <Loader2 size={16} className="animate-spin" />
-            {t("exams.loadingShort")}
+        {featured && (
+          <span className="absolute -top-3 left-1/2 -translate-x-1/2 whitespace-nowrap px-4 py-1 rounded-full bg-secondary text-white text-label-sm font-bold shadow-md flex items-center gap-1.5">
+            <Sparkles size={14} />
+            {t("exams.mostChosen")}
           </span>
-        ) : (
-          t("exams.subscribe")
         )}
-      </button>
-    </div>
+
+        <h3 className={`text-headline-md font-bold ${featured ? "text-white" : "text-primary"}`}>{plan.name}</h3>
+        <p className={`text-label-sm mt-0.5 ${featured ? "text-white/70" : "text-on-surface-variant"}`}>
+          {t("exams.onetime")}
+        </p>
+
+        <div className="mt-4">
+          <div className="flex items-baseline gap-1.5">
+            {hasDiscount && (
+              <span className={`text-label-md line-through ${featured ? "text-white/50" : "text-on-surface-variant/60"}`}>
+                &euro;{plan.price.toFixed(2)}
+              </span>
+            )}
+            <span className={`text-headline-lg font-extrabold tracking-tight ${featured ? "text-white" : "text-primary"}`}>
+              &euro;{finalPrice.toFixed(2)}
+            </span>
+          </div>
+          {hasDiscount && (
+            <span className={`inline-block mt-2 px-2.5 py-0.5 rounded-full text-label-sm font-bold ${featured ? "bg-white/20 text-white" : "bg-green-100 text-green-700"}`}>
+              -{coupon!.discount_percent}% {coupon!.code}
+            </span>
+          )}
+        </div>
+
+        <div className={`h-px my-5 ${featured ? "bg-white/15" : "bg-outline-variant/25"}`} />
+
+        <div className="space-y-2.5 flex-1">
+          {(plan.features as string[]).length > 0 ? (
+            (plan.features as string[]).map((f, i) => (
+              <div key={i} className="flex items-start gap-2.5 text-label-sm md:text-label-md">
+                <span className={`size-5 rounded-full flex items-center justify-center shrink-0 mt-0.5 ${featured ? "bg-white/20 text-white" : "bg-primary/10 text-primary"}`}>
+                  <Check size={11} strokeWidth={3} />
+                </span>
+                <span className={featured ? "text-white/90" : "text-on-surface-variant"}>{f}</span>
+              </div>
+            ))
+          ) : (
+            <p className={`text-label-sm italic ${featured ? "text-white/60" : "text-on-surface-variant/50"}`}>—</p>
+          )}
+        </div>
+
+        <button
+          onClick={() => handleSubscribe(plan.id)}
+          disabled={subscribing === plan.id}
+          className={`mt-6 w-full py-3 rounded-2xl text-label-md font-bold transition-all active:scale-[0.97] disabled:opacity-50 disabled:active:scale-100 ${
+            featured
+              ? "bg-white text-primary hover:bg-white/90 shadow-md"
+              : hasDiscount
+                ? "bg-green-600 text-white hover:opacity-90"
+                : "bg-gradient-to-r from-primary to-primary-container text-on-primary hover:opacity-90"
+          }`}
+        >
+          {subscribing === plan.id ? (
+            <span className="flex items-center justify-center gap-2">
+              <Loader2 size={16} className="animate-spin" />
+              {t("exams.loadingShort")}
+            </span>
+          ) : (
+            t("exams.subscribe")
+          )}
+        </button>
+      </div>
     )
   }
 
@@ -417,10 +455,10 @@ export default function ExamsPage() {
 
   const renderPlansGrid = () =>
     plans.length > 0 && (
-      <div className="max-w-3xl mx-auto">
+      <div className="max-w-4xl mx-auto">
         {renderCouponInput()}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          {plans.map(renderPlanCard)}
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5 md:gap-6">
+          {plans.map((plan, index) => renderPlanCard(plan, index))}
         </div>
       </div>
     )
@@ -656,7 +694,7 @@ export default function ExamsPage() {
 
                 {/* Purchase / reactivation CTA (scrolls into view from locked card) */}
                 {showPaymentCta && (
-                  <div id="payment-section" className="bg-surface-container-lowest rounded-2xl border border-outline-variant/40 p-8 text-center">
+                  <div id="payment-section" className="bg-surface-container-lowest rounded-3xl border border-outline-variant/40 border-t-4 border-t-secondary p-8 md:p-10 text-center shadow-sm">
                     {paymentEligible && anyLocked ? (
                       <>
                         <Lock size={36} className="text-outline-variant mx-auto mb-3" />
