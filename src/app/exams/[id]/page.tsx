@@ -29,6 +29,7 @@ import {
   Play,
   Pause,
   ListChecks,
+  LayoutGrid,
 } from "lucide-react"
 import DOMPurify from "dompurify"
 import { useTranslation } from "@/lib/i18n/translations"
@@ -97,6 +98,7 @@ export default function ExamDetailPage() {
   const [showError, setShowError] = useState(false)
   const [showResults, setShowResults] = useState(false)
   const [reviewOpen, setReviewOpen] = useState(false)
+  const [reviewSelected, setReviewSelected] = useState<number | null>(null)
   const [reviewMode, setReviewMode] = useState(false)
   const [saveError, setSaveError] = useState<string | null>(null)
   const [attemptNumber, setAttemptNumber] = useState(1)
@@ -957,8 +959,8 @@ export default function ExamDetailPage() {
 
         {reviewOpen && (
           <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm px-4" onClick={() => setReviewOpen(false)}>
-            <div className="bg-surface-container-lowest rounded-3xl p-6 md:p-8 max-w-lg w-full max-h-[85vh] overflow-y-auto shadow-2xl border border-outline-variant/20" onClick={(e) => e.stopPropagation()}>
-              <div className="flex items-center justify-between mb-1">
+            <div className="bg-surface-container-lowest rounded-3xl max-w-2xl w-full max-h-[90vh] overflow-y-auto shadow-2xl border border-outline-variant/20" onClick={(e) => e.stopPropagation()}>
+              <div className="sticky top-0 z-10 bg-surface-container-lowest px-6 md:px-8 py-4 border-b border-outline-variant/20 flex items-center justify-between">
                 <h2 className="text-headline-md text-on-surface font-bold">{t("exam.reviewModalTitle")}</h2>
                 <button
                   onClick={() => setReviewOpen(false)}
@@ -968,33 +970,195 @@ export default function ExamDetailPage() {
                   <X size={18} className="text-primary" />
                 </button>
               </div>
-              <p className="text-body-md text-on-surface-variant mb-6">{t("exam.reviewModalHint")}</p>
-              <div className="grid grid-cols-6 sm:grid-cols-8 gap-2.5">
-                {questions.map((q, idx) => {
-                  const rr = answerResults[q.id]
-                  const rh = hotspotResults[q.id]
-                  const isCorrect = rr ? rr.correct : rh ? rh.results.every((r) => r.correct) : false
-                  return (
-                    <button
-                      key={q.id}
-                      onClick={() => { setReviewOpen(false); setReviewMode(true); setShowResults(false); goToQuestion(idx) }}
-                      className={`aspect-square w-full rounded-lg flex items-center justify-center font-bold text-label-md text-white transition-all active:scale-90 shadow-sm ${
-                        isCorrect ? "bg-green-500 hover:bg-green-600" : "bg-red-500 hover:bg-red-600"
-                      }`}
-                    >
-                      {idx + 1}
-                    </button>
-                  )
-                })}
-              </div>
-              <div className="flex items-center justify-center gap-5 mt-6">
-                <span className="flex items-center gap-2 text-label-md text-on-surface-variant">
-                  <span className="w-3.5 h-3.5 rounded bg-green-500" /> {t("exam.reviewCorrect")}
-                </span>
-                <span className="flex items-center gap-2 text-label-md text-on-surface-variant">
-                  <span className="w-3.5 h-3.5 rounded bg-red-500" /> {t("exam.reviewWrong")}
-                </span>
-              </div>
+
+              {reviewSelected === null ? (
+                <div className="p-6 md:p-8">
+                  <p className="text-body-md text-on-surface-variant mb-6">{t("exam.reviewModalHint")}</p>
+                  <div className="grid grid-cols-6 sm:grid-cols-8 gap-2.5">
+                    {questions.map((q, idx) => {
+                      const rr = answerResults[q.id]
+                      const rh = hotspotResults[q.id]
+                      const isCorrect = rr ? rr.correct : rh ? rh.results.every((r) => r.correct) : false
+                      return (
+                        <button
+                          key={q.id}
+                          onClick={() => setReviewSelected(idx)}
+                          className={`aspect-square w-full rounded-lg flex items-center justify-center font-bold text-label-md text-white transition-all active:scale-90 shadow-sm ${
+                            isCorrect ? "bg-green-500 hover:bg-green-600" : "bg-red-500 hover:bg-red-600"
+                          }`}
+                        >
+                          {idx + 1}
+                        </button>
+                      )
+                    })}
+                  </div>
+                  <div className="flex items-center justify-center gap-5 mt-6">
+                    <span className="flex items-center gap-2 text-label-md text-on-surface-variant">
+                      <span className="w-3.5 h-3.5 rounded bg-green-500" /> {t("exam.reviewCorrect")}
+                    </span>
+                    <span className="flex items-center gap-2 text-label-md text-on-surface-variant">
+                      <span className="w-3.5 h-3.5 rounded bg-red-500" /> {t("exam.reviewWrong")}
+                    </span>
+                  </div>
+                </div>
+              ) : (() => {
+                const idx = reviewSelected
+                const q = questions[idx]
+                const rr = answerResults[q.id]
+                const rh = hotspotResults[q.id]
+                const qSelectedIndex = answers[q.id]
+                const qCorrectIndex = rr?.correct_index ?? -1
+                const qCorrectIndices = rr?.correct_indices ?? (qCorrectIndex >= 0 ? [qCorrectIndex] : [])
+                const qSelectedMulti = multiSelections[q.id] ?? []
+                const qIsCorrect = rr ? rr.correct : rh ? rh.results.every((r) => r.correct) : false
+                const qExplanation = rr?.explanation ?? rh?.explanation ?? null
+                const qIsHotspot = q.media != null && q.answerOptions.some((o) => o.x != null && o.y != null)
+                const qIsChooseImages = q.answerOptions.length > 0 && q.answerOptions.some((o) => o.imageUrl)
+
+                const btnPrev = `flex items-center justify-center size-10 rounded-xl transition-all active:scale-95 ${idx === 0 ? "bg-surface-container text-outline-variant cursor-not-allowed" : "bg-primary/10 text-primary hover:bg-primary/20"}`
+                const btnNext = `flex items-center justify-center size-10 rounded-xl transition-all active:scale-95 ${idx === totalQuestions - 1 ? "bg-surface-container text-outline-variant cursor-not-allowed" : "bg-primary/10 text-primary hover:bg-primary/20"}`
+
+                return (
+                  <div className="p-6 md:p-8">
+                    <div className="flex items-center justify-between mb-6">
+                      <button
+                        onClick={() => setReviewSelected(Math.max(0, idx - 1))}
+                        disabled={idx === 0}
+                        aria-label={t("exam.previous")}
+                        className={btnPrev}
+                      >
+                        <ChevronLeft size={20} />
+                      </button>
+                      <div className="flex items-center gap-3">
+                        <button
+                          onClick={() => setReviewSelected(null)}
+                          className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-surface-container text-primary text-label-md font-bold hover:bg-surface-container-high transition-all active:scale-95"
+                        >
+                          <LayoutGrid size={16} />
+                        </button>
+                        <span className="text-label-md font-bold text-primary">{t("exam.questionN", { n: idx + 1 })} / {totalQuestions}</span>
+                      </div>
+                      <button
+                        onClick={() => setReviewSelected(Math.min(totalQuestions - 1, idx + 1))}
+                        disabled={idx === totalQuestions - 1}
+                        aria-label={t("exam.next")}
+                        className={btnNext}
+                      >
+                        <ChevronRight size={20} />
+                      </button>
+                    </div>
+
+                    <div className="bg-surface-container-lowest border border-outline-variant/30 rounded-2xl overflow-hidden">
+                      <div className={`px-5 py-4 flex items-center gap-3 border-b border-outline-variant/20 ${qIsCorrect ? "bg-green-50/50" : "bg-red-50/50"}`}>
+                        <div className={`size-8 rounded-full flex items-center justify-center shrink-0 ${qIsCorrect ? "bg-green-100 text-green-700" : "bg-red-100 text-red-700"}`}>
+                          {qIsCorrect ? <Check size={18} /> : <X size={18} />}
+                        </div>
+                        <div className="flex flex-wrap items-center gap-2 min-w-0">
+                          <span className="text-label-sm font-bold text-primary">{t("exam.questionN", { n: idx + 1 })}</span>
+                          <span className={`text-label-xs px-2 py-0.5 rounded-full font-bold ${qIsCorrect ? "bg-green-100 text-green-700" : "bg-red-100 text-red-700"}`}>
+                            {qIsCorrect ? t("exam.reviewCorrect") : t("exam.reviewWrong")}
+                          </span>
+                          {q.category && <span className="text-label-xs text-on-surface-variant">{q.category}</span>}
+                        </div>
+                      </div>
+
+                      <div className="p-5 space-y-4">
+                        <p className="text-body-md font-medium text-primary">{q.questionText}</p>
+
+                        {q.media && !qIsHotspot && !qIsChooseImages && (
+                          <div className="rounded-xl overflow-hidden aspect-video border border-outline-variant/30 bg-surface-container">
+                            {q.mediaMime?.startsWith("video/") ? (
+                              <QuestionVideo src={q.media} autoPlay muted className="w-full h-full object-cover" />
+                            ) : (
+                              <SmartImage src={q.media} alt="" className="w-full h-full object-cover" />
+                            )}
+                          </div>
+                        )}
+
+                        {qIsChooseImages ? (
+                          <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                            {q.answerOptions.map((opt, oi) => {
+                              const isSelected = qSelectedMulti.length > 0 ? qSelectedMulti.includes(oi) : qSelectedIndex === oi
+                              const isCorrectOpt = qCorrectIndices.includes(oi)
+                              const borderColor = isCorrectOpt ? "border-green-500" : isSelected && !isCorrectOpt ? "border-red-500" : "border-outline-variant/30"
+                              return (
+                                <div key={oi} className={`relative rounded-xl overflow-hidden border-2 ${borderColor} ${isCorrectOpt ? "bg-green-50" : isSelected ? "bg-red-50" : ""}`}>
+                                  {opt.imageUrl && <SmartImage src={opt.imageUrl} alt="" className="w-full aspect-square object-cover" />}
+                                  {isCorrectOpt && (
+                                    <div className="absolute top-2 right-2 bg-green-500 text-white text-label-xs font-bold px-2 py-0.5 rounded">{t("exam.correct")}</div>
+                                  )}
+                                  {isSelected && !isCorrectOpt && (
+                                    <div className="absolute top-2 right-2 bg-red-500 text-white text-label-xs font-bold px-2 py-0.5 rounded">{t("exam.yourChoice")}</div>
+                                  )}
+                                </div>
+                              )
+                            })}
+                          </div>
+                        ) : qIsHotspot ? (
+                          <div className="text-label-sm text-on-surface-variant">{t("exam.hotspotResult")}</div>
+                        ) : (
+                          <div className="space-y-2">
+                            {q.answerOptions.map((opt, oi) => {
+                              const prefix = String.fromCharCode(65 + oi)
+                              const isSelected = qSelectedMulti.length > 0 ? qSelectedMulti.includes(oi) : qSelectedIndex === oi
+                              const isCorrectOpt = qCorrectIndices.includes(oi)
+                              const borderColor = isCorrectOpt ? "border-green-500" : isSelected && !isCorrectOpt ? "border-red-500" : "border-outline-variant/30"
+                              const bgColor = isCorrectOpt ? "bg-green-50" : isSelected ? "bg-red-50" : "bg-surface"
+                              return (
+                                <div key={oi} className={`flex items-center w-full p-3 border-2 ${borderColor} ${bgColor} rounded-xl`}>
+                                  <div className={`size-9 rounded-full flex items-center justify-center mr-3 shrink-0 font-bold text-label-sm ${isCorrectOpt ? "bg-green-100 text-green-700" : isSelected ? "bg-red-100 text-red-700" : "bg-surface-container text-outline"}`}>
+                                    {isCorrectOpt ? <Check size={16} /> : isSelected ? <X size={16} /> : prefix}
+                                  </div>
+                                  <span className="text-body-md flex-1">{opt.text}</span>
+                                  {isCorrectOpt && (
+                                    <span className="text-label-xs font-bold text-green-700 bg-green-100 px-2 py-0.5 rounded shrink-0 ml-2">{t("exam.correct")}</span>
+                                  )}
+                                  {isSelected && !isCorrectOpt && (
+                                    <span className="text-label-xs font-bold text-red-700 bg-red-100 px-2 py-0.5 rounded shrink-0 ml-2">{t("exam.yourChoice")}</span>
+                                  )}
+                                </div>
+                              )
+                            })}
+                          </div>
+                        )}
+
+                        {qExplanation && (
+                          <div className="flex items-start gap-3 bg-surface-container-low rounded-xl p-4">
+                            <Info size={18} className="text-primary shrink-0 mt-0.5" />
+                            <p className="text-body-md text-on-surface-variant" dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(qExplanation ?? "") }} />
+                          </div>
+                        )}
+                      </div>
+                    </div>
+
+                    <div className="flex items-center justify-between mt-5">
+                      <button
+                        onClick={() => setReviewSelected(Math.max(0, idx - 1))}
+                        disabled={idx === 0}
+                        className={`flex items-center gap-2 px-5 py-2.5 rounded-full font-label-md text-label-md transition-all active:scale-[0.98] ${idx === 0 ? "bg-surface-container text-outline-variant cursor-not-allowed" : "bg-secondary-container text-on-secondary-container hover:opacity-90"}`}
+                      >
+                        <ChevronLeft size={16} />
+                        {t("exam.previous")}
+                      </button>
+                      <button
+                        onClick={() => setReviewSelected(null)}
+                        className="flex items-center gap-2 px-5 py-2.5 rounded-full bg-surface-container text-primary font-label-md text-label-md hover:bg-surface-container-high transition-all active:scale-[0.98]"
+                      >
+                        <LayoutGrid size={16} />
+                        {t("exam.reviewModalTitle")}
+                      </button>
+                      <button
+                        onClick={() => setReviewSelected(Math.min(totalQuestions - 1, idx + 1))}
+                        disabled={idx === totalQuestions - 1}
+                        className={`flex items-center gap-2 px-5 py-2.5 rounded-full font-label-md text-label-md transition-all active:scale-[0.98] ${idx === totalQuestions - 1 ? "bg-surface-container text-outline-variant cursor-not-allowed" : "bg-secondary-container text-on-secondary-container hover:opacity-90"}`}
+                      >
+                        {t("exam.next")}
+                        <ChevronRight size={16} />
+                      </button>
+                    </div>
+                  </div>
+                )
+              })()}
             </div>
           </div>
         )}
