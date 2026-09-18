@@ -153,6 +153,8 @@ export function Hero() {
           <div className="absolute -bottom-10 -left-10 size-48 bg-primary-container opacity-10 rounded-full blur-3xl" />
         </div>
       </div>
+      {/* bottom fade into next section */}
+      <div aria-hidden className="pointer-events-none absolute inset-x-0 bottom-0 h-32 md:h-48 bg-gradient-to-t from-background via-background/60 to-transparent" />
     </section>
   )
 }
