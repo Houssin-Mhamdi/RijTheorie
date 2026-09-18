@@ -8,7 +8,7 @@ export function HowItWorks() {
   return (
     <section className="py-24 bg-white relative overflow-hidden">
       {/* top fade blending into the hero section above */}
-      <div aria-hidden className="pointer-events-none absolute inset-x-0 top-0 h-32 md:h-48 bg-gradient-to-b from-background via-background/60 to-transparent" />
+      <div aria-hidden className="pointer-events-none absolute inset-x-0 top-0 h-24 bg-gradient-to-b from-background to-transparent" />
       <div className="max-w-container-max-width mx-auto px-margin-desktop text-center mb-16">
         <h2 className="text-headline-lg text-primary mb-4">{t("howItWorks.title")}</h2>
         <p className="text-body-lg text-on-surface-variant max-w-2xl mx-auto">{t("howItWorks.subtitle")}</p>
