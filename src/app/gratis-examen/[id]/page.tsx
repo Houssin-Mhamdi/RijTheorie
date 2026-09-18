@@ -280,6 +280,7 @@ export default function GratisExamenPage() {
     if (!hasAnswered) return "idle"
     const isCorrect = correctIndices.includes(idx)
     const isSelected = selectedIndices.includes(idx)
+    if (isSelected && answerResult && !answerResult.correct) return "wrong-selected"
     if (isCorrect && isSelected) return "correct-selected"
     if (!isCorrect && isSelected) return "wrong-selected"
     if (isCorrect && !isSelected) return "correct-unselected"
@@ -451,6 +452,12 @@ export default function GratisExamenPage() {
                     Meerdere antwoorden juist
                   </span>
                   <span className="text-xs text-slate-500">Selecteer alle juiste antwoorden</span>
+                </div>
+              )}
+              {hasAnswered && currentQuestion.multipleCorrect && answerResult && !answerResult.correct && (
+                <div className="flex items-center gap-3 bg-red-50 border border-red-200 rounded-xl px-4 py-3">
+                  <XCircle size={18} className="text-red-500 shrink-0" />
+                  <span className="text-sm font-bold text-red-700">Fout — niet alle juiste antwoorden gekozen</span>
                 </div>
               )}
               {currentQuestion.media && !isHotspot && !isChooseImages && (

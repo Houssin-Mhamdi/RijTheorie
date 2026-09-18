@@ -634,6 +634,7 @@ export default function ExamDetailPage() {
     if (!hasAnswered) return "idle"
     const isCorrect = correctIndices.includes(idx)
     const isSelected = selectedIndices.includes(idx)
+    if (isSelected && answerResult && !answerResult.correct) return "wrong-selected"
     if (isCorrect && isSelected) return "correct-selected"
     if (!isCorrect && isSelected) return "wrong-selected"
     if (isCorrect && !isSelected) return "correct-unselected"
@@ -892,14 +893,14 @@ export default function ExamDetailPage() {
                           {q.answerOptions.map((opt, oi) => {
                             const isSelected = qSelectedMulti.length > 0 ? qSelectedMulti.includes(oi) : qSelectedIndex === oi
                             const isCorrectOpt = qCorrectIndices.includes(oi)
-                            const borderColor = isCorrectOpt ? "border-green-500" : isSelected && !isCorrectOpt ? "border-red-500" : "border-outline-variant/30"
+                            const borderColor = isSelected && !qIsCorrect ? "border-red-500" : isCorrectOpt ? "border-green-500" : isSelected ? "border-red-500" : "border-outline-variant/30"
                             return (
-                              <div key={oi} className={`relative rounded-xl overflow-hidden border-2 ${borderColor} ${isCorrectOpt ? "bg-green-50" : isSelected ? "bg-red-50" : ""}`}>
+                              <div key={oi} className={`relative rounded-xl overflow-hidden border-2 ${borderColor} ${isSelected && !qIsCorrect ? "bg-red-50" : isCorrectOpt ? "bg-green-50" : isSelected ? "bg-red-50" : ""}`}>
                                 {opt.imageUrl && <SmartImage src={opt.imageUrl} alt="" className="w-full aspect-square object-cover" />}
                                 {isCorrectOpt && (
                                   <div className="absolute top-2 right-2 bg-green-500 text-white text-label-xs font-bold px-2 py-0.5 rounded">{t("exam.correct")}</div>
                                 )}
-                                {isSelected && !isCorrectOpt && (
+                                {isSelected && !qIsCorrect && (
                                   <div className="absolute top-2 right-2 bg-red-500 text-white text-label-xs font-bold px-2 py-0.5 rounded">{t("exam.yourChoice")}</div>
                                 )}
                               </div>
@@ -914,18 +915,18 @@ export default function ExamDetailPage() {
                             const prefix = String.fromCharCode(65 + oi)
                             const isSelected = qSelectedMulti.length > 0 ? qSelectedMulti.includes(oi) : qSelectedIndex === oi
                             const isCorrectOpt = qCorrectIndices.includes(oi)
-                            const borderColor = isCorrectOpt ? "border-green-500" : isSelected && !isCorrectOpt ? "border-red-500" : "border-outline-variant/30"
-                            const bgColor = isCorrectOpt ? "bg-green-50" : isSelected ? "bg-red-50" : "bg-surface"
+                            const borderColor = isSelected && !qIsCorrect ? "border-red-500" : isCorrectOpt ? "border-green-500" : isSelected ? "border-red-500" : "border-outline-variant/30"
+                            const bgColor = isSelected && !qIsCorrect ? "bg-red-50" : isCorrectOpt ? "bg-green-50" : isSelected ? "bg-red-50" : "bg-surface"
                             return (
                               <div key={oi} className={`flex items-center w-full p-3 border-2 ${borderColor} ${bgColor} rounded-xl`}>
-                                <div className={`size-9 rounded-full flex items-center justify-center mr-3 shrink-0 font-bold text-label-sm ${isCorrectOpt ? "bg-green-100 text-green-700" : isSelected ? "bg-red-100 text-red-700" : "bg-surface-container text-outline"}`}>
+                                <div className={`size-9 rounded-full flex items-center justify-center mr-3 shrink-0 font-bold text-label-sm ${isSelected && !qIsCorrect ? "bg-red-100 text-red-700" : isCorrectOpt ? "bg-green-100 text-green-700" : isSelected ? "bg-red-100 text-red-700" : "bg-surface-container text-outline"}`}>
                                   {isCorrectOpt ? <Check size={16} /> : isSelected ? <X size={16} /> : prefix}
                                 </div>
                                 <span className="text-body-md flex-1">{opt.text}</span>
                                 {isCorrectOpt && (
                                   <span className="text-label-xs font-bold text-green-700 bg-green-100 px-2 py-0.5 rounded shrink-0 ml-2">{t("exam.correct")}</span>
                                 )}
-                                {isSelected && !isCorrectOpt && (
+                                {isSelected && !qIsCorrect && (
                                   <span className="text-label-xs font-bold text-red-700 bg-red-100 px-2 py-0.5 rounded shrink-0 ml-2">{t("exam.yourChoice")}</span>
                                 )}
                               </div>
@@ -1080,14 +1081,14 @@ export default function ExamDetailPage() {
                             {q.answerOptions.map((opt, oi) => {
                               const isSelected = qSelectedMulti.length > 0 ? qSelectedMulti.includes(oi) : qSelectedIndex === oi
                               const isCorrectOpt = qCorrectIndices.includes(oi)
-                              const borderColor = isCorrectOpt ? "border-green-500" : isSelected && !isCorrectOpt ? "border-red-500" : "border-outline-variant/30"
+                              const borderColor = isSelected && !qIsCorrect ? "border-red-500" : isCorrectOpt ? "border-green-500" : isSelected ? "border-red-500" : "border-outline-variant/30"
                               return (
-                                <div key={oi} className={`relative rounded-xl overflow-hidden border-2 ${borderColor} ${isCorrectOpt ? "bg-green-50" : isSelected ? "bg-red-50" : ""}`}>
+                                <div key={oi} className={`relative rounded-xl overflow-hidden border-2 ${borderColor} ${isSelected && !qIsCorrect ? "bg-red-50" : isCorrectOpt ? "bg-green-50" : isSelected ? "bg-red-50" : ""}`}>
                                   {opt.imageUrl && <SmartImage src={opt.imageUrl} alt="" className="w-full aspect-square object-cover" />}
                                   {isCorrectOpt && (
                                     <div className="absolute top-2 right-2 bg-green-500 text-white text-label-xs font-bold px-2 py-0.5 rounded">{t("exam.correct")}</div>
                                   )}
-                                  {isSelected && !isCorrectOpt && (
+                                  {isSelected && !qIsCorrect && (
                                     <div className="absolute top-2 right-2 bg-red-500 text-white text-label-xs font-bold px-2 py-0.5 rounded">{t("exam.yourChoice")}</div>
                                   )}
                                 </div>
@@ -1102,18 +1103,18 @@ export default function ExamDetailPage() {
                               const prefix = String.fromCharCode(65 + oi)
                               const isSelected = qSelectedMulti.length > 0 ? qSelectedMulti.includes(oi) : qSelectedIndex === oi
                               const isCorrectOpt = qCorrectIndices.includes(oi)
-                              const borderColor = isCorrectOpt ? "border-green-500" : isSelected && !isCorrectOpt ? "border-red-500" : "border-outline-variant/30"
-                              const bgColor = isCorrectOpt ? "bg-green-50" : isSelected ? "bg-red-50" : "bg-surface"
+                              const borderColor = isSelected && !qIsCorrect ? "border-red-500" : isCorrectOpt ? "border-green-500" : isSelected ? "border-red-500" : "border-outline-variant/30"
+                              const bgColor = isSelected && !qIsCorrect ? "bg-red-50" : isCorrectOpt ? "bg-green-50" : isSelected ? "bg-red-50" : "bg-surface"
                               return (
                                 <div key={oi} className={`flex items-center w-full p-3 border-2 ${borderColor} ${bgColor} rounded-xl`}>
-                                  <div className={`size-9 rounded-full flex items-center justify-center mr-3 shrink-0 font-bold text-label-sm ${isCorrectOpt ? "bg-green-100 text-green-700" : isSelected ? "bg-red-100 text-red-700" : "bg-surface-container text-outline"}`}>
+                                  <div className={`size-9 rounded-full flex items-center justify-center mr-3 shrink-0 font-bold text-label-sm ${isSelected && !qIsCorrect ? "bg-red-100 text-red-700" : isCorrectOpt ? "bg-green-100 text-green-700" : isSelected ? "bg-red-100 text-red-700" : "bg-surface-container text-outline"}`}>
                                     {isCorrectOpt ? <Check size={16} /> : isSelected ? <X size={16} /> : prefix}
                                   </div>
                                   <span className="text-body-md flex-1">{opt.text}</span>
                                   {isCorrectOpt && (
                                     <span className="text-label-xs font-bold text-green-700 bg-green-100 px-2 py-0.5 rounded shrink-0 ml-2">{t("exam.correct")}</span>
                                   )}
-                                  {isSelected && !isCorrectOpt && (
+                                  {isSelected && !qIsCorrect && (
                                     <span className="text-label-xs font-bold text-red-700 bg-red-100 px-2 py-0.5 rounded shrink-0 ml-2">{t("exam.yourChoice")}</span>
                                   )}
                                 </div>
@@ -1256,6 +1257,13 @@ export default function ExamDetailPage() {
                         {t("exam.multipleAnswers")}
                       </span>
                       <span className="text-label-sm text-on-surface-variant">{t("exam.selectAllCorrect")}</span>
+                    </div>
+                  )}
+
+                  {hasAnswered && currentQuestion.multipleCorrect && answerResult && !answerResult.correct && (
+                    <div className="flex items-center gap-3 bg-red-50 border border-red-200 rounded-xl px-4 py-3">
+                      <XCircle size={20} className="text-red-500 shrink-0" />
+                      <span className="text-body-md font-bold text-red-700">{t("exam.notAllCorrect")}</span>
                     </div>
                   )}
 

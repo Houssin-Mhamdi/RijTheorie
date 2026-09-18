@@ -463,12 +463,14 @@ CREATE POLICY "Anyone can read question-media"
 -- question-media: public read, ADMIN-only upload/delete
 -- (prevents any authenticated user from wiping or spamming question media)
 DROP POLICY IF EXISTS "Authenticated can upload question-media" ON storage.objects;
+DROP POLICY IF EXISTS "Admins can upload question-media" ON storage.objects;
 CREATE POLICY "Admins can upload question-media"
   ON storage.objects FOR INSERT
   TO authenticated
   WITH CHECK (bucket_id = 'question-media' AND public.is_admin());
 
 DROP POLICY IF EXISTS "Authenticated can delete question-media" ON storage.objects;
+DROP POLICY IF EXISTS "Admins can delete question-media" ON storage.objects;
 CREATE POLICY "Admins can delete question-media"
   ON storage.objects FOR DELETE
   TO authenticated
@@ -844,6 +846,10 @@ ALTER TABLE public.coupon_codes ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.coupon_redemptions ENABLE ROW LEVEL SECURITY;
 
 DROP POLICY IF EXISTS "Admins manage coupon_codes" ON public.coupon_codes;
+DROP POLICY IF EXISTS "Admins read coupon_codes" ON public.coupon_codes;
+DROP POLICY IF EXISTS "Admins insert coupon_codes" ON public.coupon_codes;
+DROP POLICY IF EXISTS "Admins update coupon_codes" ON public.coupon_codes;
+DROP POLICY IF EXISTS "Admins delete coupon_codes" ON public.coupon_codes;
 CREATE POLICY "Admins read coupon_codes" ON public.coupon_codes FOR SELECT USING (public.is_admin());
 CREATE POLICY "Admins insert coupon_codes" ON public.coupon_codes FOR INSERT WITH CHECK (public.is_admin());
 CREATE POLICY "Admins update coupon_codes" ON public.coupon_codes FOR UPDATE USING (public.is_admin());
