@@ -1,11 +1,11 @@
-"use client"
+"use client";
 
-import { useEffect, useState, useCallback, useRef } from "react"
-import { useParams, useRouter } from "next/navigation"
-import { supabase } from "@/lib/supabase"
-import { Howl } from "howler"
-import { Button } from "@/components/ui/button"
-import StudentHotspot from "@/components/questions/student-hotspot"
+import { useEffect, useState, useCallback, useRef } from "react";
+import { useParams, useRouter } from "next/navigation";
+import { supabase } from "@/lib/supabase";
+import { Howl } from "howler";
+import { Button } from "@/components/ui/button";
+import StudentHotspot from "@/components/questions/student-hotspot";
 import {
   CheckCircle,
   XCircle,
@@ -30,189 +30,271 @@ import {
   Pause,
   ListChecks,
   LayoutGrid,
-} from "lucide-react"
-import DOMPurify from "dompurify"
-import { useTranslation } from "@/lib/i18n/translations"
-import { LanguageSwitcher } from "@/components/language-switcher"
-import SmartImage from "@/components/ui/smart-image"
-import QuestionVideo from "@/components/questions/question-video"
+} from "lucide-react";
+import DOMPurify from "dompurify";
+import { useTranslation } from "@/lib/i18n/translations";
+import { LanguageSwitcher } from "@/components/language-switcher";
+import SmartImage from "@/components/ui/smart-image";
+import QuestionVideo from "@/components/questions/question-video";
 
 type AnswerOption = {
-  text: string
-  x?: number
-  y?: number
-  imageUrl?: string
-}
+  text: string;
+  x?: number;
+  y?: number;
+  imageUrl?: string;
+};
 
 type Exam = {
-  id: string
-  title: string
-  description?: string | null
-  duration_minutes?: number
-  pass_threshold?: number
-  pass_type?: string
-  pass_count?: number
-}
+  id: string;
+  title: string;
+  description?: string | null;
+  duration_minutes?: number;
+  pass_threshold?: number;
+  pass_type?: string;
+  pass_count?: number;
+};
 
 type Translation = {
-  question_text: string
-  answer_options?: { text: string }[]
-  explanation?: string
-  active?: boolean
-}
+  question_text: string;
+  answer_options?: { text: string }[];
+  explanation?: string;
+  active?: boolean;
+};
 
 type Question = {
-  id: string
-  category: string
-  questionText: string
-  pauseAt?: number
-  media: string | null
-  mediaMime: string | null
-  multipleCorrect?: boolean
-  answerOptions: AnswerOption[]
-  explanation: string | null
-  translations?: Record<string, Translation>
-  audioTranslations?: Record<string, string>
-  explanationAudioTranslations?: Record<string, string>
-}
+  id: string;
+  type?: "normal" | "right-of-way" | "choose-images" | "input-text";
+  category: string;
+  questionText: string;
+  pauseAt?: number;
+  media: string | null;
+  mediaMime: string | null;
+  multipleCorrect?: boolean;
+  answerOptions: AnswerOption[];
+  explanation: string | null;
+  translations?: Record<string, Translation>;
+  audioTranslations?: Record<string, string>;
+  explanationAudioTranslations?: Record<string, string>;
+};
 
 export default function ExamDetailPage() {
-  const params = useParams()
-  const router = useRouter()
-  const examId = params.id as string
+  const params = useParams();
+  const router = useRouter();
+  const examId = params.id as string;
 
-  const [exam, setExam] = useState<Exam | null>(null)
-  const [questions, setQuestions] = useState<Question[]>([])
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
+  const [exam, setExam] = useState<Exam | null>(null);
+  const [questions, setQuestions] = useState<Question[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
-  const [currentIndex, setCurrentIndex] = useState(0)
-  const [answers, setAnswers] = useState<Record<string, number | null>>({})
-  const [submitted, setSubmitted] = useState<Record<string, boolean>>({})
-  const [answerResults, setAnswerResults] = useState<Record<string, { correct: boolean; correct_index: number; correct_indices?: number[]; explanation: string | null }>>({})
-  const [hotspotResults, setHotspotResults] = useState<Record<string, { results: { index: number; correct: boolean; distance: number | null }[]; explanation: string | null }>>({})
-  const [hotspotAnswers, setHotspotAnswers] = useState<Record<string, { positions: { x: number; y: number }[] }>>({})
-  const [multiSelections, setMultiSelections] = useState<Record<string, number[]>>({})
-  const [locking, setLocking] = useState<string | null>(null)
-  const [timeLeft, setTimeLeft] = useState(45 * 60)
-  const [showError, setShowError] = useState(false)
-  const [showResults, setShowResults] = useState(false)
-  const [reviewOpen, setReviewOpen] = useState(false)
-  const [reviewSelected, setReviewSelected] = useState<number | null>(null)
-  const [reviewMode, setReviewMode] = useState(false)
-  const [saveError, setSaveError] = useState<string | null>(null)
-  const [attemptNumber, setAttemptNumber] = useState(1)
-  const [violations, setViolations] = useState(0)
-  const [showTabWarning, setShowTabWarning] = useState(false)
-  const [examFinished, setExamFinished] = useState(false)
-  const [attemptBlocked, setAttemptBlocked] = useState<{ attempts: number; max_attempts: number } | null>(null)
-  const attemptCreated = useRef(false)
-  const attemptIdRef = useRef<string | null>(null)
-  const timeUpHandled = useRef(false)
-  const autoAdvanceTimer = useRef<number | null>(null)
-  const examStartTime = useRef(Date.now())
-  const questionSoundRef = useRef<Howl | null>(null)
-  const explanationSoundRef = useRef<Howl | null>(null)
-  const [audioPlaying, setAudioPlaying] = useState(false)
-  const [explanationAudioPlaying, setExplanationAudioPlaying] = useState(false)
-  const [soundOn, setSoundOn] = useState(true)
-  const { t, lang } = useTranslation()
+  const [currentIndex, setCurrentIndex] = useState(0);
+  const [answers, setAnswers] = useState<Record<string, number | null>>({});
+  const [submitted, setSubmitted] = useState<Record<string, boolean>>({});
+  const [answerResults, setAnswerResults] = useState<
+    Record<
+      string,
+      {
+        correct: boolean;
+        correct_index: number;
+        correct_indices?: number[];
+        explanation: string | null;
+      }
+    >
+  >({});
+  const [hotspotResults, setHotspotResults] = useState<
+    Record<
+      string,
+      {
+        results: { index: number; correct: boolean; distance: number | null }[];
+        explanation: string | null;
+      }
+    >
+  >({});
+  const [hotspotAnswers, setHotspotAnswers] = useState<
+    Record<string, { positions: { x: number; y: number }[] }>
+  >({});
+  const [multiSelections, setMultiSelections] = useState<
+    Record<string, number[]>
+  >({});
+  const [textAnswers, setTextAnswers] = useState<Record<string, string>>({});
+  const [textResults, setTextResults] = useState<
+    Record<
+      string,
+      { correct: boolean; correct_text: string; explanation: string | null }
+    >
+  >({});
+  const [locking, setLocking] = useState<string | null>(null);
+  const [timeLeft, setTimeLeft] = useState(45 * 60);
+  const [showError, setShowError] = useState(false);
+  const [showResults, setShowResults] = useState(false);
+  const [reviewOpen, setReviewOpen] = useState(false);
+  const [reviewSelected, setReviewSelected] = useState<number | null>(null);
+  const [reviewMode, setReviewMode] = useState(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
+  const [attemptNumber, setAttemptNumber] = useState(1);
+  const [violations, setViolations] = useState(0);
+  const [showTabWarning, setShowTabWarning] = useState(false);
+  const [examFinished, setExamFinished] = useState(false);
+  const [attemptBlocked, setAttemptBlocked] = useState<{
+    attempts: number;
+    max_attempts: number;
+  } | null>(null);
+  const attemptCreated = useRef(false);
+  const attemptIdRef = useRef<string | null>(null);
+  const timeUpHandled = useRef(false);
+  const autoAdvanceTimer = useRef<number | null>(null);
+  const examStartTime = useRef(Date.now());
+  const questionSoundRef = useRef<Howl | null>(null);
+  const explanationSoundRef = useRef<Howl | null>(null);
+  const [audioPlaying, setAudioPlaying] = useState(false);
+  const [explanationAudioPlaying, setExplanationAudioPlaying] = useState(false);
+  const [soundOn, setSoundOn] = useState(true);
+  const { t, lang } = useTranslation();
 
-  const currentQuestion = questions[currentIndex]
-  const hasAnswered = submitted[currentQuestion?.id] ?? false
-  const totalQuestions = questions.length
-  const answeredCount = Object.keys(submitted).length
-  const examActive = !showResults && !examFinished && questions.length > 0
+  const currentQuestion = questions[currentIndex];
+  const hasAnswered = submitted[currentQuestion?.id] ?? false;
+  const totalQuestions = questions.length;
+  const answeredCount = Object.keys(submitted).length;
+  const examActive = !showResults && !examFinished && questions.length > 0;
 
   const currentAudioUrl = (() => {
-    const audio = currentQuestion?.audioTranslations
-    if (!audio || typeof audio !== "object") return null
-    return audio[lang] || audio["nl"] || null
-  })()
+    const audio = currentQuestion?.audioTranslations;
+    if (!audio || typeof audio !== "object") return null;
+    return audio[lang] || audio["nl"] || null;
+  })();
 
   const currentExplanationAudioUrl = (() => {
-    const audio = currentQuestion?.explanationAudioTranslations
-    if (!audio || typeof audio !== "object") return null
-    return audio[lang] || audio["nl"] || null
-  })()
+    const audio = currentQuestion?.explanationAudioTranslations;
+    if (!audio || typeof audio !== "object") return null;
+    return audio[lang] || audio["nl"] || null;
+  })();
 
   useEffect(() => {
     const fetchExamData = async () => {
-      setLoading(true)
-      setError(null)
+      setLoading(true);
+      setError(null);
 
       const { data: examData, error: examErr } = await supabase
         .from("exams")
         .select("*")
         .eq("id", examId)
-        .single()
+        .single();
 
       if (examErr || !examData) {
-        setError("Exam not found")
-        setLoading(false)
-        return
+        setError("Exam not found");
+        setLoading(false);
+        return;
       }
 
-      setExam(examData)
-      setTimeLeft((examData.duration_minutes ?? 45) * 60)
+      setExam(examData);
+      setTimeLeft((examData.duration_minutes ?? 45) * 60);
 
-      const { data: canAccess, error: accessErr } = await supabase
-        .rpc("can_access_exam", { p_exam_id: examId })
+      const { data: canAccess, error: accessErr } = await supabase.rpc(
+        "can_access_exam",
+        { p_exam_id: examId },
+      );
 
       if (accessErr || canAccess === false) {
-        router.push("/exams?subscription=required")
-        return
+        router.push("/exams?subscription=required");
+        return;
       }
 
-      const { data: attemptCheck, error: attemptErr } = await supabase
-        .rpc("can_attempt_exam", { p_exam_id: examId })
+      const { data: attemptCheck, error: attemptErr } = await supabase.rpc(
+        "can_attempt_exam",
+        { p_exam_id: examId },
+      );
       if (!attemptErr && attemptCheck && typeof attemptCheck === "object") {
-        const check = attemptCheck as { allowed: boolean; reason?: string; remaining_attempts?: number; max_attempts?: number }
+        const check = attemptCheck as {
+          allowed: boolean;
+          reason?: string;
+          remaining_attempts?: number;
+          max_attempts?: number;
+        };
         if (!check.allowed && check.reason === "limit_reached") {
-          setAttemptBlocked({ attempts: check.remaining_attempts ?? 0, max_attempts: check.max_attempts ?? 0 })
-          setLoading(false)
-          return
+          setAttemptBlocked({
+            attempts: check.remaining_attempts ?? 0,
+            max_attempts: check.max_attempts ?? 0,
+          });
+          setLoading(false);
+          return;
         }
       }
 
-      const { data: rpcData, error: rpcErr } = await supabase
-        .rpc("get_exam_questions", { p_exam_id: examId })
+      const { data: rpcData, error: rpcErr } = await supabase.rpc(
+        "get_exam_questions",
+        { p_exam_id: examId },
+      );
 
-      if (rpcErr || !rpcData || !Array.isArray(rpcData) || rpcData.length === 0) {
-        setError("No questions found in this exam")
-        setLoading(false)
-        return
+      if (
+        rpcErr ||
+        !rpcData ||
+        !Array.isArray(rpcData) ||
+        rpcData.length === 0
+      ) {
+        setError("No questions found in this exam");
+        setLoading(false);
+        return;
       }
 
-      const mappedQuestions: Question[] = (rpcData as Record<string, unknown>[]).map((q) => {
-        const media = (q.media as string) || null
-        const ext = media?.split(".").pop()?.toLowerCase() ?? ""
-        const mime = /^(mp4|webm|ogg|mov)$/i.test(ext) ? `video/${ext}` : media ? "image/unknown" : null
-        const rawTranslations = (q as Record<string, unknown>).translations as Record<string, unknown> | null | undefined
-        const translations: Record<string, Translation> | undefined = rawTranslations && typeof rawTranslations === "object" && !Array.isArray(rawTranslations) && Object.keys(rawTranslations).length > 0
-          ? Object.keys(rawTranslations).reduce((acc, lang) => ({ ...acc, [lang]: rawTranslations[lang] as Translation }), {} as Record<string, Translation>)
-          : undefined
-        return {
-          id: q.id as string,
-          category: q.category as string,
+      const mappedQuestions: Question[] = (
+        rpcData as Record<string, unknown>[]
+      ).map((q) => {
+        const media = (q.media as string) || null;
+        const ext = media?.split(".").pop()?.toLowerCase() ?? "";
+        const mime = /^(mp4|webm|ogg|mov)$/i.test(ext)
+          ? `video/${ext}`
+          : media
+            ? "image/unknown"
+            : null;
+        const rawTranslations = (q as Record<string, unknown>).translations as
+          | Record<string, unknown>
+          | null
+          | undefined;
+        const translations: Record<string, Translation> | undefined =
+          rawTranslations &&
+          typeof rawTranslations === "object" &&
+          !Array.isArray(rawTranslations) &&
+          Object.keys(rawTranslations).length > 0
+            ? Object.keys(rawTranslations).reduce(
+                (acc, lang) => ({
+                  ...acc,
+                  [lang]: rawTranslations[lang] as Translation,
+                }),
+                {} as Record<string, Translation>,
+              )
+            : undefined;
+return {
+            id: q.id as string,
+            type: (q.type as Question["type"]) || undefined,
+            category: q.category as string,
           questionText: q.question_text as string,
-          pauseAt: (q as Record<string, unknown>).pause_at as number ?? 3,
+          pauseAt: ((q as Record<string, unknown>).pause_at as number) ?? 3,
           media,
           mediaMime: mime,
           multipleCorrect: !!q.multiple_correct,
           answerOptions: (q.answer_options as AnswerOption[]) ?? [],
           explanation: null,
           translations,
-          audioTranslations: ((q as Record<string, unknown>).audio_translations as Record<string, string> | null | undefined) ?? {},
-          explanationAudioTranslations: ((q as Record<string, unknown>).explanation_audio_translations as Record<string, string> | null | undefined) ?? {},
-        }
-      })
+          audioTranslations:
+            ((q as Record<string, unknown>).audio_translations as
+              | Record<string, string>
+              | null
+              | undefined) ?? {},
+          explanationAudioTranslations:
+            ((q as Record<string, unknown>).explanation_audio_translations as
+              | Record<string, string>
+              | null
+              | undefined) ?? {},
+        };
+      });
 
-      setQuestions(mappedQuestions)
+      setQuestions(mappedQuestions);
 
       if (!attemptCreated.current) {
-        attemptCreated.current = true
-        const { data: { user } } = await supabase.auth.getUser()
+        attemptCreated.current = true;
+        const {
+          data: { user },
+        } = await supabase.auth.getUser();
         if (user) {
           const { data: existing } = await supabase
             .from("exam_attempts")
@@ -220,67 +302,76 @@ export default function ExamDetailPage() {
             .eq("user_id", user.id)
             .eq("exam_id", examId)
             .order("started_at", { ascending: false })
-            .limit(1)
+            .limit(1);
           if (existing && existing.length > 0) {
             if (existing[0].completed_at) {
-              const { data: count } = await supabase.rpc("count_user_exam_attempts", {
-                p_user_id: user.id,
-                p_exam_id: examId,
-              })
-              const nextNumber = (typeof count === "number" ? count : 0) + 1
-              const { data: newId } = await supabase.rpc("insert_exam_attempt", {
-                p_user_id: user.id,
-                p_exam_id: examId,
-                p_attempt_number: nextNumber,
-              })
-              attemptIdRef.current = typeof newId === "string" ? newId : null
-              setAttemptNumber(nextNumber)
+              const { data: count } = await supabase.rpc(
+                "count_user_exam_attempts",
+                {
+                  p_user_id: user.id,
+                  p_exam_id: examId,
+                },
+              );
+              const nextNumber = (typeof count === "number" ? count : 0) + 1;
+              const { data: newId } = await supabase.rpc(
+                "insert_exam_attempt",
+                {
+                  p_user_id: user.id,
+                  p_exam_id: examId,
+                  p_attempt_number: nextNumber,
+                },
+              );
+              attemptIdRef.current = typeof newId === "string" ? newId : null;
+              setAttemptNumber(nextNumber);
             } else {
-              attemptIdRef.current = existing[0].id
-              setAttemptNumber(existing[0].attempt_number)
+              attemptIdRef.current = existing[0].id;
+              setAttemptNumber(existing[0].attempt_number);
             }
           } else {
-            const { data: count } = await supabase.rpc("count_user_exam_attempts", {
-              p_user_id: user.id,
-              p_exam_id: examId,
-            })
-            const nextNumber = (typeof count === "number" ? count : 0) + 1
+            const { data: count } = await supabase.rpc(
+              "count_user_exam_attempts",
+              {
+                p_user_id: user.id,
+                p_exam_id: examId,
+              },
+            );
+            const nextNumber = (typeof count === "number" ? count : 0) + 1;
             const { data: newId } = await supabase.rpc("insert_exam_attempt", {
               p_user_id: user.id,
               p_exam_id: examId,
               p_attempt_number: nextNumber,
-            })
-            attemptIdRef.current = typeof newId === "string" ? newId : null
-            setAttemptNumber(nextNumber)
+            });
+            attemptIdRef.current = typeof newId === "string" ? newId : null;
+            setAttemptNumber(nextNumber);
           }
         }
       }
 
-      setLoading(false)
-    }
+      setLoading(false);
+    };
 
-    fetchExamData()
-  }, [examId])
+    fetchExamData();
+  }, [examId]);
 
   useEffect(() => {
-    if (timeLeft <= 0 || !examActive) return
+    if (timeLeft <= 0 || !examActive) return;
     const interval = setInterval(() => {
       setTimeLeft((prev) => {
         if (prev <= 1) {
-          clearInterval(interval)
-          return 0
+          clearInterval(interval);
+          return 0;
         }
-        return prev - 1
-      })
-    }, 1000)
-    return () => clearInterval(interval)
-  }, [timeLeft, examActive])
+        return prev - 1;
+      });
+    }, 1000);
+    return () => clearInterval(interval);
+  }, [timeLeft, examActive]);
 
   useEffect(() => {
-    questionSoundRef.current?.unload()
-    questionSoundRef.current = null
-    setAudioPlaying(false)
-    if (!currentQuestion || !currentAudioUrl || !soundOn || reviewMode) return
+    questionSoundRef.current?.unload();
+    questionSoundRef.current = null;
+    setAudioPlaying(false);
+    if (!currentQuestion || !currentAudioUrl || !soundOn || reviewMode) return;
     const sound = new Howl({
       src: [currentAudioUrl],
       html5: true,
@@ -291,31 +382,38 @@ export default function ExamDetailPage() {
       onstop: () => setAudioPlaying(false),
       onend: () => setAudioPlaying(false),
       onloaderror: () => setAudioPlaying(false),
-    })
-    questionSoundRef.current = sound
+    });
+    questionSoundRef.current = sound;
     // Defer play() until after Howler has initialized the stream
     const t = setTimeout(() => {
       try {
-        sound.play()
+        sound.play();
       } catch {
         /* autoplay blocked or stream error — ignore */
       }
-    }, 0)
+    }, 0);
     return () => {
-      clearTimeout(t)
-      sound.unload()
-    }
-  }, [currentQuestion?.id, lang, showResults, soundOn, currentAudioUrl, reviewMode])
+      clearTimeout(t);
+      sound.unload();
+    };
+  }, [
+    currentQuestion?.id,
+    lang,
+    showResults,
+    soundOn,
+    currentAudioUrl,
+    reviewMode,
+  ]);
 
   useEffect(() => {
-    explanationSoundRef.current?.unload()
-    explanationSoundRef.current = null
-    setExplanationAudioPlaying(false)
-    const shouldPlay = hasAnswered && !!currentExplanationAudioUrl && soundOn
-    if (!shouldPlay) return
+    explanationSoundRef.current?.unload();
+    explanationSoundRef.current = null;
+    setExplanationAudioPlaying(false);
+    const shouldPlay = hasAnswered && !!currentExplanationAudioUrl && soundOn;
+    if (!shouldPlay) return;
     if (questionSoundRef.current) {
-      questionSoundRef.current.pause()
-      setAudioPlaying(false)
+      questionSoundRef.current.pause();
+      setAudioPlaying(false);
     }
     const sound = new Howl({
       src: [currentExplanationAudioUrl],
@@ -327,193 +425,287 @@ export default function ExamDetailPage() {
       onstop: () => setExplanationAudioPlaying(false),
       onend: () => setExplanationAudioPlaying(false),
       onloaderror: () => setExplanationAudioPlaying(false),
-    })
-    explanationSoundRef.current = sound
+    });
+    explanationSoundRef.current = sound;
     // Defer play() until after Howler has initialized the stream
     const t = setTimeout(() => {
       try {
-        sound.play()
+        sound.play();
       } catch {
         /* autoplay blocked or stream error — ignore */
       }
-    }, 0)
+    }, 0);
     return () => {
-      clearTimeout(t)
-      sound.unload()
-    }
-  }, [currentQuestion?.id, lang, hasAnswered, showResults, soundOn, currentExplanationAudioUrl])
+      clearTimeout(t);
+      sound.unload();
+    };
+  }, [
+    currentQuestion?.id,
+    lang,
+    hasAnswered,
+    showResults,
+    soundOn,
+    currentExplanationAudioUrl,
+  ]);
 
   const handleToggleSound = useCallback(() => {
     setSoundOn((prev) => {
-      const next = !prev
+      const next = !prev;
       if (!next) {
-        if (questionSoundRef.current) { questionSoundRef.current.stop(); setAudioPlaying(false) }
-        if (explanationSoundRef.current) { explanationSoundRef.current.stop(); setExplanationAudioPlaying(false) }
+        if (questionSoundRef.current) {
+          questionSoundRef.current.stop();
+          setAudioPlaying(false);
+        }
+        if (explanationSoundRef.current) {
+          explanationSoundRef.current.stop();
+          setExplanationAudioPlaying(false);
+        }
       }
-      return next
-    })
-  }, [])
+      return next;
+    });
+  }, []);
 
   useEffect(() => {
-    if (!examActive) return
+    if (!examActive) return;
     const onVisibilityChange = () => {
       if (document.hidden) {
-        setViolations((v) => v + 1)
-        setShowTabWarning(true)
+        setViolations((v) => v + 1);
+        setShowTabWarning(true);
       }
-    }
-    document.addEventListener("visibilitychange", onVisibilityChange)
-    return () => document.removeEventListener("visibilitychange", onVisibilityChange)
-  }, [examActive])
+    };
+    document.addEventListener("visibilitychange", onVisibilityChange);
+    return () =>
+      document.removeEventListener("visibilitychange", onVisibilityChange);
+  }, [examActive]);
 
   useEffect(() => {
-    if (!examActive) return
-    const prevent = (e: Event) => e.preventDefault()
-    const preventContext = (e: MouseEvent) => { e.preventDefault() }
-    document.addEventListener("copy", prevent)
-    document.addEventListener("cut", prevent)
-    document.addEventListener("paste", prevent)
-    document.addEventListener("contextmenu", preventContext)
+    if (!examActive) return;
+    const prevent = (e: Event) => e.preventDefault();
+    const preventContext = (e: MouseEvent) => {
+      e.preventDefault();
+    };
+    document.addEventListener("copy", prevent);
+    document.addEventListener("cut", prevent);
+    document.addEventListener("paste", prevent);
+    document.addEventListener("contextmenu", preventContext);
     return () => {
-      document.removeEventListener("copy", prevent)
-      document.removeEventListener("cut", prevent)
-      document.removeEventListener("paste", prevent)
-      document.removeEventListener("contextmenu", preventContext)
-    }
-  }, [examActive])
+      document.removeEventListener("copy", prevent);
+      document.removeEventListener("cut", prevent);
+      document.removeEventListener("paste", prevent);
+      document.removeEventListener("contextmenu", preventContext);
+    };
+  }, [examActive]);
 
   const goToQuestion = useCallback(
     (index: number) => {
-      if (index < 0 || index >= totalQuestions) return
+      if (index < 0 || index >= totalQuestions) return;
       if (autoAdvanceTimer.current) {
-        window.clearTimeout(autoAdvanceTimer.current)
-        autoAdvanceTimer.current = null
+        window.clearTimeout(autoAdvanceTimer.current);
+        autoAdvanceTimer.current = null;
       }
-      setShowError(false)
-      setCurrentIndex(index)
+      setShowError(false);
+      setCurrentIndex(index);
     },
     [totalQuestions],
-  )
+  );
 
   const submitMultiSelection = useCallback(
-    async (qId: string, selected: number[], final: boolean): Promise<{ status?: string; correct: boolean } | null> => {
+    async (
+      qId: string,
+      selected: number[],
+      final: boolean,
+    ): Promise<{ status?: string; correct: boolean } | null> => {
       if (selected.length === 0) {
-        if (final) setShowError(true)
-        return null
+        if (final) setShowError(true);
+        return null;
       }
 
       const { data, error } = await supabase.rpc("check_answer_multi", {
         p_question_id: qId,
         p_selected_indices: selected,
         p_final: final,
-      })
+      });
       if (error || !data) {
-        if (final) setShowError(true)
-        return null
+        if (final) setShowError(true);
+        return null;
       }
-      const result = data as { status?: string; correct: boolean; correct_index: number; correct_indices?: number[]; explanation: string | null }
-      if (result.status === "partial") return result
-      setShowError(false)
-      setAnswerResults((prev) => ({ ...prev, [qId]: result }))
-      setSubmitted((prev) => ({ ...prev, [qId]: true }))
-      return result
+      const result = data as {
+        status?: string;
+        correct: boolean;
+        correct_index: number;
+        correct_indices?: number[];
+        explanation: string | null;
+      };
+      if (result.status === "partial") return result;
+      setShowError(false);
+      setAnswerResults((prev) => ({ ...prev, [qId]: result }));
+      setSubmitted((prev) => ({ ...prev, [qId]: true }));
+      return result;
     },
     [],
-  )
+  );
 
   const toggleMultiSelect = useCallback(
     (optionIndex: number) => {
-      if (!currentQuestion || hasAnswered) return
-      setShowError(false)
-      const qId = currentQuestion.id
-      const current = multiSelections[qId] ?? []
-      const next = current.includes(optionIndex) ? current.filter((i) => i !== optionIndex) : [...current, optionIndex]
-      setMultiSelections((prev) => ({ ...prev, [qId]: next }))
-      if (next.length === 0) return
+      if (!currentQuestion || hasAnswered) return;
+      setShowError(false);
+      const qId = currentQuestion.id;
+      const current = multiSelections[qId] ?? [];
+      const next = current.includes(optionIndex)
+        ? current.filter((i) => i !== optionIndex)
+        : [...current, optionIndex];
+      setMultiSelections((prev) => ({ ...prev, [qId]: next }));
+      if (next.length === 0) return;
       void submitMultiSelection(qId, next, false).then((result) => {
-        if (!result || result.status !== "correct") return
+        if (!result || result.status !== "correct") return;
         if (currentIndex < totalQuestions - 1) {
           const timer = window.setTimeout(() => {
-            goToQuestion(currentIndex + 1)
-          }, 900)
-          if (autoAdvanceTimer.current) window.clearTimeout(autoAdvanceTimer.current)
-          autoAdvanceTimer.current = timer
+            goToQuestion(currentIndex + 1);
+          }, 900);
+          if (autoAdvanceTimer.current)
+            window.clearTimeout(autoAdvanceTimer.current);
+          autoAdvanceTimer.current = timer;
         }
-      })
+      });
     },
-    [currentQuestion, hasAnswered, multiSelections, submitMultiSelection, currentIndex, totalQuestions, goToQuestion],
-  )
+    [
+      currentQuestion,
+      hasAnswered,
+      multiSelections,
+      submitMultiSelection,
+      currentIndex,
+      totalQuestions,
+      goToQuestion,
+    ],
+  );
 
   const handleSelect = useCallback(
     async (optionIndex: number) => {
-      if (!currentQuestion) return
-      if (hasAnswered) return
+      if (!currentQuestion) return;
+      if (hasAnswered) return;
 
       if (currentQuestion.multipleCorrect) {
-        toggleMultiSelect(optionIndex)
-        return
+        toggleMultiSelect(optionIndex);
+        return;
       }
 
-      setShowError(false)
-      const questionId = currentQuestion.id
-      setAnswers((prev) => ({ ...prev, [questionId]: optionIndex }))
-      setLocking(questionId)
+      setShowError(false);
+      const questionId = currentQuestion.id;
+      setAnswers((prev) => ({ ...prev, [questionId]: optionIndex }));
+      setLocking(questionId);
 
       const { data, error } = await supabase.rpc("check_answer", {
         p_question_id: questionId,
         p_selected_index: optionIndex,
-      })
-      setLocking(null)
+      });
+      setLocking(null);
       if (error || !data) {
-        setSubmitted((prev) => ({ ...prev, [questionId]: true }))
-        return
+        setSubmitted((prev) => ({ ...prev, [questionId]: true }));
+        return;
       }
-      setAnswerResults((prev) => ({ ...prev, [questionId]: data as { correct: boolean; correct_index: number; correct_indices?: number[]; explanation: string | null } }))
-      setSubmitted((prev) => ({ ...prev, [questionId]: true }))
+      setAnswerResults((prev) => ({
+        ...prev,
+        [questionId]: data as {
+          correct: boolean;
+          correct_index: number;
+          correct_indices?: number[];
+          explanation: string | null;
+        },
+      }));
+      setSubmitted((prev) => ({ ...prev, [questionId]: true }));
     },
     [currentQuestion, hasAnswered, toggleMultiSelect],
-  )
+  );
+
+  const handleTextSubmit = useCallback(async () => {
+    if (!currentQuestion || hasAnswered) return;
+    const questionId = currentQuestion.id;
+    const answer = (textAnswers[questionId] ?? "").trim();
+    if (!answer) {
+      setShowError(true);
+      return;
+    }
+    setShowError(false);
+    setLocking(questionId);
+
+    const { data, error } = await supabase.rpc("check_answer_text", {
+      p_question_id: questionId,
+      p_answer: answer,
+    });
+    setLocking(null);
+    if (error || !data) {
+      setSubmitted((prev) => ({ ...prev, [questionId]: true }));
+      return;
+    }
+    setTextResults((prev) => ({
+      ...prev,
+      [questionId]: data as {
+        correct: boolean;
+        correct_text: string;
+        explanation: string | null;
+      },
+    }));
+    setSubmitted((prev) => ({ ...prev, [questionId]: true }));
+  }, [currentQuestion, hasAnswered, textAnswers]);
 
   const goNext = useCallback(() => {
-    if (!currentQuestion) return
+    if (!currentQuestion) return;
     if (!hasAnswered) {
       if (currentQuestion.multipleCorrect) {
-        void submitMultiSelection(currentQuestion.id, multiSelections[currentQuestion.id] ?? [], true)
+        void submitMultiSelection(
+          currentQuestion.id,
+          multiSelections[currentQuestion.id] ?? [],
+          true,
+        );
       } else {
-        setShowError(true)
+        setShowError(true);
       }
-      return
+      return;
     }
-    setShowError(false)
-    goToQuestion(currentIndex + 1)
-  }, [currentQuestion, hasAnswered, currentIndex, goToQuestion, submitMultiSelection, multiSelections])
+    setShowError(false);
+    goToQuestion(currentIndex + 1);
+  }, [
+    currentQuestion,
+    hasAnswered,
+    currentIndex,
+    goToQuestion,
+    submitMultiSelection,
+    multiSelections,
+  ]);
 
   const handleFinish = useCallback(() => {
-    setShowResults(true)
-    setExamFinished(true)
-    setReviewMode(false)
-    setSaveError(null)
+    setShowResults(true);
+    setExamFinished(true);
+    setReviewMode(false);
+    setSaveError(null);
     const correct = questions.filter((q) => {
-      const r = answerResults[q.id]
-      if (r) return r.correct
-      const hr = hotspotResults[q.id]
-      if (hr) return hr.results.every((res) => res.correct)
-      return false
-    }).length
-    const total = questions.length
-    const passType = exam?.pass_type ?? "percentage"
-    const passed = total > 0 && (passType === "count"
-      ? correct >= (exam?.pass_count ?? total)
-      : correct >= Math.ceil(total * ((exam?.pass_threshold ?? 80) / 100)))
-    const categoryStats: Record<string, { correct: number; total: number }> = {}
+      const r = answerResults[q.id];
+      if (r) return r.correct;
+      const hr = hotspotResults[q.id];
+      if (hr) return hr.results.every((res) => res.correct);
+      const tr = textResults[q.id];
+      if (tr) return tr.correct;
+      return false;
+    }).length;
+    const total = questions.length;
+    const passType = exam?.pass_type ?? "percentage";
+    const passed =
+      total > 0 &&
+      (passType === "count"
+        ? correct >= (exam?.pass_count ?? total)
+        : correct >= Math.ceil(total * ((exam?.pass_threshold ?? 80) / 100)));
+    const categoryStats: Record<string, { correct: number; total: number }> =
+      {};
     questions.forEach((q) => {
-      const cat = q.category || "Overig"
-      if (!categoryStats[cat]) categoryStats[cat] = { correct: 0, total: 0 }
-      categoryStats[cat].total++
-      const r = answerResults[q.id]
-      const hr = hotspotResults[q.id]
-      if (r?.correct || hr?.results.every((res) => res.correct)) categoryStats[cat].correct++
-    })
+      const cat = q.category || "Overig";
+      if (!categoryStats[cat]) categoryStats[cat] = { correct: 0, total: 0 };
+      categoryStats[cat].total++;
+      const r = answerResults[q.id];
+      const hr = hotspotResults[q.id];
+      const tr = textResults[q.id];
+      if (r?.correct || hr?.results.every((res) => res.correct) || tr?.correct)
+        categoryStats[cat].correct++;
+    });
     fetch("/api/exam/finish-attempt", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -523,57 +715,73 @@ export default function ExamDetailPage() {
         score: correct,
         total_questions: total,
         passed,
-        category_scores: Object.keys(categoryStats).length > 0 ? categoryStats : null,
+        category_scores:
+          Object.keys(categoryStats).length > 0 ? categoryStats : null,
       }),
-    }).then(async (res) => {
-      if (!res.ok) {
-        const err = await res.json().catch(() => ({ error: res.statusText }))
-        setSaveError(err.error || `Fout ${res.status}`)
-      } else {
-        console.log("finish: success", { correct, total, passed })
-      }
-    }).catch((e) => {
-      setSaveError(e.message)
-      console.log("finish: fetch error", e)
     })
-  }, [questions, answerResults, hotspotResults, examId, exam])
+      .then(async (res) => {
+        if (!res.ok) {
+          const err = await res.json().catch(() => ({ error: res.statusText }));
+          setSaveError(err.error || `Fout ${res.status}`);
+        } else {
+          console.log("finish: success", { correct, total, passed });
+        }
+      })
+      .catch((e) => {
+        setSaveError(e.message);
+        console.log("finish: fetch error", e);
+      });
+  }, [questions, answerResults, hotspotResults, textResults, examId, exam]);
 
   useEffect(() => {
-    if (timeLeft > 0 || !examActive || timeUpHandled.current) return
-    timeUpHandled.current = true
-    handleFinish()
-  }, [timeLeft, examActive, handleFinish])
+    if (timeLeft > 0 || !examActive || timeUpHandled.current) return;
+    timeUpHandled.current = true;
+    handleFinish();
+  }, [timeLeft, examActive, handleFinish]);
 
-  const handleHotspotSubmit = useCallback(async (positions: { x: number; y: number }[]) => {
-    if (!currentQuestion?.id) return
-    setShowError(false)
-    const qId = currentQuestion.id
-    setHotspotAnswers((prev) => ({ ...prev, [qId]: { positions } }))
+  const handleHotspotSubmit = useCallback(
+    async (positions: { x: number; y: number }[]) => {
+      if (!currentQuestion?.id) return;
+      setShowError(false);
+      const qId = currentQuestion.id;
+      setHotspotAnswers((prev) => ({ ...prev, [qId]: { positions } }));
 
-    const { data, error } = await supabase.rpc("check_hotspot", {
-      p_question_id: qId,
-      p_positions: positions,
-    })
-    if (error || !data) {
-      setSubmitted((prev) => ({ ...prev, [qId]: true }))
-      return
-    }
-    setHotspotResults((prev) => ({ ...prev, [qId]: data as { results: { index: number; correct: boolean; distance: number | null }[]; explanation: string | null } }))
-    setSubmitted((prev) => ({ ...prev, [qId]: true }))
-  }, [currentQuestion?.id])
+      const { data, error } = await supabase.rpc("check_hotspot", {
+        p_question_id: qId,
+        p_positions: positions,
+      });
+      if (error || !data) {
+        setSubmitted((prev) => ({ ...prev, [qId]: true }));
+        return;
+      }
+      setHotspotResults((prev) => ({
+        ...prev,
+        [qId]: data as {
+          results: {
+            index: number;
+            correct: boolean;
+            distance: number | null;
+          }[];
+          explanation: string | null;
+        },
+      }));
+      setSubmitted((prev) => ({ ...prev, [qId]: true }));
+    },
+    [currentQuestion?.id],
+  );
 
   const formatTime = (seconds: number) => {
-    const m = Math.floor(seconds / 60)
-    const s = seconds % 60
-    return `${m}:${s.toString().padStart(2, "0")}`
-  }
+    const m = Math.floor(seconds / 60);
+    const s = seconds % 60;
+    return `${m}:${s.toString().padStart(2, "0")}`;
+  };
 
   if (loading) {
     return (
       <div className="flex h-screen items-center justify-center">
         <Loader2 className="size-8 animate-spin text-primary" />
       </div>
-    )
+    );
   }
 
   if (error) {
@@ -585,7 +793,7 @@ export default function ExamDetailPage() {
           {t("common.back")}
         </Button>
       </div>
-    )
+    );
   }
 
   if (attemptBlocked) {
@@ -598,7 +806,10 @@ export default function ExamDetailPage() {
           {t("exam.attemptLimitTitle")}
         </h2>
         <p className="text-body-md text-on-surface-variant max-w-md">
-          {t("exam.attemptLimitDesc", { attempts: attemptBlocked.attempts, max: attemptBlocked.max_attempts })}
+          {t("exam.attemptLimitDesc", {
+            attempts: attemptBlocked.attempts,
+            max: attemptBlocked.max_attempts,
+          })}
         </p>
         <div className="flex flex-col sm:flex-row gap-3 mt-2">
           <Button onClick={() => router.push("/exams")}>
@@ -609,92 +820,126 @@ export default function ExamDetailPage() {
           </Button>
         </div>
       </div>
-    )
+    );
   }
 
-  if (!currentQuestion && !showResults) return null
+  if (!currentQuestion && !showResults) return null;
 
-  const isLastQuestion = currentIndex === totalQuestions - 1
+  const isLastQuestion = currentIndex === totalQuestions - 1;
 
-  const selectedIndex = answers[currentQuestion?.id] ?? null
-  const answerResult = answerResults[currentQuestion.id]
-  const hotspotResult = hotspotResults[currentQuestion.id]
-  const correctIndex = answerResult?.correct_index ?? -1
-  const correctIndices = answerResult?.correct_indices ?? (correctIndex >= 0 ? [correctIndex] : [])
-  const selectedIndices = multiSelections[currentQuestion?.id] ?? (selectedIndex != null ? [selectedIndex] : [])
-  const explanationText = answerResult?.explanation ?? hotspotResult?.explanation ?? null
+  const selectedIndex = answers[currentQuestion?.id] ?? null;
+  const answerResult = answerResults[currentQuestion.id];
+  const hotspotResult = hotspotResults[currentQuestion.id];
+  const textResult = textResults[currentQuestion.id];
+  const correctIndex = answerResult?.correct_index ?? -1;
+  const correctIndices =
+    answerResult?.correct_indices ?? (correctIndex >= 0 ? [correctIndex] : []);
+  const selectedIndices =
+    multiSelections[currentQuestion?.id] ??
+    (selectedIndex != null ? [selectedIndex] : []);
+  const explanationText =
+    answerResult?.explanation ??
+    hotspotResult?.explanation ??
+    textResult?.explanation ??
+    null;
   const isHotspot =
     currentQuestion.media != null &&
     currentQuestion.answerOptions.length > 0 &&
-    currentQuestion.answerOptions.some((o) => o.x != null && o.y != null)
+    currentQuestion.answerOptions.some((o) => o.x != null && o.y != null);
   const isChooseImages =
-    currentQuestion.answerOptions.length > 0 && currentQuestion.answerOptions.some((o) => o.imageUrl)
+    currentQuestion.answerOptions.length > 0 &&
+    currentQuestion.answerOptions.some((o) => o.imageUrl);
+const isInputText =
+      currentQuestion.type === "input-text" ||
+      (currentQuestion.answerOptions.length === 1 &&
+        !isHotspot &&
+        !isChooseImages &&
+        !currentQuestion.media);
 
   const getOptionState = (idx: number) => {
-    if (!hasAnswered) return "idle"
-    const isCorrect = correctIndices.includes(idx)
-    const isSelected = selectedIndices.includes(idx)
-    if (isSelected && answerResult && !answerResult.correct) return "wrong-selected"
-    if (isCorrect && isSelected) return "correct-selected"
-    if (!isCorrect && isSelected) return "wrong-selected"
-    if (isCorrect && !isSelected) return "correct-unselected"
-    return "dimmed"
-  }
+    if (!hasAnswered) return "idle";
+    const isCorrect = correctIndices.includes(idx);
+    const isSelected = selectedIndices.includes(idx);
+    if (isSelected && answerResult && !answerResult.correct)
+      return "wrong-selected";
+    if (isCorrect && isSelected) return "correct-selected";
+    if (!isCorrect && isSelected) return "wrong-selected";
+    if (isCorrect && !isSelected) return "correct-unselected";
+    return "dimmed";
+  };
 
   const correctCount = questions.filter((q) => {
-    const r = answerResults[q.id]
-    if (r) return r.correct
-    const hr = hotspotResults[q.id]
-    if (hr) return hr.results.every((res) => res.correct)
-    return false
-  }).length
+    const r = answerResults[q.id];
+    if (r) return r.correct;
+    const hr = hotspotResults[q.id];
+    if (hr) return hr.results.every((res) => res.correct);
+    const tr = textResults[q.id];
+    if (tr) return tr.correct;
+    return false;
+  }).length;
 
   const availableLangs = currentQuestion?.translations
-    ? Object.entries(currentQuestion.translations).filter(([, tr]) => tr.active !== false).map(([l]) => l)
-    : []
-  const translation: Translation | undefined = lang ? currentQuestion.translations?.[lang] : undefined
+    ? Object.entries(currentQuestion.translations)
+        .filter(([, tr]) => tr.active !== false)
+        .map(([l]) => l)
+    : [];
+  const translation: Translation | undefined = lang
+    ? currentQuestion.translations?.[lang]
+    : undefined;
 
-  const getQuestionText = () => translation?.question_text || currentQuestion.questionText
-  const getOptionText = (idx: number) => translation?.answer_options?.[idx]?.text || currentQuestion.answerOptions[idx]?.text || ""
-  const getExplanationText = () => translation?.explanation || explanationText || ""
+  const getQuestionText = () =>
+    translation?.question_text || currentQuestion.questionText;
+  const getOptionText = (idx: number) =>
+    translation?.answer_options?.[idx]?.text ||
+    currentQuestion.answerOptions[idx]?.text ||
+    "";
+  const getExplanationText = () =>
+    translation?.explanation || explanationText || "";
 
-  const examDuration = exam?.duration_minutes ?? 45
-  const timerFinished = examDuration * 60 - timeLeft
-  const minutes = Math.floor(timerFinished / 60)
-  const seconds = timerFinished % 60
+  const examDuration = exam?.duration_minutes ?? 45;
+  const timerFinished = examDuration * 60 - timeLeft;
+  const minutes = Math.floor(timerFinished / 60);
+  const seconds = timerFinished % 60;
 
   if (showResults) {
-    const scorePercent = totalQuestions > 0 ? Math.round((correctCount / totalQuestions) * 100) : 0
-    const passType = exam?.pass_type ?? "percentage"
-    const isGeslaagd = totalQuestions > 0 && (passType === "count"
-      ? correctCount >= (exam?.pass_count ?? totalQuestions)
-      : scorePercent >= (exam?.pass_threshold ?? 80))
+    const scorePercent =
+      totalQuestions > 0
+        ? Math.round((correctCount / totalQuestions) * 100)
+        : 0;
+    const passType = exam?.pass_type ?? "percentage";
+    const isGeslaagd =
+      totalQuestions > 0 &&
+      (passType === "count"
+        ? correctCount >= (exam?.pass_count ?? totalQuestions)
+        : scorePercent >= (exam?.pass_threshold ?? 80));
 
-    const categoryStats: Record<string, { total: number; correct: number }> = {}
+    const categoryStats: Record<string, { total: number; correct: number }> =
+      {};
     questions.forEach((q) => {
-      const cat = q.category || "Overig"
-      if (!categoryStats[cat]) categoryStats[cat] = { total: 0, correct: 0 }
-      categoryStats[cat].total++
-      const r = answerResults[q.id]
-      const hr = hotspotResults[q.id]
-      if (r?.correct || hr?.results.every((res) => res.correct)) categoryStats[cat].correct++
-    })
+      const cat = q.category || "Overig";
+      if (!categoryStats[cat]) categoryStats[cat] = { total: 0, correct: 0 };
+      categoryStats[cat].total++;
+      const r = answerResults[q.id];
+      const hr = hotspotResults[q.id];
+      if (r?.correct || hr?.results.every((res) => res.correct))
+        categoryStats[cat].correct++;
+    });
 
     const categoryIcons: Record<string, typeof TrendingUp> = {
       "Hazard Perception": AlertCircle,
       "Right of Way": TrendingUp,
       "Choose Images": Eye,
-      "Traffic": BookOpen,
-      "Lighting": Lightbulb,
-    }
+      Traffic: BookOpen,
+      Lighting: Lightbulb,
+    };
 
     const categoryColors: Record<string, string> = {
       "Hazard Perception": "bg-red-100 text-red-700",
       "Right of Way": "bg-green-100 text-green-700",
       "Choose Images": "bg-blue-100 text-blue-700",
-      "Traffic": "bg-purple-100 text-purple-700",
-      "Lighting": "bg-amber-100 text-amber-700",
-    }
+      Traffic: "bg-purple-100 text-purple-700",
+      Lighting: "bg-amber-100 text-amber-700",
+    };
 
     return (
       <div className="min-h-screen bg-surface flex flex-col">
@@ -707,15 +952,21 @@ export default function ExamDetailPage() {
               <ChevronLeft size={20} className="text-primary" />
             </button>
             <div className="min-w-0">
-              <h1 className="text-label-sm font-bold text-primary truncate">{t("exam.results")}</h1>
-              <p className="text-label-xs text-on-surface-variant">{exam?.title}</p>
+              <h1 className="text-label-sm font-bold text-primary truncate">
+                {t("exam.results")}
+              </h1>
+              <p className="text-label-xs text-on-surface-variant">
+                {exam?.title}
+              </p>
             </div>
           </div>
         </header>
 
         {saveError && (
           <div className="mx-4 mt-4 p-4 bg-red-50 border border-red-200 rounded-xl">
-            <p className="text-red-700 font-bold text-sm">{t("exam.saveError")}</p>
+            <p className="text-red-700 font-bold text-sm">
+              {t("exam.saveError")}
+            </p>
             <p className="text-red-600 text-xs mt-1">{saveError}</p>
             <p className="text-red-500 text-xs mt-1">{t("exam.saveLocal")}</p>
           </div>
@@ -726,30 +977,51 @@ export default function ExamDetailPage() {
               <div className="absolute top-0 right-0 w-64 h-64 bg-secondary-container/10 rounded-full -mr-20 -mt-20 blur-3xl" />
               <div className="flex flex-col md:flex-row items-center justify-between gap-8 relative z-10">
                 <div className="text-center md:text-left">
-                  <span className={`inline-block px-4 py-1.5 rounded-full font-bold text-label-md mb-4 ${isGeslaagd ? "bg-green-100 text-green-700" : "bg-red-100 text-red-700"}`}>
+                  <span
+                    className={`inline-block px-4 py-1.5 rounded-full font-bold text-label-md mb-4 ${isGeslaagd ? "bg-green-100 text-green-700" : "bg-red-100 text-red-700"}`}
+                  >
                     {isGeslaagd ? t("exam.completed") : t("exam.notPassed")}
                   </span>
-                  <h1 className="text-display-lg text-primary mb-2">{isGeslaagd ? t("exam.passedMessage") : t("exam.failedMessage")}</h1>
-                  <p className="text-body-lg text-on-surface-variant max-w-xl">
+                  <h1 className="text-display-lg text-primary mb-2">
                     {isGeslaagd
-                      ? t("exam.passedDesc")
-                      : t("exam.failedDesc")}
+                      ? t("exam.passedMessage")
+                      : t("exam.failedMessage")}
+                  </h1>
+                  <p className="text-body-lg text-on-surface-variant max-w-xl">
+                    {isGeslaagd ? t("exam.passedDesc") : t("exam.failedDesc")}
                   </p>
                 </div>
                 <div className="flex flex-col items-center">
                   <div className="relative w-48 h-48 flex items-center justify-center">
                     <svg className="w-full h-full transform -rotate-90">
-                      <circle className="text-surface-container" cx="96" cy="96" fill="transparent" r="88" stroke="currentColor" strokeWidth="12" />
+                      <circle
+                        className="text-surface-container"
+                        cx="96"
+                        cy="96"
+                        fill="transparent"
+                        r="88"
+                        stroke="currentColor"
+                        strokeWidth="12"
+                      />
                       <circle
                         className={`transition-all duration-1000 ease-out ${isGeslaagd ? "text-green-500" : "text-red-500"}`}
-                        cx="96" cy="96" fill="transparent" r="88" stroke="currentColor" strokeWidth="12"
+                        cx="96"
+                        cy="96"
+                        fill="transparent"
+                        r="88"
+                        stroke="currentColor"
+                        strokeWidth="12"
                         strokeDasharray={553}
                         strokeDashoffset={553 - (553 * scorePercent) / 100}
                       />
                     </svg>
                     <div className="absolute inset-0 flex flex-col items-center justify-center">
-                      <span className="text-display-lg text-primary">{scorePercent}%</span>
-                      <span className="text-label-md text-on-surface-variant">Score</span>
+                      <span className="text-display-lg text-primary">
+                        {scorePercent}%
+                      </span>
+                      <span className="text-label-md text-on-surface-variant">
+                        Score
+                      </span>
                     </div>
                   </div>
                 </div>
@@ -762,30 +1034,54 @@ export default function ExamDetailPage() {
               <div className="w-12 h-12 rounded-xl bg-primary-container flex items-center justify-center mb-4">
                 <CheckCircle size={24} className="text-on-primary-container" />
               </div>
-              <span className="text-label-md text-on-surface-variant mb-1">{t("exam.totalScore")}</span>
-              <h3 className="text-headline-md text-primary">{correctCount} / {totalQuestions}</h3>
-              <p className="text-label-sm text-on-surface-variant mt-2">{isGeslaagd ? t("exam.passedBadge") : t("exam.needs80")}</p>
+              <span className="text-label-md text-on-surface-variant mb-1">
+                {t("exam.totalScore")}
+              </span>
+              <h3 className="text-headline-md text-primary">
+                {correctCount} / {totalQuestions}
+              </h3>
+              <p className="text-label-sm text-on-surface-variant mt-2">
+                {isGeslaagd ? t("exam.passedBadge") : t("exam.needs80")}
+              </p>
             </div>
             <div className="bg-surface-container-lowest p-6 rounded-2xl shadow-[0px_4px_20px_rgba(26,60,110,0.05)] border border-surface-container-high flex flex-col items-center text-center">
               <div className="w-12 h-12 rounded-xl bg-surface-container-high flex items-center justify-center mb-4">
                 <Clock size={24} className="text-primary" />
               </div>
-              <span className="text-label-md text-on-surface-variant mb-1">{t("exam.timeUsed")}</span>
-              <h3 className="text-headline-md text-primary">{minutes}:{seconds.toString().padStart(2, "0")}</h3>
-              <p className="text-label-sm text-on-surface-variant mt-2">{t("exam.maxTime")}</p>
+              <span className="text-label-md text-on-surface-variant mb-1">
+                {t("exam.timeUsed")}
+              </span>
+              <h3 className="text-headline-md text-primary">
+                {minutes}:{seconds.toString().padStart(2, "0")}
+              </h3>
+              <p className="text-label-sm text-on-surface-variant mt-2">
+                {t("exam.maxTime")}
+              </p>
             </div>
             <div className="bg-surface-container-lowest p-6 rounded-2xl shadow-[0px_4px_20px_rgba(26,60,110,0.05)] border border-surface-container-high flex flex-col items-center text-center">
               <div className="w-12 h-12 rounded-xl bg-surface-container-high flex items-center justify-center mb-4">
                 <TrendingUp size={24} className="text-primary" />
               </div>
-              <span className="text-label-md text-on-surface-variant mb-1">{t("exam.strongest")}</span>
+              <span className="text-label-md text-on-surface-variant mb-1">
+                {t("exam.strongest")}
+              </span>
               <h3 className="text-headline-md text-primary">
-                {Object.entries(categoryStats).sort((a, b) => (b[1].correct / b[1].total) - (a[1].correct / a[1].total))[0]?.[0] || "—"}
+                {Object.entries(categoryStats).sort(
+                  (a, b) =>
+                    b[1].correct / b[1].total - a[1].correct / a[1].total,
+                )[0]?.[0] || "—"}
               </h3>
               <p className="text-label-sm text-on-surface-variant mt-2">
                 {(() => {
-                  const top = Object.entries(categoryStats).sort((a, b) => (b[1].correct / b[1].total) - (a[1].correct / a[1].total))[0]
-                  return top ? t("exam.percentCorrect", { pct: Math.round((top[1].correct / top[1].total) * 100) }) : ""
+                  const top = Object.entries(categoryStats).sort(
+                    (a, b) =>
+                      b[1].correct / b[1].total - a[1].correct / a[1].total,
+                  )[0];
+                  return top
+                    ? t("exam.percentCorrect", {
+                        pct: Math.round((top[1].correct / top[1].total) * 100),
+                      })
+                    : "";
                 })()}
               </p>
             </div>
@@ -800,7 +1096,18 @@ export default function ExamDetailPage() {
               {t("exam.review")}
             </button>
             <button
-              onClick={() => { setReviewOpen(false); setReviewMode(false); setShowResults(false); setExamFinished(false); setCurrentIndex(0); setAnswers({}); setSubmitted({}); setAnswerResults({}); setHotspotResults({}); setTimeLeft(examDuration * 60) }}
+              onClick={() => {
+                setReviewOpen(false);
+                setReviewMode(false);
+                setShowResults(false);
+                setExamFinished(false);
+                setCurrentIndex(0);
+                setAnswers({});
+                setSubmitted({});
+                setAnswerResults({});
+                setHotspotResults({});
+                setTimeLeft(examDuration * 60);
+              }}
               className="w-full sm:w-auto px-8 py-4 bg-secondary-container text-on-secondary-container font-bold rounded-xl transition-all active:scale-[0.98] shadow-md hover:shadow-lg flex items-center justify-center gap-2"
             >
               <RotateCcw size={20} />
@@ -816,25 +1123,41 @@ export default function ExamDetailPage() {
           </div>
 
           <div className="mb-16">
-            <h2 className="text-headline-md text-primary mb-6">{t("exam.categoryResults")}</h2>
+            <h2 className="text-headline-md text-primary mb-6">
+              {t("exam.categoryResults")}
+            </h2>
             <div className="space-y-4">
               {Object.entries(categoryStats).map(([cat, stats]) => {
-                const percent = stats.total > 0 ? Math.round((stats.correct / stats.total) * 100) : 0
-                const Icon = categoryIcons[cat] || BookOpen
-                const colorClass = categoryColors[cat] || "bg-surface-container-high text-primary"
+                const percent =
+                  stats.total > 0
+                    ? Math.round((stats.correct / stats.total) * 100)
+                    : 0;
+                const Icon = categoryIcons[cat] || BookOpen;
+                const colorClass =
+                  categoryColors[cat] ||
+                  "bg-surface-container-high text-primary";
                 return (
-                  <div key={cat} className="bg-surface-container-lowest p-5 rounded-xl border border-surface-container-high flex items-center justify-between">
+                  <div
+                    key={cat}
+                    className="bg-surface-container-lowest p-5 rounded-xl border border-surface-container-high flex items-center justify-between"
+                  >
                     <div className="flex items-center gap-4">
-                      <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${colorClass}`}>
+                      <div
+                        className={`w-10 h-10 rounded-lg flex items-center justify-center ${colorClass}`}
+                      >
                         <Icon size={20} />
                       </div>
                       <div>
                         <h4 className="text-label-md text-primary">{cat}</h4>
-                        <p className="text-label-sm text-on-surface-variant">{t("exam.totalQuestions", { n: stats.total })}</p>
+                        <p className="text-label-sm text-on-surface-variant">
+                          {t("exam.totalQuestions", { n: stats.total })}
+                        </p>
                       </div>
                     </div>
                     <div className="text-right">
-                      <span className="font-bold text-primary">{stats.correct}/{stats.total}</span>
+                      <span className="font-bold text-primary">
+                        {stats.correct}/{stats.total}
+                      </span>
                       <div className="w-24 sm:w-32 h-2 bg-surface-container rounded-full mt-1">
                         <div
                           className={`h-full rounded-full transition-all ${percent >= 80 ? "bg-green-500" : percent >= 50 ? "bg-amber-500" : "bg-red-500"}`}
@@ -843,47 +1166,94 @@ export default function ExamDetailPage() {
                       </div>
                     </div>
                   </div>
-                )
+                );
               })}
             </div>
           </div>
 
           <div className="mb-8">
-            <h2 className="text-headline-md text-primary mb-6">{t("exam.allQuestions")}</h2>
+            <h2 className="text-headline-md text-primary mb-6">
+              {t("exam.allQuestions")}
+            </h2>
             <div className="space-y-4">
               {questions.map((q, idx) => {
-                const qAnswerResult = answerResults[q.id]
-                const qHotspotResult = hotspotResults[q.id]
-                const qSelectedIndex = answers[q.id]
-                const qCorrectIndex = qAnswerResult?.correct_index ?? -1
-                const qCorrectIndices = qAnswerResult?.correct_indices ?? (qCorrectIndex >= 0 ? [qCorrectIndex] : [])
-                const qSelectedMulti = multiSelections[q.id] ?? []
-                const qIsCorrect = qAnswerResult?.correct ?? qHotspotResult?.results.every((r) => r.correct) ?? false
-                const qExplanation = qAnswerResult?.explanation ?? qHotspotResult?.explanation ?? null
-                const qIsHotspot = q.media != null && q.answerOptions.some((o) => o.x != null && o.y != null)
-                const qIsChooseImages = q.answerOptions.length > 0 && q.answerOptions.some((o) => o.imageUrl)
+                const qAnswerResult = answerResults[q.id];
+                const qHotspotResult = hotspotResults[q.id];
+                const qTextResult = textResults[q.id];
+                const qSelectedIndex = answers[q.id];
+                const qCorrectIndex = qAnswerResult?.correct_index ?? -1;
+                const qCorrectIndices =
+                  qAnswerResult?.correct_indices ??
+                  (qCorrectIndex >= 0 ? [qCorrectIndex] : []);
+                const qSelectedMulti = multiSelections[q.id] ?? [];
+                const qIsCorrect =
+                  qAnswerResult?.correct ??
+                  qHotspotResult?.results.every((r) => r.correct) ??
+                  qTextResult?.correct ??
+                  false;
+                const qExplanation =
+                  qAnswerResult?.explanation ??
+                  qHotspotResult?.explanation ??
+                  qTextResult?.explanation ??
+                  null;
+                const qIsHotspot =
+                  q.media != null &&
+                  q.answerOptions.some((o) => o.x != null && o.y != null);
+                const qIsChooseImages =
+                  q.answerOptions.length > 0 &&
+                  q.answerOptions.some((o) => o.imageUrl);
+const qIsInputText =
+                    q.type === "input-text" ||
+                    (q.answerOptions.length === 1 &&
+                      !qIsHotspot &&
+                      !qIsChooseImages &&
+                      !q.media);
 
                 return (
-                  <div key={q.id} className="bg-surface-container-lowest border border-outline-variant/30 rounded-2xl overflow-hidden">
-                    <div className={`px-5 py-4 flex items-center gap-3 border-b border-outline-variant/20 ${qIsCorrect ? "bg-green-50/50" : "bg-red-50/50"}`}>
-                      <div className={`size-8 rounded-full flex items-center justify-center shrink-0 ${qIsCorrect ? "bg-green-100 text-green-700" : "bg-red-100 text-red-700"}`}>
+                  <div
+                    key={q.id}
+                    className="bg-surface-container-lowest border border-outline-variant/30 rounded-2xl overflow-hidden"
+                  >
+                    <div
+                      className={`px-5 py-4 flex items-center gap-3 border-b border-outline-variant/20 ${qIsCorrect ? "bg-green-50/50" : "bg-red-50/50"}`}
+                    >
+                      <div
+                        className={`size-8 rounded-full flex items-center justify-center shrink-0 ${qIsCorrect ? "bg-green-100 text-green-700" : "bg-red-100 text-red-700"}`}
+                      >
                         {qIsCorrect ? <Check size={18} /> : <X size={18} />}
                       </div>
                       <div className="min-w-0">
-                        <p className="text-label-sm font-bold text-primary">{t("exam.questionN", { n: idx + 1 })}</p>
-                        {q.category && <p className="text-label-xs text-on-surface-variant">{q.category}</p>}
+                        <p className="text-label-sm font-bold text-primary">
+                          {t("exam.questionN", { n: idx + 1 })}
+                        </p>
+                        {q.category && (
+                          <p className="text-label-xs text-on-surface-variant">
+                            {q.category}
+                          </p>
+                        )}
                       </div>
                     </div>
 
                     <div className="p-5 space-y-4">
-                      <p className="text-body-md font-medium text-primary">{q.questionText}</p>
+                      <p className="text-body-md font-medium text-primary">
+                        {q.questionText}
+                      </p>
 
                       {q.media && !qIsHotspot && !qIsChooseImages && (
                         <div className="rounded-xl overflow-hidden aspect-video border border-outline-variant/30 bg-surface-container">
                           {q.mediaMime?.startsWith("video/") ? (
-                            <QuestionVideo src={q.media} autoPlay muted className="w-full h-full object-cover" />
+                            <QuestionVideo
+                              src={q.media}
+                              autoPlay
+                              muted
+                              className="w-full h-full object-cover"
+                            />
                           ) : (
-                            <SmartImage src={q.media} alt="" className="w-full h-full object-cover" />
+                            <SmartImage
+                              src={q.media}
+                              alt=""
+                              className="w-full h-full object-cover"
+                            />
                           )}
                         </div>
                       )}
@@ -891,59 +1261,139 @@ export default function ExamDetailPage() {
                       {qIsChooseImages ? (
                         <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
                           {q.answerOptions.map((opt, oi) => {
-                            const isSelected = qSelectedMulti.length > 0 ? qSelectedMulti.includes(oi) : qSelectedIndex === oi
-                            const isCorrectOpt = qCorrectIndices.includes(oi)
-                            const borderColor = isSelected && !qIsCorrect ? "border-red-500" : isCorrectOpt ? "border-green-500" : isSelected ? "border-red-500" : "border-outline-variant/30"
+                            const isSelected =
+                              qSelectedMulti.length > 0
+                                ? qSelectedMulti.includes(oi)
+                                : qSelectedIndex === oi;
+                            const isCorrectOpt = qCorrectIndices.includes(oi);
+                            const borderColor =
+                              isSelected && !qIsCorrect
+                                ? "border-red-500"
+                                : isCorrectOpt
+                                  ? "border-green-500"
+                                  : isSelected
+                                    ? "border-red-500"
+                                    : "border-outline-variant/30";
                             return (
-                              <div key={oi} className={`relative rounded-xl overflow-hidden border-2 ${borderColor} ${isSelected && !qIsCorrect ? "bg-red-50" : isCorrectOpt ? "bg-green-50" : isSelected ? "bg-red-50" : ""}`}>
-                                {opt.imageUrl && <SmartImage src={opt.imageUrl} alt="" className="w-full aspect-square object-cover" />}
+                              <div
+                                key={oi}
+                                className={`relative rounded-xl overflow-hidden border-2 ${borderColor} ${isSelected && !qIsCorrect ? "bg-red-50" : isCorrectOpt ? "bg-green-50" : isSelected ? "bg-red-50" : ""}`}
+                              >
+                                {opt.imageUrl && (
+                                  <SmartImage
+                                    src={opt.imageUrl}
+                                    alt=""
+                                    className="w-full aspect-square object-cover"
+                                  />
+                                )}
                                 {isCorrectOpt && (
-                                  <div className="absolute top-2 right-2 bg-green-500 text-white text-label-xs font-bold px-2 py-0.5 rounded">{t("exam.correct")}</div>
+                                  <div className="absolute top-2 right-2 bg-green-500 text-white text-label-xs font-bold px-2 py-0.5 rounded">
+                                    {t("exam.correct")}
+                                  </div>
                                 )}
                                 {isSelected && !qIsCorrect && (
-                                  <div className="absolute top-2 right-2 bg-red-500 text-white text-label-xs font-bold px-2 py-0.5 rounded">{t("exam.yourChoice")}</div>
+                                  <div className="absolute top-2 right-2 bg-red-500 text-white text-label-xs font-bold px-2 py-0.5 rounded">
+                                    {t("exam.yourChoice")}
+                                  </div>
                                 )}
                               </div>
-                            )
+                            );
                           })}
                         </div>
                       ) : qIsHotspot ? (
-                        <div className="text-label-sm text-on-surface-variant">{t("exam.hotspotResult")}</div>
+                        <div className="text-label-sm text-on-surface-variant">
+                          {t("exam.hotspotResult")}
+                        </div>
+                      ) : qIsInputText ? (
+                        <div
+                          className={`flex items-center justify-between gap-3 p-3 border-2 rounded-xl ${qIsCorrect ? "border-green-500 bg-green-50" : "border-red-500 bg-red-50"}`}
+                        >
+                          <span className="text-body-md">
+                            {textAnswers[q.id] || "—"}
+                          </span>
+                          {!qIsCorrect && qTextResult?.correct_text && (
+                            <span className="text-label-xs font-bold text-green-700 bg-green-100 px-2 py-0.5 rounded shrink-0">
+                              {qTextResult.correct_text}
+                            </span>
+                          )}
+                        </div>
                       ) : (
                         <div className="space-y-2">
                           {q.answerOptions.map((opt, oi) => {
-                            const prefix = String.fromCharCode(65 + oi)
-                            const isSelected = qSelectedMulti.length > 0 ? qSelectedMulti.includes(oi) : qSelectedIndex === oi
-                            const isCorrectOpt = qCorrectIndices.includes(oi)
-                            const borderColor = isSelected && !qIsCorrect ? "border-red-500" : isCorrectOpt ? "border-green-500" : isSelected ? "border-red-500" : "border-outline-variant/30"
-                            const bgColor = isSelected && !qIsCorrect ? "bg-red-50" : isCorrectOpt ? "bg-green-50" : isSelected ? "bg-red-50" : "bg-surface"
+                            const prefix = String.fromCharCode(65 + oi);
+                            const isSelected =
+                              qSelectedMulti.length > 0
+                                ? qSelectedMulti.includes(oi)
+                                : qSelectedIndex === oi;
+                            const isCorrectOpt = qCorrectIndices.includes(oi);
+                            const borderColor =
+                              isSelected && !qIsCorrect
+                                ? "border-red-500"
+                                : isCorrectOpt
+                                  ? "border-green-500"
+                                  : isSelected
+                                    ? "border-red-500"
+                                    : "border-outline-variant/30";
+                            const bgColor =
+                              isSelected && !qIsCorrect
+                                ? "bg-red-50"
+                                : isCorrectOpt
+                                  ? "bg-green-50"
+                                  : isSelected
+                                    ? "bg-red-50"
+                                    : "bg-surface";
                             return (
-                              <div key={oi} className={`flex items-center w-full p-3 border-2 ${borderColor} ${bgColor} rounded-xl`}>
-                                <div className={`size-9 rounded-full flex items-center justify-center mr-3 shrink-0 font-bold text-label-sm ${isSelected && !qIsCorrect ? "bg-red-100 text-red-700" : isCorrectOpt ? "bg-green-100 text-green-700" : isSelected ? "bg-red-100 text-red-700" : "bg-surface-container text-outline"}`}>
-                                  {isCorrectOpt ? <Check size={16} /> : isSelected ? <X size={16} /> : prefix}
+                              <div
+                                key={oi}
+                                className={`flex items-center w-full p-3 border-2 ${borderColor} ${bgColor} rounded-xl`}
+                              >
+                                <div
+                                  className={`size-9 rounded-full flex items-center justify-center mr-3 shrink-0 font-bold text-label-sm ${isSelected && !qIsCorrect ? "bg-red-100 text-red-700" : isCorrectOpt ? "bg-green-100 text-green-700" : isSelected ? "bg-red-100 text-red-700" : "bg-surface-container text-outline"}`}
+                                >
+                                  {isCorrectOpt ? (
+                                    <Check size={16} />
+                                  ) : isSelected ? (
+                                    <X size={16} />
+                                  ) : (
+                                    prefix
+                                  )}
                                 </div>
-                                <span className="text-body-md flex-1">{opt.text}</span>
+                                <span className="text-body-md flex-1">
+                                  {opt.text}
+                                </span>
                                 {isCorrectOpt && (
-                                  <span className="text-label-xs font-bold text-green-700 bg-green-100 px-2 py-0.5 rounded shrink-0 ml-2">{t("exam.correct")}</span>
+                                  <span className="text-label-xs font-bold text-green-700 bg-green-100 px-2 py-0.5 rounded shrink-0 ml-2">
+                                    {t("exam.correct")}
+                                  </span>
                                 )}
                                 {isSelected && !qIsCorrect && (
-                                  <span className="text-label-xs font-bold text-red-700 bg-red-100 px-2 py-0.5 rounded shrink-0 ml-2">{t("exam.yourChoice")}</span>
+                                  <span className="text-label-xs font-bold text-red-700 bg-red-100 px-2 py-0.5 rounded shrink-0 ml-2">
+                                    {t("exam.yourChoice")}
+                                  </span>
                                 )}
                               </div>
-                            )
+                            );
                           })}
                         </div>
                       )}
 
                       {qExplanation && (
                         <div className="flex items-start gap-3 bg-surface-container-low rounded-xl p-4">
-                          <Info size={18} className="text-primary shrink-0 mt-0.5" />
-                          <p className="text-body-md text-on-surface-variant" dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(qExplanation ?? "") }} />
+                          <Info
+                            size={18}
+                            className="text-primary shrink-0 mt-0.5"
+                          />
+                          <p
+                            className="text-body-md text-on-surface-variant"
+                            dangerouslySetInnerHTML={{
+                              __html: DOMPurify.sanitize(qExplanation ?? ""),
+                            }}
+                          />
                         </div>
                       )}
                     </div>
                   </div>
-                )
+                );
               })}
             </div>
           </div>
@@ -959,10 +1409,18 @@ export default function ExamDetailPage() {
         </main>
 
         {reviewOpen && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm px-4" onClick={() => setReviewOpen(false)}>
-            <div className="bg-surface-container-lowest rounded-3xl max-w-2xl w-full max-h-[90vh] overflow-y-auto shadow-2xl border border-outline-variant/20" onClick={(e) => e.stopPropagation()}>
+          <div
+            className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm px-4"
+            onClick={() => setReviewOpen(false)}
+          >
+            <div
+              className="bg-surface-container-lowest rounded-3xl max-w-2xl w-full max-h-[90vh] overflow-y-auto shadow-2xl border border-outline-variant/20"
+              onClick={(e) => e.stopPropagation()}
+            >
               <div className="sticky top-0 z-10 bg-surface-container-lowest px-6 md:px-8 py-4 border-b border-outline-variant/20 flex items-center justify-between">
-                <h2 className="text-headline-md text-on-surface font-bold">{t("exam.reviewModalTitle")}</h2>
+                <h2 className="text-headline-md text-on-surface font-bold">
+                  {t("exam.reviewModalTitle")}
+                </h2>
                 <button
                   onClick={() => setReviewOpen(false)}
                   aria-label={t("common.close")}
@@ -974,201 +1432,361 @@ export default function ExamDetailPage() {
 
               {reviewSelected === null ? (
                 <div className="p-6 md:p-8">
-                  <p className="text-body-md text-on-surface-variant mb-6">{t("exam.reviewModalHint")}</p>
+                  <p className="text-body-md text-on-surface-variant mb-6">
+                    {t("exam.reviewModalHint")}
+                  </p>
                   <div className="grid grid-cols-6 sm:grid-cols-8 gap-2.5">
                     {questions.map((q, idx) => {
-                      const rr = answerResults[q.id]
-                      const rh = hotspotResults[q.id]
-                      const isCorrect = rr ? rr.correct : rh ? rh.results.every((r) => r.correct) : false
+                      const rr = answerResults[q.id];
+                      const rh = hotspotResults[q.id];
+                      const isCorrect = rr
+                        ? rr.correct
+                        : rh
+                          ? rh.results.every((r) => r.correct)
+                          : false;
                       return (
                         <button
                           key={q.id}
                           onClick={() => setReviewSelected(idx)}
                           className={`aspect-square w-full rounded-lg flex items-center justify-center font-bold text-label-md text-white transition-all active:scale-90 shadow-sm ${
-                            isCorrect ? "bg-green-500 hover:bg-green-600" : "bg-red-500 hover:bg-red-600"
+                            isCorrect
+                              ? "bg-green-500 hover:bg-green-600"
+                              : "bg-red-500 hover:bg-red-600"
                           }`}
                         >
                           {idx + 1}
                         </button>
-                      )
+                      );
                     })}
                   </div>
                   <div className="flex items-center justify-center gap-5 mt-6">
                     <span className="flex items-center gap-2 text-label-md text-on-surface-variant">
-                      <span className="w-3.5 h-3.5 rounded bg-green-500" /> {t("exam.reviewCorrect")}
+                      <span className="w-3.5 h-3.5 rounded bg-green-500" />{" "}
+                      {t("exam.reviewCorrect")}
                     </span>
                     <span className="flex items-center gap-2 text-label-md text-on-surface-variant">
-                      <span className="w-3.5 h-3.5 rounded bg-red-500" /> {t("exam.reviewWrong")}
+                      <span className="w-3.5 h-3.5 rounded bg-red-500" />{" "}
+                      {t("exam.reviewWrong")}
                     </span>
                   </div>
                 </div>
-              ) : (() => {
-                const idx = reviewSelected
-                const q = questions[idx]
-                const rr = answerResults[q.id]
-                const rh = hotspotResults[q.id]
-                const qSelectedIndex = answers[q.id]
-                const qCorrectIndex = rr?.correct_index ?? -1
-                const qCorrectIndices = rr?.correct_indices ?? (qCorrectIndex >= 0 ? [qCorrectIndex] : [])
-                const qSelectedMulti = multiSelections[q.id] ?? []
-                const qIsCorrect = rr ? rr.correct : rh ? rh.results.every((r) => r.correct) : false
-                const qExplanation = rr?.explanation ?? rh?.explanation ?? null
-                const qIsHotspot = q.media != null && q.answerOptions.some((o) => o.x != null && o.y != null)
-                const qIsChooseImages = q.answerOptions.length > 0 && q.answerOptions.some((o) => o.imageUrl)
+              ) : (
+                (() => {
+                  const idx = reviewSelected;
+                  const q = questions[idx];
+                  const rr = answerResults[q.id];
+                  const rh = hotspotResults[q.id];
+                  const rt = textResults[q.id];
+                  const qSelectedIndex = answers[q.id];
+                  const qCorrectIndex = rr?.correct_index ?? -1;
+                  const qCorrectIndices =
+                    rr?.correct_indices ??
+                    (qCorrectIndex >= 0 ? [qCorrectIndex] : []);
+                  const qSelectedMulti = multiSelections[q.id] ?? [];
+                  const qIsCorrect = rr
+                    ? rr.correct
+                    : rh
+                      ? rh.results.every((r) => r.correct)
+                      : rt
+                        ? rt.correct
+                        : false;
+                  const qExplanation =
+                    rr?.explanation ??
+                    rh?.explanation ??
+                    rt?.explanation ??
+                    null;
+                  const qIsHotspot =
+                    q.media != null &&
+                    q.answerOptions.some((o) => o.x != null && o.y != null);
+                  const qIsChooseImages =
+                    q.answerOptions.length > 0 &&
+                    q.answerOptions.some((o) => o.imageUrl);
+                  const qIsInputText =
+                    q.type === "input-text" ||
+                    (q.answerOptions.length === 1 &&
+                      !qIsHotspot &&
+                      !qIsChooseImages &&
+                      !q.media);
 
-                const btnPrev = `flex items-center justify-center size-10 rounded-xl transition-all active:scale-95 ${idx === 0 ? "bg-surface-container text-outline-variant cursor-not-allowed" : "bg-primary/10 text-primary hover:bg-primary/20"}`
-                const btnNext = `flex items-center justify-center size-10 rounded-xl transition-all active:scale-95 ${idx === totalQuestions - 1 ? "bg-surface-container text-outline-variant cursor-not-allowed" : "bg-primary/10 text-primary hover:bg-primary/20"}`
+                  const btnPrev = `flex items-center justify-center size-10 rounded-xl transition-all active:scale-95 ${idx === 0 ? "bg-surface-container text-outline-variant cursor-not-allowed" : "bg-primary/10 text-primary hover:bg-primary/20"}`;
+                  const btnNext = `flex items-center justify-center size-10 rounded-xl transition-all active:scale-95 ${idx === totalQuestions - 1 ? "bg-surface-container text-outline-variant cursor-not-allowed" : "bg-primary/10 text-primary hover:bg-primary/20"}`;
 
-                return (
-                  <div className="p-6 md:p-8">
-                    <div className="flex items-center justify-between mb-6">
-                      <button
-                        onClick={() => setReviewSelected(Math.max(0, idx - 1))}
-                        disabled={idx === 0}
-                        aria-label={t("exam.previous")}
-                        className={btnPrev}
-                      >
-                        <ChevronLeft size={20} />
-                      </button>
-                      <div className="flex items-center gap-3">
+                  return (
+                    <div className="p-6 md:p-8">
+                      <div className="flex items-center justify-between mb-6">
                         <button
-                          onClick={() => setReviewSelected(null)}
-                          className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-surface-container text-primary text-label-md font-bold hover:bg-surface-container-high transition-all active:scale-95"
+                          onClick={() =>
+                            setReviewSelected(Math.max(0, idx - 1))
+                          }
+                          disabled={idx === 0}
+                          aria-label={t("exam.previous")}
+                          className={btnPrev}
                         >
-                          <LayoutGrid size={16} />
+                          <ChevronLeft size={20} />
                         </button>
-                        <span className="text-label-md font-bold text-primary">{t("exam.questionN", { n: idx + 1 })} / {totalQuestions}</span>
-                      </div>
-                      <button
-                        onClick={() => setReviewSelected(Math.min(totalQuestions - 1, idx + 1))}
-                        disabled={idx === totalQuestions - 1}
-                        aria-label={t("exam.next")}
-                        className={btnNext}
-                      >
-                        <ChevronRight size={20} />
-                      </button>
-                    </div>
-
-                    <div className="bg-surface-container-lowest border border-outline-variant/30 rounded-2xl overflow-hidden">
-                      <div className={`px-5 py-4 flex items-center gap-3 border-b border-outline-variant/20 ${qIsCorrect ? "bg-green-50/50" : "bg-red-50/50"}`}>
-                        <div className={`size-8 rounded-full flex items-center justify-center shrink-0 ${qIsCorrect ? "bg-green-100 text-green-700" : "bg-red-100 text-red-700"}`}>
-                          {qIsCorrect ? <Check size={18} /> : <X size={18} />}
-                        </div>
-                        <div className="flex flex-wrap items-center gap-2 min-w-0">
-                          <span className="text-label-sm font-bold text-primary">{t("exam.questionN", { n: idx + 1 })}</span>
-                          <span className={`text-label-xs px-2 py-0.5 rounded-full font-bold ${qIsCorrect ? "bg-green-100 text-green-700" : "bg-red-100 text-red-700"}`}>
-                            {qIsCorrect ? t("exam.reviewCorrect") : t("exam.reviewWrong")}
+                        <div className="flex items-center gap-3">
+                          <button
+                            onClick={() => setReviewSelected(null)}
+                            className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-surface-container text-primary text-label-md font-bold hover:bg-surface-container-high transition-all active:scale-95"
+                          >
+                            <LayoutGrid size={16} />
+                          </button>
+                          <span className="text-label-md font-bold text-primary">
+                            {t("exam.questionN", { n: idx + 1 })} /{" "}
+                            {totalQuestions}
                           </span>
-                          {q.category && <span className="text-label-xs text-on-surface-variant">{q.category}</span>}
                         </div>
+                        <button
+                          onClick={() =>
+                            setReviewSelected(
+                              Math.min(totalQuestions - 1, idx + 1),
+                            )
+                          }
+                          disabled={idx === totalQuestions - 1}
+                          aria-label={t("exam.next")}
+                          className={btnNext}
+                        >
+                          <ChevronRight size={20} />
+                        </button>
                       </div>
 
-                      <div className="p-5 space-y-4">
-                        <p className="text-body-md font-medium text-primary">{q.questionText}</p>
-
-                        {q.media && !qIsHotspot && !qIsChooseImages && (
-                          <div className="rounded-xl overflow-hidden aspect-video border border-outline-variant/30 bg-surface-container">
-                            {q.mediaMime?.startsWith("video/") ? (
-                              <QuestionVideo src={q.media} autoPlay muted className="w-full h-full object-cover" />
-                            ) : (
-                              <SmartImage src={q.media} alt="" className="w-full h-full object-cover" />
+                      <div className="bg-surface-container-lowest border border-outline-variant/30 rounded-2xl overflow-hidden">
+                        <div
+                          className={`px-5 py-4 flex items-center gap-3 border-b border-outline-variant/20 ${qIsCorrect ? "bg-green-50/50" : "bg-red-50/50"}`}
+                        >
+                          <div
+                            className={`size-8 rounded-full flex items-center justify-center shrink-0 ${qIsCorrect ? "bg-green-100 text-green-700" : "bg-red-100 text-red-700"}`}
+                          >
+                            {qIsCorrect ? <Check size={18} /> : <X size={18} />}
+                          </div>
+                          <div className="flex flex-wrap items-center gap-2 min-w-0">
+                            <span className="text-label-sm font-bold text-primary">
+                              {t("exam.questionN", { n: idx + 1 })}
+                            </span>
+                            <span
+                              className={`text-label-xs px-2 py-0.5 rounded-full font-bold ${qIsCorrect ? "bg-green-100 text-green-700" : "bg-red-100 text-red-700"}`}
+                            >
+                              {qIsCorrect
+                                ? t("exam.reviewCorrect")
+                                : t("exam.reviewWrong")}
+                            </span>
+                            {q.category && (
+                              <span className="text-label-xs text-on-surface-variant">
+                                {q.category}
+                              </span>
                             )}
                           </div>
-                        )}
+                        </div>
 
-                        {qIsChooseImages ? (
-                          <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
-                            {q.answerOptions.map((opt, oi) => {
-                              const isSelected = qSelectedMulti.length > 0 ? qSelectedMulti.includes(oi) : qSelectedIndex === oi
-                              const isCorrectOpt = qCorrectIndices.includes(oi)
-                              const borderColor = isSelected && !qIsCorrect ? "border-red-500" : isCorrectOpt ? "border-green-500" : isSelected ? "border-red-500" : "border-outline-variant/30"
-                              return (
-                                <div key={oi} className={`relative rounded-xl overflow-hidden border-2 ${borderColor} ${isSelected && !qIsCorrect ? "bg-red-50" : isCorrectOpt ? "bg-green-50" : isSelected ? "bg-red-50" : ""}`}>
-                                  {opt.imageUrl && <SmartImage src={opt.imageUrl} alt="" className="w-full aspect-square object-cover" />}
-                                  {isCorrectOpt && (
-                                    <div className="absolute top-2 right-2 bg-green-500 text-white text-label-xs font-bold px-2 py-0.5 rounded">{t("exam.correct")}</div>
-                                  )}
-                                  {isSelected && !qIsCorrect && (
-                                    <div className="absolute top-2 right-2 bg-red-500 text-white text-label-xs font-bold px-2 py-0.5 rounded">{t("exam.yourChoice")}</div>
-                                  )}
-                                </div>
-                              )
-                            })}
-                          </div>
-                        ) : qIsHotspot ? (
-                          <div className="text-label-sm text-on-surface-variant">{t("exam.hotspotResult")}</div>
-                        ) : (
-                          <div className="space-y-2">
-                            {q.answerOptions.map((opt, oi) => {
-                              const prefix = String.fromCharCode(65 + oi)
-                              const isSelected = qSelectedMulti.length > 0 ? qSelectedMulti.includes(oi) : qSelectedIndex === oi
-                              const isCorrectOpt = qCorrectIndices.includes(oi)
-                              const borderColor = isSelected && !qIsCorrect ? "border-red-500" : isCorrectOpt ? "border-green-500" : isSelected ? "border-red-500" : "border-outline-variant/30"
-                              const bgColor = isSelected && !qIsCorrect ? "bg-red-50" : isCorrectOpt ? "bg-green-50" : isSelected ? "bg-red-50" : "bg-surface"
-                              return (
-                                <div key={oi} className={`flex items-center w-full p-3 border-2 ${borderColor} ${bgColor} rounded-xl`}>
-                                  <div className={`size-9 rounded-full flex items-center justify-center mr-3 shrink-0 font-bold text-label-sm ${isSelected && !qIsCorrect ? "bg-red-100 text-red-700" : isCorrectOpt ? "bg-green-100 text-green-700" : isSelected ? "bg-red-100 text-red-700" : "bg-surface-container text-outline"}`}>
-                                    {isCorrectOpt ? <Check size={16} /> : isSelected ? <X size={16} /> : prefix}
+                        <div className="p-5 space-y-4">
+                          <p className="text-body-md font-medium text-primary">
+                            {q.questionText}
+                          </p>
+
+                          {q.media && !qIsHotspot && !qIsChooseImages && (
+                            <div className="rounded-xl overflow-hidden aspect-video border border-outline-variant/30 bg-surface-container">
+                              {q.mediaMime?.startsWith("video/") ? (
+                                <QuestionVideo
+                                  src={q.media}
+                                  autoPlay
+                                  muted
+                                  className="w-full h-full object-cover"
+                                />
+                              ) : (
+                                <SmartImage
+                                  src={q.media}
+                                  alt=""
+                                  className="w-full h-full object-cover"
+                                />
+                              )}
+                            </div>
+                          )}
+
+                          {qIsChooseImages ? (
+                            <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                              {q.answerOptions.map((opt, oi) => {
+                                const isSelected =
+                                  qSelectedMulti.length > 0
+                                    ? qSelectedMulti.includes(oi)
+                                    : qSelectedIndex === oi;
+                                const isCorrectOpt =
+                                  qCorrectIndices.includes(oi);
+                                const borderColor =
+                                  isSelected && !qIsCorrect
+                                    ? "border-red-500"
+                                    : isCorrectOpt
+                                      ? "border-green-500"
+                                      : isSelected
+                                        ? "border-red-500"
+                                        : "border-outline-variant/30";
+                                return (
+                                  <div
+                                    key={oi}
+                                    className={`relative rounded-xl overflow-hidden border-2 ${borderColor} ${isSelected && !qIsCorrect ? "bg-red-50" : isCorrectOpt ? "bg-green-50" : isSelected ? "bg-red-50" : ""}`}
+                                  >
+                                    {opt.imageUrl && (
+                                      <SmartImage
+                                        src={opt.imageUrl}
+                                        alt=""
+                                        className="w-full aspect-square object-cover"
+                                      />
+                                    )}
+                                    {isCorrectOpt && (
+                                      <div className="absolute top-2 right-2 bg-green-500 text-white text-label-xs font-bold px-2 py-0.5 rounded">
+                                        {t("exam.correct")}
+                                      </div>
+                                    )}
+                                    {isSelected && !qIsCorrect && (
+                                      <div className="absolute top-2 right-2 bg-red-500 text-white text-label-xs font-bold px-2 py-0.5 rounded">
+                                        {t("exam.yourChoice")}
+                                      </div>
+                                    )}
                                   </div>
-                                  <span className="text-body-md flex-1">{opt.text}</span>
-                                  {isCorrectOpt && (
-                                    <span className="text-label-xs font-bold text-green-700 bg-green-100 px-2 py-0.5 rounded shrink-0 ml-2">{t("exam.correct")}</span>
-                                  )}
-                                  {isSelected && !qIsCorrect && (
-                                    <span className="text-label-xs font-bold text-red-700 bg-red-100 px-2 py-0.5 rounded shrink-0 ml-2">{t("exam.yourChoice")}</span>
-                                  )}
-                                </div>
-                              )
-                            })}
-                          </div>
-                        )}
+                                );
+                              })}
+                            </div>
+                          ) : qIsHotspot ? (
+                            <div className="text-label-sm text-on-surface-variant">
+                              {t("exam.hotspotResult")}
+                            </div>
+                          ) : qIsInputText ? (
+                            <div
+                              className={`flex items-center justify-between gap-3 p-3 border-2 rounded-xl ${qIsCorrect ? "border-green-500 bg-green-50" : "border-red-500 bg-red-50"}`}
+                            >
+                              <span className="text-body-md">
+                                {textAnswers[q.id] || "—"}
+                              </span>
+                              {!qIsCorrect && rt?.correct_text && (
+                                <span className="text-label-xs font-bold text-green-700 bg-green-100 px-2 py-0.5 rounded shrink-0">
+                                  {rt.correct_text}
+                                </span>
+                              )}
+                            </div>
+                          ) : (
+                            <div className="space-y-2">
+                              {q.answerOptions.map((opt, oi) => {
+                                const prefix = String.fromCharCode(65 + oi);
+                                const isSelected =
+                                  qSelectedMulti.length > 0
+                                    ? qSelectedMulti.includes(oi)
+                                    : qSelectedIndex === oi;
+                                const isCorrectOpt =
+                                  qCorrectIndices.includes(oi);
+                                const borderColor =
+                                  isSelected && !qIsCorrect
+                                    ? "border-red-500"
+                                    : isCorrectOpt
+                                      ? "border-green-500"
+                                      : isSelected
+                                        ? "border-red-500"
+                                        : "border-outline-variant/30";
+                                const bgColor =
+                                  isSelected && !qIsCorrect
+                                    ? "bg-red-50"
+                                    : isCorrectOpt
+                                      ? "bg-green-50"
+                                      : isSelected
+                                        ? "bg-red-50"
+                                        : "bg-surface";
+                                return (
+                                  <div
+                                    key={oi}
+                                    className={`flex items-center w-full p-3 border-2 ${borderColor} ${bgColor} rounded-xl`}
+                                  >
+                                    <div
+                                      className={`size-9 rounded-full flex items-center justify-center mr-3 shrink-0 font-bold text-label-sm ${isSelected && !qIsCorrect ? "bg-red-100 text-red-700" : isCorrectOpt ? "bg-green-100 text-green-700" : isSelected ? "bg-red-100 text-red-700" : "bg-surface-container text-outline"}`}
+                                    >
+                                      {isCorrectOpt ? (
+                                        <Check size={16} />
+                                      ) : isSelected ? (
+                                        <X size={16} />
+                                      ) : (
+                                        prefix
+                                      )}
+                                    </div>
+                                    <span className="text-body-md flex-1">
+                                      {opt.text}
+                                    </span>
+                                    {isCorrectOpt && (
+                                      <span className="text-label-xs font-bold text-green-700 bg-green-100 px-2 py-0.5 rounded shrink-0 ml-2">
+                                        {t("exam.correct")}
+                                      </span>
+                                    )}
+                                    {isSelected && !qIsCorrect && (
+                                      <span className="text-label-xs font-bold text-red-700 bg-red-100 px-2 py-0.5 rounded shrink-0 ml-2">
+                                        {t("exam.yourChoice")}
+                                      </span>
+                                    )}
+                                  </div>
+                                );
+                              })}
+                            </div>
+                          )}
 
-                        {qExplanation && (
-                          <div className="flex items-start gap-3 bg-surface-container-low rounded-xl p-4">
-                            <Info size={18} className="text-primary shrink-0 mt-0.5" />
-                            <p className="text-body-md text-on-surface-variant" dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(qExplanation ?? "") }} />
-                          </div>
-                        )}
+                          {qExplanation && (
+                            <div className="flex items-start gap-3 bg-surface-container-low rounded-xl p-4">
+                              <Info
+                                size={18}
+                                className="text-primary shrink-0 mt-0.5"
+                              />
+                              <p
+                                className="text-body-md text-on-surface-variant"
+                                dangerouslySetInnerHTML={{
+                                  __html: DOMPurify.sanitize(
+                                    qExplanation ?? "",
+                                  ),
+                                }}
+                              />
+                            </div>
+                          )}
+                        </div>
+                      </div>
+
+                      <div className="flex items-center justify-between mt-5">
+                        <button
+                          onClick={() =>
+                            setReviewSelected(Math.max(0, idx - 1))
+                          }
+                          disabled={idx === 0}
+                          className={`flex items-center gap-2 px-5 py-2.5 rounded-full font-label-md text-label-md transition-all active:scale-[0.98] ${idx === 0 ? "bg-surface-container text-outline-variant cursor-not-allowed" : "bg-secondary-container text-on-secondary-container hover:opacity-90"}`}
+                        >
+                          <ChevronLeft size={16} />
+                          {t("exam.previous")}
+                        </button>
+                        <button
+                          onClick={() => setReviewSelected(null)}
+                          className="flex items-center gap-2 px-5 py-2.5 rounded-full bg-surface-container text-primary font-label-md text-label-md hover:bg-surface-container-high transition-all active:scale-[0.98]"
+                        >
+                          <LayoutGrid size={16} />
+                          {t("exam.reviewModalTitle")}
+                        </button>
+                        <button
+                          onClick={() =>
+                            setReviewSelected(
+                              Math.min(totalQuestions - 1, idx + 1),
+                            )
+                          }
+                          disabled={idx === totalQuestions - 1}
+                          className={`flex items-center gap-2 px-5 py-2.5 rounded-full font-label-md text-label-md transition-all active:scale-[0.98] ${idx === totalQuestions - 1 ? "bg-surface-container text-outline-variant cursor-not-allowed" : "bg-secondary-container text-on-secondary-container hover:opacity-90"}`}
+                        >
+                          {t("exam.next")}
+                          <ChevronRight size={16} />
+                        </button>
                       </div>
                     </div>
-
-                    <div className="flex items-center justify-between mt-5">
-                      <button
-                        onClick={() => setReviewSelected(Math.max(0, idx - 1))}
-                        disabled={idx === 0}
-                        className={`flex items-center gap-2 px-5 py-2.5 rounded-full font-label-md text-label-md transition-all active:scale-[0.98] ${idx === 0 ? "bg-surface-container text-outline-variant cursor-not-allowed" : "bg-secondary-container text-on-secondary-container hover:opacity-90"}`}
-                      >
-                        <ChevronLeft size={16} />
-                        {t("exam.previous")}
-                      </button>
-                      <button
-                        onClick={() => setReviewSelected(null)}
-                        className="flex items-center gap-2 px-5 py-2.5 rounded-full bg-surface-container text-primary font-label-md text-label-md hover:bg-surface-container-high transition-all active:scale-[0.98]"
-                      >
-                        <LayoutGrid size={16} />
-                        {t("exam.reviewModalTitle")}
-                      </button>
-                      <button
-                        onClick={() => setReviewSelected(Math.min(totalQuestions - 1, idx + 1))}
-                        disabled={idx === totalQuestions - 1}
-                        className={`flex items-center gap-2 px-5 py-2.5 rounded-full font-label-md text-label-md transition-all active:scale-[0.98] ${idx === totalQuestions - 1 ? "bg-surface-container text-outline-variant cursor-not-allowed" : "bg-secondary-container text-on-secondary-container hover:opacity-90"}`}
-                      >
-                        {t("exam.next")}
-                        <ChevronRight size={16} />
-                      </button>
-                    </div>
-                  </div>
-                )
-              })()}
+                  );
+                })()
+              )}
             </div>
           </div>
         )}
       </div>
-    )
+    );
   }
 
-  const qText = getQuestionText()
-  const progressPct = totalQuestions > 0 ? ((currentIndex + 1) / totalQuestions) * 100 : 0
+  const qText = getQuestionText();
+  const progressPct =
+    totalQuestions > 0 ? ((currentIndex + 1) / totalQuestions) * 100 : 0;
 
   return (
     <div className="min-h-screen bg-surface flex flex-col">
@@ -1182,12 +1800,20 @@ export default function ExamDetailPage() {
               <ChevronLeft size={20} className="text-primary" />
             </button>
             <div className="min-w-0">
-              <span className="text-label-md font-bold text-primary truncate block">{exam?.title}</span>
-              <span className="text-body-md text-on-surface-variant">{t("exam.questionN", { n: currentIndex + 1 })} / {totalQuestions}</span>
+              <span className="text-label-md font-bold text-primary truncate block">
+                {exam?.title}
+              </span>
+              <span className="text-body-md text-on-surface-variant">
+                {t("exam.questionN", { n: currentIndex + 1 })} /{" "}
+                {totalQuestions}
+              </span>
             </div>
           </div>
           <div className="hidden lg:flex flex-1 mx-8 max-w-2xl bg-surface-container rounded-full h-3 overflow-hidden">
-            <div className="bg-secondary-container h-full transition-all" style={{ width: `${progressPct}%` }} />
+            <div
+              className="bg-secondary-container h-full transition-all"
+              style={{ width: `${progressPct}%` }}
+            />
           </div>
           <div className="flex items-center gap-3 shrink-0">
             <div className="hidden md:block shrink-0">
@@ -1201,14 +1827,26 @@ export default function ExamDetailPage() {
               {soundOn ? <Volume2 size={20} /> : <VolumeX size={20} />}
             </button>
             {violations > 0 && (
-              <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-red-50 border border-red-200" title={t("exam.violationsWarning")}>
+              <div
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-red-50 border border-red-200"
+                title={t("exam.violationsWarning")}
+              >
                 <ShieldAlert size={16} className="text-red-500" />
-                <span className="text-label-sm font-bold text-red-600">{violations}</span>
+                <span className="text-label-sm font-bold text-red-600">
+                  {violations}
+                </span>
               </div>
             )}
-            <div className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full ${timeLeft < 300 ? "bg-red-50 animate-pulse" : "bg-surface-container-high"}`}>
-              <Clock size={18} className={timeLeft < 300 ? "text-red-500" : "text-primary"} />
-              <span className={`text-label-md font-bold tabular-nums ${timeLeft < 300 ? "text-red-500" : "text-primary"}`}>
+            <div
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full ${timeLeft < 300 ? "bg-red-50 animate-pulse" : "bg-surface-container-high"}`}
+            >
+              <Clock
+                size={18}
+                className={timeLeft < 300 ? "text-red-500" : "text-primary"}
+              />
+              <span
+                className={`text-label-md font-bold tabular-nums ${timeLeft < 300 ? "text-red-500" : "text-primary"}`}
+              >
                 {formatTime(timeLeft)}
               </span>
             </div>
@@ -1220,14 +1858,26 @@ export default function ExamDetailPage() {
       </header>
 
       {showTabWarning && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm px-4" onClick={() => setShowTabWarning(false)}>
-          <div className="bg-surface-container-lowest rounded-3xl p-8 max-w-md w-full text-center shadow-2xl border border-outline-variant/20" onClick={(e) => e.stopPropagation()}>
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm px-4"
+          onClick={() => setShowTabWarning(false)}
+        >
+          <div
+            className="bg-surface-container-lowest rounded-3xl p-8 max-w-md w-full text-center shadow-2xl border border-outline-variant/20"
+            onClick={(e) => e.stopPropagation()}
+          >
             <div className="size-16 rounded-full bg-red-100 flex items-center justify-center mx-auto mb-5">
               <ShieldAlert size={32} className="text-red-500" />
             </div>
-            <h2 className="text-headline-md text-on-surface font-bold mb-2">{t("exam.tabSwitchTitle")}</h2>
-            <p className="text-body-md text-on-surface-variant mb-2">{t("exam.tabSwitchMessage")}</p>
-            <p className="text-label-sm text-red-500 font-bold mb-6">{t("exam.violationsCount")} {violations}</p>
+            <h2 className="text-headline-md text-on-surface font-bold mb-2">
+              {t("exam.tabSwitchTitle")}
+            </h2>
+            <p className="text-body-md text-on-surface-variant mb-2">
+              {t("exam.tabSwitchMessage")}
+            </p>
+            <p className="text-label-sm text-red-500 font-bold mb-6">
+              {t("exam.violationsCount")} {violations}
+            </p>
             <button
               onClick={() => setShowTabWarning(false)}
               className="bg-primary text-on-primary px-8 py-3 rounded-full font-label-md text-label-md hover:opacity-90 transition-all active:scale-[0.98]"
@@ -1239,66 +1889,101 @@ export default function ExamDetailPage() {
       )}
 
       <div className="md:hidden w-full bg-surface-container h-1">
-        <div className="bg-secondary-container h-full transition-all" style={{ width: `${progressPct}%` }} />
+        <div
+          className="bg-secondary-container h-full transition-all"
+          style={{ width: `${progressPct}%` }}
+        />
       </div>
 
       <main className="flex-1 w-full max-w-7xl mx-auto px-4 py-5 md:px-8 md:py-12">
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
-          <div className={`flex flex-col gap-6 ${isChooseImages ? "lg:col-span-5 lg:order-1" : "lg:col-span-9 lg:order-1"}`}>
-<section key={currentQuestion.id}>
-                <div className="bg-surface-container-lowest rounded-2xl overflow-hidden border border-outline-variant/10 p-6 md:p-8" style={{ boxShadow: "0px 4px 20px rgba(26,60,110,0.05)" }}>
+          <div
+            className={`flex flex-col gap-6 ${isChooseImages ? "lg:col-span-5 lg:order-1" : "lg:col-span-9 lg:order-1"}`}
+          >
+            <section key={currentQuestion.id}>
+              <div
+                className="bg-surface-container-lowest rounded-2xl overflow-hidden border border-outline-variant/10 p-6 md:p-8"
+                style={{ boxShadow: "0px 4px 20px rgba(26,60,110,0.05)" }}
+              >
                 <div className="flex flex-col gap-6">
-                  <h1 className="text-headline-md md:text-headline-xl text-on-surface leading-tight">{qText}</h1>
+                  <h1 className="text-headline-md md:text-headline-xl text-on-surface leading-tight">
+                    {qText}
+                  </h1>
 
-                  {currentQuestion.multipleCorrect && (
+                  {currentQuestion.multipleCorrect && !isInputText && (
                     <div className="flex flex-wrap items-center gap-2">
                       <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-primary/10 border border-primary/20 text-primary text-label-sm font-bold">
                         <CheckCircle size={14} />
                         {t("exam.multipleAnswers")}
                       </span>
-                      <span className="text-label-sm text-on-surface-variant">{t("exam.selectAllCorrect")}</span>
+                      <span className="text-label-sm text-on-surface-variant">
+                        {t("exam.selectAllCorrect")}
+                      </span>
                     </div>
                   )}
 
-                  {hasAnswered && currentQuestion.multipleCorrect && answerResult && !answerResult.correct && (
-                    <div className="flex items-center gap-3 bg-red-50 border border-red-200 rounded-xl px-4 py-3">
-                      <XCircle size={20} className="text-red-500 shrink-0" />
-                      <span className="text-body-md font-bold text-red-700">{t("exam.notAllCorrect")}</span>
-                    </div>
-                  )}
+                  {hasAnswered &&
+                    currentQuestion.multipleCorrect &&
+                    !isInputText &&
+                    answerResult &&
+                    !answerResult.correct && (
+                      <div className="flex items-center gap-3 bg-red-50 border border-red-200 rounded-xl px-4 py-3">
+                        <XCircle size={20} className="text-red-500 shrink-0" />
+                        <span className="text-body-md font-bold text-red-700">
+                          {t("exam.notAllCorrect")}
+                        </span>
+                      </div>
+                    )}
 
                   {(() => {
-                    const audio = currentQuestion.audioTranslations
-                    const audioUrl = (audio && (audio[lang] || audio["nl"])) || null
-                    if (!audioUrl) return null
+                    const audio = currentQuestion.audioTranslations;
+                    const audioUrl =
+                      (audio && (audio[lang] || audio["nl"])) || null;
+                    if (!audioUrl) return null;
                     return (
                       <div className="flex items-center gap-3 bg-surface-container rounded-xl px-3 py-2 w-fit">
                         <button
                           onClick={() => {
-                            const sound = questionSoundRef.current
-                            if (!sound) return
+                            const sound = questionSoundRef.current;
+                            if (!sound) return;
                             if (sound.playing()) {
-                              sound.pause()
+                              sound.pause();
                             } else {
-                              sound.play()
+                              sound.play();
                             }
                           }}
                           className="size-10 rounded-full bg-primary text-on-primary flex items-center justify-center active:scale-95 transition-transform shrink-0"
-                          aria-label={audioPlaying ? "Pause audio" : "Play audio"}
+                          aria-label={
+                            audioPlaying ? "Pause audio" : "Play audio"
+                          }
                         >
-                          {audioPlaying ? <Pause size={18} /> : <Play size={18} />}
+                          {audioPlaying ? (
+                            <Pause size={18} />
+                          ) : (
+                            <Play size={18} />
+                          )}
                         </button>
-                        <span className="text-label-sm font-bold text-primary">{t("exam.questionAudio")}</span>
+                        <span className="text-label-sm font-bold text-primary">
+                          {t("exam.questionAudio")}
+                        </span>
                       </div>
-                    )
+                    );
                   })()}
 
                   {currentQuestion.media && !isHotspot && !isChooseImages && (
                     <div className="relative -mx-6 md:-mx-8 -mb-6 md:-mb-8 bg-surface-container flex items-center justify-center">
                       {currentQuestion.mediaMime?.startsWith("video/") ? (
-                        <QuestionVideo src={currentQuestion.media} className="w-full max-h-[60vh] object-contain" />
+                        <QuestionVideo
+                          src={currentQuestion.media}
+                          className="w-full max-h-[60vh] object-contain"
+                        />
                       ) : (
-                        <SmartImage src={currentQuestion.media} alt="Traffic situation" lazy={false} className="w-full max-h-[60vh] object-contain" />
+                        <SmartImage
+                          src={currentQuestion.media}
+                          alt="Traffic situation"
+                          lazy={false}
+                          className="w-full max-h-[60vh] object-contain"
+                        />
                       )}
                     </div>
                   )}
@@ -1310,11 +1995,17 @@ export default function ExamDetailPage() {
                       mediaMime={currentQuestion.mediaMime}
                       correctOptions={currentQuestion.answerOptions}
                       onComplete={handleHotspotSubmit}
-                      initialPositions={hotspotAnswers[currentQuestion.id]?.positions}
-                      initialSubmitted={submitted[currentQuestion.id] ?? undefined}
+                      initialPositions={
+                        hotspotAnswers[currentQuestion.id]?.positions
+                      }
+                      initialSubmitted={
+                        submitted[currentQuestion.id] ?? undefined
+                      }
                       validationResults={hotspotResult?.results}
                       pauseAt={currentQuestion.pauseAt ?? 3}
-                      optionLabels={currentQuestion.answerOptions.map((_, i) => getOptionText(i))}
+                      optionLabels={currentQuestion.answerOptions.map((_, i) =>
+                        getOptionText(i),
+                      )}
                     />
                   )}
                 </div>
@@ -1324,54 +2015,79 @@ export default function ExamDetailPage() {
             {showError && (
               <div className="flex items-center gap-3 bg-red-50 border border-red-200 rounded-xl p-4">
                 <AlertCircle size={20} className="text-red-500 shrink-0" />
-                <span className="text-body-md text-red-700">{t("exam.selectFirst")}</span>
+                <span className="text-body-md text-red-700">
+                  {t("exam.selectFirst")}
+                </span>
               </div>
             )}
 
             {hasAnswered && getExplanationText() && (
               <div className="bg-surface-container-low border border-surface-container-high rounded-xl p-4 flex items-start gap-4">
-                <Info size={20} className="text-primary-container shrink-0 mt-0.5" />
+                <Info
+                  size={20}
+                  className="text-primary-container shrink-0 mt-0.5"
+                />
                 <div className="flex-1 min-w-0">
-                          <p className="text-label-md text-on-surface font-bold mb-1">{t("exam.explanation")}</p>
-                  <p className="text-body-md text-on-surface-variant leading-relaxed" dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(getExplanationText()!) }} />
+                  <p className="text-label-md text-on-surface font-bold mb-1">
+                    {t("exam.explanation")}
+                  </p>
+                  <p
+                    className="text-body-md text-on-surface-variant leading-relaxed"
+                    dangerouslySetInnerHTML={{
+                      __html: DOMPurify.sanitize(getExplanationText()!),
+                    }}
+                  />
                   {(() => {
-                    const audio = currentQuestion.explanationAudioTranslations
-                    const audioUrl = (audio && (audio[lang] || audio["nl"])) || null
-                    if (!audioUrl) return null
+                    const audio = currentQuestion.explanationAudioTranslations;
+                    const audioUrl =
+                      (audio && (audio[lang] || audio["nl"])) || null;
+                    if (!audioUrl) return null;
                     return (
                       <div className="flex items-center gap-3 bg-surface-container rounded-xl px-3 py-2 w-fit mt-3">
                         <button
                           onClick={() => {
-                            const sound = explanationSoundRef.current
-                            if (!sound) return
+                            const sound = explanationSoundRef.current;
+                            if (!sound) return;
                             if (sound.playing()) {
-                              sound.pause()
+                              sound.pause();
                             } else {
-                              sound.play()
+                              sound.play();
                             }
                           }}
                           className="size-9 rounded-full bg-secondary-container text-on-secondary-container flex items-center justify-center active:scale-95 transition-transform shrink-0"
-                          aria-label={explanationAudioPlaying ? "Pause audio" : "Play audio"}
+                          aria-label={
+                            explanationAudioPlaying
+                              ? "Pause audio"
+                              : "Play audio"
+                          }
                         >
-                          {explanationAudioPlaying ? <Pause size={16} /> : <Play size={16} />}
+                          {explanationAudioPlaying ? (
+                            <Pause size={16} />
+                          ) : (
+                            <Play size={16} />
+                          )}
                         </button>
-                        <span className="text-label-sm font-bold text-on-surface-variant">{t("exam.explanationAudio")}</span>
+                        <span className="text-label-sm font-bold text-on-surface-variant">
+                          {t("exam.explanationAudio")}
+                        </span>
                       </div>
-                    )
+                    );
                   })()}
                 </div>
               </div>
             )}
           </div>
 
-          <div className={`flex flex-col gap-6 ${isChooseImages ? "lg:col-span-7 lg:order-2" : "lg:col-span-3 lg:order-2"}`}>
+          <div
+            className={`flex flex-col gap-6 ${isChooseImages ? "lg:col-span-7 lg:order-2" : "lg:col-span-3 lg:order-2"}`}
+          >
             {isChooseImages ? (
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 {currentQuestion.answerOptions.map((option, idx) => {
-                  const state = getOptionState(idx)
+                  const state = getOptionState(idx);
                   if (state === "idle") {
-                    const isLocked = locking === currentQuestion.id
-                    const isChosen = answers[currentQuestion.id] === idx
+                    const isLocked = locking === currentQuestion.id;
+                    const isChosen = answers[currentQuestion.id] === idx;
                     if (isLocked) {
                       return (
                         <div
@@ -1379,131 +2095,321 @@ export default function ExamDetailPage() {
                           className={`relative rounded-xl overflow-hidden border-2 transition-all cursor-not-allowed ${isChosen ? "border-primary" : "border-outline-variant opacity-40"}`}
                           aria-disabled="true"
                         >
-                          {option.imageUrl && <SmartImage src={option.imageUrl} alt="" lazy={false} className="w-full aspect-square object-cover" />}
+                          {option.imageUrl && (
+                            <SmartImage
+                              src={option.imageUrl}
+                              alt=""
+                              lazy={false}
+                              className="w-full aspect-square object-cover"
+                            />
+                          )}
                         </div>
-                      )
-                    }
-                    return (
-                      <div key={idx} role="button" tabIndex={0} onClick={() => handleSelect(idx)}
-                        onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); handleSelect(idx) } }}
-                        className="relative rounded-xl overflow-hidden border-2 border-outline-variant/50 transition-all active:scale-[0.97] hover:border-primary hover:shadow-sm cursor-pointer bg-surface"
-                      >
-                        {option.imageUrl && <SmartImage src={option.imageUrl} alt="" lazy={false} className="w-full aspect-square object-cover" />}
-                      </div>
-                    )
-                  }
-                  if (state === "correct-selected" || state === "correct-unselected") {
-                    return (
-                      <div key={idx} className="relative rounded-xl overflow-hidden border-2 border-green-500 bg-green-50">
-                        {option.imageUrl && <SmartImage src={option.imageUrl} alt="" lazy={false} className="w-full aspect-square object-cover" />}
-                        <div className="absolute top-2 right-2 bg-green-500 text-white text-label-xs font-bold px-2 py-1 rounded-md">{t("exam.correct")}</div>
-                      </div>
-                    )
-                  }
-                  if (state === "wrong-selected") {
-                    return (
-                      <div key={idx} className="relative rounded-xl overflow-hidden border-2 border-red-500 bg-red-50">
-                        {option.imageUrl && <SmartImage src={option.imageUrl} alt="" lazy={false} className="w-full aspect-square object-cover" />}
-                        <div className="absolute top-2 right-2 bg-red-500 text-white text-label-xs font-bold px-2 py-1 rounded-md">{t("exam.yourChoice")}</div>
-                      </div>
-                    )
-                  }
-                  return (
-                    <div key={idx} className="relative rounded-xl overflow-hidden border-2 border-outline-variant opacity-40 bg-surface-container-lowest">
-                      {option.imageUrl && <SmartImage src={option.imageUrl} alt="" lazy={false} className="w-full aspect-square object-cover" />}
-                    </div>
-                  )
-                })}
-              </div>
-            ) : !isHotspot ? (
-              <div className="flex flex-col gap-4" id="options-container">
-                {currentQuestion.answerOptions.map((option, idx) => {
-                  const state = getOptionState(idx)
-                  const prefix = String.fromCharCode(65 + idx)
-                  const optionText = getOptionText(idx)
-
-                  if (state === "idle") {
-                    const isMultiSelected = selectedIndices.includes(idx)
-                    const isLocked = !currentQuestion.multipleCorrect && locking === currentQuestion.id
-                    const isChosen = answers[currentQuestion.id] === idx
-                    const inner = (
-                      <div className={`flex-shrink-0 w-12 h-12 flex items-center justify-center rounded-full font-bold text-headline-md mr-4 transition-colors ${isMultiSelected ? "bg-primary text-on-primary" : "bg-surface-container text-primary group-hover:bg-secondary-fixed group-hover:text-on-secondary-fixed"}`}>
-                        {currentQuestion.multipleCorrect && isMultiSelected ? <Check size={20} /> : prefix}
-                      </div>
-                    )
-                    if (isLocked) {
-                      return (
-                        <div
-                          key={idx}
-                          className={`group relative flex items-center w-full bg-surface-container-lowest p-6 rounded-2xl border-2 transition-all text-left cursor-not-allowed ${isChosen ? "border-primary bg-primary/5" : "border-transparent opacity-50"}`}
-                          style={{ boxShadow: "0px 4px 20px rgba(26,60,110,0.05)" }}
-                          aria-disabled="true"
-                        >
-                          {inner}
-                          <span className="text-body-lg text-on-surface flex-grow">{optionText}</span>
-                        </div>
-                      )
+                      );
                     }
                     return (
                       <div
                         key={idx}
                         role="button"
                         tabIndex={0}
-                        onClick={() => (currentQuestion.multipleCorrect ? toggleMultiSelect(idx) : handleSelect(idx))}
-                        onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); currentQuestion.multipleCorrect ? toggleMultiSelect(idx) : handleSelect(idx) } }}
+                        onClick={() => handleSelect(idx)}
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter" || e.key === " ") {
+                            e.preventDefault();
+                            handleSelect(idx);
+                          }
+                        }}
+                        className="relative rounded-xl overflow-hidden border-2 border-outline-variant/50 transition-all active:scale-[0.97] hover:border-primary hover:shadow-sm cursor-pointer bg-surface"
+                      >
+                        {option.imageUrl && (
+                          <SmartImage
+                            src={option.imageUrl}
+                            alt=""
+                            lazy={false}
+                            className="w-full aspect-square object-cover"
+                          />
+                        )}
+                      </div>
+                    );
+                  }
+                  if (
+                    state === "correct-selected" ||
+                    state === "correct-unselected"
+                  ) {
+                    return (
+                      <div
+                        key={idx}
+                        className="relative rounded-xl overflow-hidden border-2 border-green-500 bg-green-50"
+                      >
+                        {option.imageUrl && (
+                          <SmartImage
+                            src={option.imageUrl}
+                            alt=""
+                            lazy={false}
+                            className="w-full aspect-square object-cover"
+                          />
+                        )}
+                        <div className="absolute top-2 right-2 bg-green-500 text-white text-label-xs font-bold px-2 py-1 rounded-md">
+                          {t("exam.correct")}
+                        </div>
+                      </div>
+                    );
+                  }
+                  if (state === "wrong-selected") {
+                    return (
+                      <div
+                        key={idx}
+                        className="relative rounded-xl overflow-hidden border-2 border-red-500 bg-red-50"
+                      >
+                        {option.imageUrl && (
+                          <SmartImage
+                            src={option.imageUrl}
+                            alt=""
+                            lazy={false}
+                            className="w-full aspect-square object-cover"
+                          />
+                        )}
+                        <div className="absolute top-2 right-2 bg-red-500 text-white text-label-xs font-bold px-2 py-1 rounded-md">
+                          {t("exam.yourChoice")}
+                        </div>
+                      </div>
+                    );
+                  }
+                  return (
+                    <div
+                      key={idx}
+                      className="relative rounded-xl overflow-hidden border-2 border-outline-variant opacity-40 bg-surface-container-lowest"
+                    >
+                      {option.imageUrl && (
+                        <SmartImage
+                          src={option.imageUrl}
+                          alt=""
+                          lazy={false}
+                          className="w-full aspect-square object-cover"
+                        />
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            ) : isInputText ? (
+              <div className="flex flex-col gap-4">
+                <input
+                  type="text"
+                  value={textAnswers[currentQuestion.id] ?? ""}
+                  onChange={(e) =>
+                    setTextAnswers((prev) => ({
+                      ...prev,
+                      [currentQuestion.id]: e.target.value,
+                    }))
+                  }
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") {
+                      e.preventDefault();
+                      handleTextSubmit();
+                    }
+                  }}
+                  disabled={hasAnswered}
+                  placeholder={t("exam.typeYourAnswer")}
+                  className={`w-full h-14 px-4 rounded-2xl border-2 text-body-lg focus:outline-none transition-colors ${
+                    !hasAnswered
+                      ? "border-outline-variant bg-surface-container-lowest focus:border-primary"
+                      : textResult?.correct
+                        ? "border-green-500 bg-green-50 text-green-900"
+                        : "border-red-500 bg-red-50 text-red-900"
+                  }`}
+                />
+                {!hasAnswered ? (
+                  <button
+                    type="button"
+                    onClick={handleTextSubmit}
+                    disabled={locking === currentQuestion.id}
+                    className="self-start flex items-center gap-2 px-6 py-3 rounded-full bg-secondary-container text-on-secondary-container font-label-md text-label-md shadow-md hover:opacity-90 transition-all active:scale-[0.98] disabled:opacity-50"
+                  >
+                    {t("exam.checkAnswer")}
+                  </button>
+                ) : (
+                  <div
+                    className={`flex items-center gap-3 rounded-xl px-4 py-3 ${textResult?.correct ? "bg-green-50 border border-green-200" : "bg-red-50 border border-red-200"}`}
+                  >
+                    {textResult?.correct ? (
+                      <CheckCircle
+                        size={20}
+                        className="text-green-600 shrink-0"
+                      />
+                    ) : (
+                      <XCircle size={20} className="text-red-600 shrink-0" />
+                    )}
+                    <span
+                      className={`text-body-md font-bold ${textResult?.correct ? "text-green-700" : "text-red-700"}`}
+                    >
+                      {textResult?.correct
+                        ? t("exam.correct")
+                        : `${t("exam.correctAnswerWas")}: ${textResult?.correct_text ?? ""}`}
+                    </span>
+                  </div>
+                )}
+              </div>
+            ) : !isHotspot ? (
+              <div className="flex flex-col gap-4" id="options-container">
+                {currentQuestion.answerOptions.map((option, idx) => {
+                  const state = getOptionState(idx);
+                  const prefix = String.fromCharCode(65 + idx);
+                  const optionText = getOptionText(idx);
+
+                  if (state === "idle") {
+                    const isMultiSelected = selectedIndices.includes(idx);
+                    const isLocked =
+                      !currentQuestion.multipleCorrect &&
+                      locking === currentQuestion.id;
+                    const isChosen = answers[currentQuestion.id] === idx;
+                    const inner = (
+                      <div
+                        className={`flex-shrink-0 w-12 h-12 flex items-center justify-center rounded-full font-bold text-headline-md mr-4 transition-colors ${isMultiSelected ? "bg-primary text-on-primary" : "bg-surface-container text-primary group-hover:bg-secondary-fixed group-hover:text-on-secondary-fixed"}`}
+                      >
+                        {currentQuestion.multipleCorrect && isMultiSelected ? (
+                          <Check size={20} />
+                        ) : (
+                          prefix
+                        )}
+                      </div>
+                    );
+                    if (isLocked) {
+                      return (
+                        <div
+                          key={idx}
+                          className={`group relative flex items-center w-full bg-surface-container-lowest p-6 rounded-2xl border-2 transition-all text-left cursor-not-allowed ${isChosen ? "border-primary bg-primary/5" : "border-transparent opacity-50"}`}
+                          style={{
+                            boxShadow: "0px 4px 20px rgba(26,60,110,0.05)",
+                          }}
+                          aria-disabled="true"
+                        >
+                          {inner}
+                          <span className="text-body-lg text-on-surface flex-grow">
+                            {optionText}
+                          </span>
+                        </div>
+                      );
+                    }
+                    return (
+                      <div
+                        key={idx}
+                        role="button"
+                        tabIndex={0}
+                        onClick={() =>
+                          currentQuestion.multipleCorrect
+                            ? toggleMultiSelect(idx)
+                            : handleSelect(idx)
+                        }
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter" || e.key === " ") {
+                            e.preventDefault();
+                            currentQuestion.multipleCorrect
+                              ? toggleMultiSelect(idx)
+                              : handleSelect(idx);
+                          }
+                        }}
                         className={`group relative flex items-center w-full bg-surface-container-lowest p-6 rounded-2xl border-2 transition-all text-left outline-none active:scale-[0.98] cursor-pointer ${isMultiSelected ? "border-primary" : "border-transparent hover:border-secondary"}`}
-                        style={{ boxShadow: "0px 4px 20px rgba(26,60,110,0.05)" }}
+                        style={{
+                          boxShadow: "0px 4px 20px rgba(26,60,110,0.05)",
+                        }}
                       >
                         {inner}
-                        <span className="text-body-lg text-on-surface flex-grow">{optionText}</span>
+                        <span className="text-body-lg text-on-surface flex-grow">
+                          {optionText}
+                        </span>
                       </div>
-                    )
+                    );
                   }
 
                   if (state === "correct-selected") {
                     return (
-                      <div key={idx} className="flex items-center w-full bg-surface-container-lowest p-6 rounded-2xl border-2 border-green-500 bg-green-50" style={{ boxShadow: "0px 4px 20px rgba(26,60,110,0.05)" }}>
+                      <div
+                        key={idx}
+                        className="flex items-center w-full bg-surface-container-lowest p-6 rounded-2xl border-2 border-green-500 bg-green-50"
+                        style={{
+                          boxShadow: "0px 4px 20px rgba(26,60,110,0.05)",
+                        }}
+                      >
                         <div className="flex-shrink-0 w-12 h-12 flex items-center justify-center rounded-full bg-green-100 text-green-700 font-bold text-headline-md mr-4">
-                          <CheckCircle size={24} className="fill-green-500 text-white" />
+                          <CheckCircle
+                            size={24}
+                            className="fill-green-500 text-white"
+                          />
                         </div>
-                        <span className="text-body-lg font-medium text-green-900 flex-grow">{optionText}</span>
-                        <span className="text-label-xs font-bold text-green-700 bg-green-100 px-2 py-1 rounded-md shrink-0 ml-2">{t("exam.correct")}</span>
+                        <span className="text-body-lg font-medium text-green-900 flex-grow">
+                          {optionText}
+                        </span>
+                        <span className="text-label-xs font-bold text-green-700 bg-green-100 px-2 py-1 rounded-md shrink-0 ml-2">
+                          {t("exam.correct")}
+                        </span>
                       </div>
-                    )
+                    );
                   }
 
                   if (state === "wrong-selected") {
                     return (
-                      <div key={idx} className="flex items-center w-full bg-surface-container-lowest p-6 rounded-2xl border-2 border-red-500 bg-red-50" style={{ boxShadow: "0px 4px 20px rgba(26,60,110,0.05)" }}>
+                      <div
+                        key={idx}
+                        className="flex items-center w-full bg-surface-container-lowest p-6 rounded-2xl border-2 border-red-500 bg-red-50"
+                        style={{
+                          boxShadow: "0px 4px 20px rgba(26,60,110,0.05)",
+                        }}
+                      >
                         <div className="flex-shrink-0 w-12 h-12 flex items-center justify-center rounded-full bg-red-100 text-red-700 font-bold text-headline-md mr-4">
-                          <XCircle size={24} className="fill-red-500 text-white" />
+                          <XCircle
+                            size={24}
+                            className="fill-red-500 text-white"
+                          />
                         </div>
-                        <span className="text-body-lg font-medium text-red-900 flex-grow">{optionText}</span>
-                        <span className="text-label-xs font-bold text-red-700 bg-red-100 px-2 py-1 rounded-md shrink-0 ml-2">{t("exam.yourChoice")}</span>
+                        <span className="text-body-lg font-medium text-red-900 flex-grow">
+                          {optionText}
+                        </span>
+                        <span className="text-label-xs font-bold text-red-700 bg-red-100 px-2 py-1 rounded-md shrink-0 ml-2">
+                          {t("exam.yourChoice")}
+                        </span>
                       </div>
-                    )
+                    );
                   }
 
                   if (state === "correct-unselected") {
                     return (
-                      <div key={idx} className="flex items-center w-full bg-surface-container-lowest p-6 rounded-2xl border-2 border-green-500 bg-green-50" style={{ boxShadow: "0px 4px 20px rgba(26,60,110,0.05)" }}>
+                      <div
+                        key={idx}
+                        className="flex items-center w-full bg-surface-container-lowest p-6 rounded-2xl border-2 border-green-500 bg-green-50"
+                        style={{
+                          boxShadow: "0px 4px 20px rgba(26,60,110,0.05)",
+                        }}
+                      >
                         <div className="flex-shrink-0 w-12 h-12 flex items-center justify-center rounded-full bg-green-100 text-green-700 font-bold text-headline-md mr-4">
-                          <CheckCircle size={24} className="fill-green-500 text-white" />
+                          <CheckCircle
+                            size={24}
+                            className="fill-green-500 text-white"
+                          />
                         </div>
-                        <span className="text-body-lg font-medium text-green-900 flex-grow">{optionText}</span>
-                        <span className="text-label-xs font-bold text-green-700 bg-green-100 px-2 py-1 rounded-md shrink-0 ml-2">{t("exam.correct")}</span>
+                        <span className="text-body-lg font-medium text-green-900 flex-grow">
+                          {optionText}
+                        </span>
+                        <span className="text-label-xs font-bold text-green-700 bg-green-100 px-2 py-1 rounded-md shrink-0 ml-2">
+                          {t("exam.correct")}
+                        </span>
                       </div>
-                    )
+                    );
                   }
 
                   return (
-                    <div key={idx} className="opacity-40 pointer-events-none flex items-center w-full bg-surface-container-lowest p-6 rounded-2xl border-2 border-outline-variant" style={{ boxShadow: "0px 4px 20px rgba(26,60,110,0.05)" }}>
+                    <div
+                      key={idx}
+                      className="opacity-40 pointer-events-none flex items-center w-full bg-surface-container-lowest p-6 rounded-2xl border-2 border-outline-variant"
+                      style={{ boxShadow: "0px 4px 20px rgba(26,60,110,0.05)" }}
+                    >
                       <div className="flex-shrink-0 w-12 h-12 flex items-center justify-center rounded-full bg-surface-container text-outline font-bold text-headline-md mr-4">
                         {prefix}
                       </div>
-                      <span className="text-body-lg text-on-surface-variant flex-grow">{optionText}</span>
+                      <span className="text-body-lg text-on-surface-variant flex-grow">
+                        {optionText}
+                      </span>
                     </div>
-                  )
+                  );
                 })}
               </div>
             ) : null}
@@ -1532,7 +2438,10 @@ export default function ExamDetailPage() {
                 </button>
               ) : isLastQuestion && reviewMode ? (
                 <button
-                  onClick={() => { setReviewMode(false); setShowResults(true) }}
+                  onClick={() => {
+                    setReviewMode(false);
+                    setShowResults(true);
+                  }}
                   className="flex-1 sm:flex-none flex items-center justify-center gap-2 bg-secondary-container text-on-secondary-container px-8 py-4 rounded-full font-label-md text-label-md shadow-md hover:opacity-90 transition-all active:scale-[0.98]"
                 >
                   <BarChart3 size={18} />
@@ -1577,7 +2486,10 @@ export default function ExamDetailPage() {
           </button>
         ) : isLastQuestion && reviewMode ? (
           <button
-            onClick={() => { setReviewMode(false); setShowResults(true) }}
+            onClick={() => {
+              setReviewMode(false);
+              setShowResults(true);
+            }}
             className="flex-1 bg-secondary-container text-on-secondary-container py-4 rounded-xl font-label-md text-label-md shadow-md active:scale-[0.98] flex items-center justify-center gap-2"
           >
             <BarChart3 size={18} />
@@ -1593,5 +2505,5 @@ export default function ExamDetailPage() {
         )}
       </div>
     </div>
-  )
+  );
 }

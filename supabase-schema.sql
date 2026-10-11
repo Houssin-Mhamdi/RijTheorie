@@ -122,7 +122,8 @@ CREATE POLICY "Admins can delete lessons"
 
 -- 5. QUESTIONS TABLE (exam questions)
 CREATE TABLE questions (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  type TEXT NOT NULL DEFAULT 'normal',
   category TEXT NOT NULL,
   question_text TEXT NOT NULL,
   pause_at FLOAT DEFAULT 3.0,
@@ -329,26 +330,28 @@ DECLARE
   result JSONB;
 BEGIN
   SELECT JSONB_AGG(
-    JSONB_BUILD_OBJECT(
-      'id', q.id,
-      'category', q.category,
-'question_text', q.question_text,
-      'media', q.media,
-      'answer_options', (
-        SELECT JSONB_AGG(ao - 'isCorrect')
-        FROM JSONB_ARRAY_ELEMENTS(q.answer_options) AS ao
-      ),
-      'multiple_correct', (
-        SELECT COUNT(*) > 1
-        FROM JSONB_ARRAY_ELEMENTS(q.answer_options) AS ao
-        WHERE (ao->>'isCorrect')::boolean
-      ),
-      'explanation', NULL,
-      'translations', q.translations,
-      'audio_translations', q.audio_translations,
-      'explanation_audio_translations', q.explanation_audio_translations,
-      'pause_at', q.pause_at
-    )
+JSONB_BUILD_OBJECT(
+  'id', q.id,
+  'type', q.type,
+  'category', q.category,
+  'question_text', q.question_text,
+  'media', q.media,
+  'answer_options', CASE
+  WHEN q.type = 'input-text' THEN '[]'::JSONB
+  ELSE (SELECT JSONB_AGG(ao - 'isCorrect')
+  FROM JSONB_ARRAY_ELEMENTS(q.answer_options) AS ao)
+  END,
+  'multiple_correct', (
+  SELECT COUNT(*) > 1
+  FROM JSONB_ARRAY_ELEMENTS(q.answer_options) AS ao
+  WHERE (ao->>'isCorrect')::boolean
+  ),
+  'explanation', NULL,
+  'translations', q.translations,
+  'audio_translations', q.audio_translations,
+  'explanation_audio_translations', q.explanation_audio_translations,
+  'pause_at', q.pause_at
+  )
     ORDER BY eq.sort_order
   )
   FROM public.questions q
@@ -530,8 +533,57 @@ BEGIN
     END;
   END LOOP;
 
+RETURN JSONB_BUILD_OBJECT(
+  'results', results_arr,
+  'explanation', q_record.explanation
+  );
+  END;
+  $$;
+
+-- RPC: Check a typed answer (input-text question). Never leaks the answer pre-submission.
+CREATE OR REPLACE FUNCTION public.check_answer_text(
+  p_question_id UUID,
+  p_answer TEXT
+)
+RETURNS JSONB
+LANGUAGE plpgsql SECURITY DEFINER
+SET search_path = ''
+AS $$
+DECLARE
+  q_record RECORD;
+  correct_text TEXT;
+  student_text TEXT;
+  is_correct BOOLEAN := false;
+BEGIN
+  SELECT * INTO q_record FROM public.questions WHERE id = p_question_id;
+  IF NOT FOUND THEN
+    RETURN JSONB_BUILD_OBJECT('error', 'Question not found');
+  END IF;
+
+  IF JSONB_ARRAY_LENGTH(q_record.answer_options) IS NULL OR JSONB_ARRAY_LENGTH(q_record.answer_options) < 1 THEN
+    RETURN JSONB_BUILD_OBJECT('correct', false, 'correct_text', NULL, 'explanation', q_record.explanation);
+  END IF;
+
+  correct_text := COALESCE(q_record.answer_options->0->>'text', '');
+  student_text := TRIM(COALESCE(p_answer, ''));
+
+  -- Exact (case-insensitive) match
+  IF LOWER(correct_text) = LOWER(student_text) THEN
+    is_correct := true;
+  ELSE
+    -- Numeric comparison (e.g. "4" vs "4,0" vs "4.5")
+    BEGIN
+      IF REPLACE(correct_text, ',', '.')::NUMERIC = REPLACE(student_text, ',', '.')::NUMERIC THEN
+        is_correct := true;
+      END IF;
+    EXCEPTION WHEN OTHERS THEN
+      NULL;
+    END;
+  END IF;
+
   RETURN JSONB_BUILD_OBJECT(
-    'results', results_arr,
+    'correct', is_correct,
+    'correct_text', correct_text,
     'explanation', q_record.explanation
   );
 END;
@@ -794,9 +846,11 @@ BEGIN
   IF NOT FOUND THEN RETURN false; END IF;
   IF v_is_free THEN RETURN true; END IF;
   IF public.is_admin() THEN RETURN true; END IF;
+  -- end_date >= NOW() (not >) so this matches the client-side .gte("end_date")
+  -- check and the attempt gate, which both use an inclusive comparison.
   SELECT EXISTS (
     SELECT 1 FROM public.user_subscriptions
-    WHERE user_id = auth.uid() AND is_active = true AND end_date > NOW()
+    WHERE user_id = auth.uid() AND is_active = true AND end_date >= NOW()
   ) INTO v_has_sub;
   RETURN v_has_sub;
 END;
@@ -830,10 +884,19 @@ BEGIN
     RETURN jsonb_build_object('allowed', true, 'remaining_attempts', NULL, 'max_attempts', NULL);
   END IF;
 
+  -- Only a VALID subscription resets the attempt counter. Expired or
+  -- cancelled subscriptions are ignored, otherwise leftover attempts from an
+  -- old, expired purchase would stay redeemable forever for free. When the
+  -- student has no valid subscription the counter falls back to '-infinity',
+  -- so every past attempt counts and the student must buy again to unlock
+  -- attempts. end_date >= NOW() matches the client-side "is subscribed" check
+  -- so the UI and this gate never disagree.
   SELECT COALESCE(MAX(start_date), '-infinity'::timestamptz)
   INTO v_last_purchase
   FROM public.user_subscriptions
-  WHERE user_id = auth.uid();
+  WHERE user_id = auth.uid()
+    AND is_active
+    AND end_date >= NOW();
 
   SELECT COUNT(*) INTO v_used
   FROM public.exam_attempts
@@ -873,10 +936,19 @@ DECLARE
   v_max INTEGER;
   v_used INTEGER;
 BEGIN
+  -- Only a VALID subscription resets the attempt counter. Expired or
+  -- cancelled subscriptions are ignored, otherwise leftover attempts from an
+  -- old, expired purchase would stay redeemable forever for free. When the
+  -- student has no valid subscription the counter falls back to '-infinity',
+  -- so every past attempt counts and the student must buy again to unlock
+  -- attempts. end_date >= NOW() matches the client-side "is subscribed" check
+  -- so the UI and this gate never disagree.
   SELECT COALESCE(MAX(start_date), '-infinity'::timestamptz)
   INTO v_last_purchase
   FROM public.user_subscriptions
-  WHERE user_id = auth.uid();
+  WHERE user_id = auth.uid()
+    AND is_active
+    AND end_date >= NOW();
 
   FOREACH v_exam_id IN ARRAY p_exam_ids
   LOOP
@@ -983,6 +1055,9 @@ GRANT EXECUTE ON FUNCTION public.check_answer_multi(UUID, JSONB, BOOLEAN) TO aut
 
 REVOKE EXECUTE ON FUNCTION public.check_hotspot(UUID, JSONB) FROM PUBLIC, anon;
 GRANT EXECUTE ON FUNCTION public.check_hotspot(UUID, JSONB) TO authenticated;
+
+REVOKE EXECUTE ON FUNCTION public.check_answer_text(UUID, TEXT) FROM PUBLIC, anon;
+GRANT EXECUTE ON FUNCTION public.check_answer_text(UUID, TEXT) TO authenticated;
 
 REVOKE EXECUTE ON FUNCTION public.get_exam_stats_full() FROM PUBLIC, anon;
 GRANT EXECUTE ON FUNCTION public.get_exam_stats_full() TO authenticated;

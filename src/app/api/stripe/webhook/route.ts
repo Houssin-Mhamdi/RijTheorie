@@ -6,6 +6,14 @@ const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!
 const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY
 const platformSecretKey = process.env.STRIPE_SECRET_KEY!
 
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
+
+/** Reads a Stripe expandable field that may be an id string or an object. */
+function expandId(value: string | { id: string } | null | undefined): string | null {
+  if (!value) return null
+  return typeof value === "string" ? value : value.id
+}
+
 export async function POST(req: Request) {
   if (!supabaseKey) {
     console.error("Webhook: SUPABASE_SERVICE_ROLE_KEY missing in .env.local")
@@ -40,8 +48,12 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "Invalid signature" }, { status: 400 })
   }
 
-  // ---- Idempotency guard: skip events we've already processed ----
-  if (event.type === "checkout.session.completed") {
+  // ---- Idempotency guard: skip events we've already fully settled ----
+  // Safe because settle_paid_checkout_session DELETES its tombstone on every
+  // error path. A row here therefore means the whole settlement (subscription +
+  // coupon + status) is committed, so returning early can no longer skip
+  // unfinished work.
+  if (event.type === "checkout.session.completed" || event.type === "checkout.session.async_payment_succeeded") {
     const { data: existing } = await sb
       .from("stripe_events")
       .select("id")
@@ -52,104 +64,293 @@ export async function POST(req: Request) {
     }
   }
 
-  if (event.type === "checkout.session.completed") {
-    const session = event.data.object as Stripe.Checkout.Session
+  /**
+   * Revoke access and refund a payment we cannot honour (amount mismatch, a
+   * coupon that hit its cap after the student already paid, or metadata we
+   * cannot read).
+   *
+   * Order is deliberate: the subscription is revoked BEFORE the money is
+   * returned, so there is no window in which the student keeps access to a
+   * purchase we are about to refund.
+   *
+   * Returns whether the revocation succeeded. When it did not, the caller must
+   * answer 500 so Stripe retries — the refund is idempotent (fixed Stripe
+   * idempotency key), so a retry re-issues nothing and only retries the revoke.
+   */
+  const refundAndRevoke = async (
+    paymentIntentId: string | null,
+    checkoutSessionId: string | null,
+    reason: string,
+  ): Promise<{ revoked: boolean }> => {
+    console.error("Webhook: revoking access and refunding", { reason, paymentIntentId, checkoutSessionId })
 
+    const { error: revokeErr } = await sb.rpc("revoke_subscription_from_refund", {
+      p_payment_intent_id: paymentIntentId,
+      p_checkout_session_id: checkoutSessionId,
+    })
+    if (revokeErr) {
+      console.error("Webhook: revoke RPC failed — will retry", {
+        checkoutSessionId,
+        reason,
+        error: revokeErr.message,
+      })
+    }
+
+    if (paymentIntentId) {
+      try {
+        const refund = await stripe.refunds.create(
+          { payment_intent: paymentIntentId, reason: "requested_by_customer", metadata: { revoke_reason: reason } },
+          // Fixed per (payment intent, reason): a Stripe retry reuses the SAME
+          // refund instead of paying the student back twice.
+          { idempotencyKey: `auto_refund_${paymentIntentId}_${reason}` },
+        )
+        console.error("Webhook: auto-refund issued", refund.id, reason)
+      } catch (refundErr) {
+        // Loud, because a student paid and must be refunded MANUALLY.
+        console.error("Webhook: AUTO-REFUND FAILED — manual action required", {
+          paymentIntentId,
+          reason,
+          error: refundErr instanceof Error ? refundErr.message : refundErr,
+        })
+      }
+
+      // Stripe only accepts `duplicate` / `fraudulent` as refund reasons from
+      // the Dashboard, so the API call is tagged `requested_by_customer`.
+      // That is misleading when you audit the Dashboard later, so annotate the
+      // PaymentIntent with what actually happened. Stripe merges metadata
+      // keys, so existing ones are preserved. Non-fatal: a failed annotation
+      // must never block or undo the revocation.
+      try {
+        await stripe.paymentIntents.update(paymentIntentId, {
+          metadata: {
+            auto_refunded: "true",
+            revoke_reason: reason,
+            revoked_by: "system",
+            revoked_at: new Date().toISOString(),
+          },
+        })
+      } catch (metaErr) {
+        console.error("Webhook: could not annotate PaymentIntent after refund", {
+          paymentIntentId,
+          reason,
+          error: metaErr instanceof Error ? metaErr.message : metaErr,
+        })
+      }
+    } else {
+      console.error("Webhook: cannot auto-refund (no payment_intent) — manual action required", { reason, checkoutSessionId })
+    }
+
+    return { revoked: !revokeErr }
+  }
+
+  const activateSession = async (session: Stripe.Checkout.Session, eventId: string) => {
     const userId = session.client_reference_id
     const planId = session.metadata?.plan_id
-    const durationDays = parseInt(session.metadata?.duration_days || "30", 10)
-    const endDate = new Date(Date.now() + durationDays * 86400000).toISOString()
+    const paymentIntentId = expandId(session.payment_intent)
 
-    if (!userId || !planId || !session.id) {
-      console.error("Webhook: missing metadata", { userId, planId, sessionId: session.id })
-      return NextResponse.json({ error: "Missing metadata" }, { status: 400 })
+    // duration_days comes from session metadata we wrote ourselves, but never
+    // let a malformed value slip through: the RPC rejects a non-positive value
+    // and the end date is derived in SQL, not here.
+    const parsedDuration = Number.parseInt(session.metadata?.duration_days ?? "", 10)
+    const durationDays = Number.isFinite(parsedDuration) && parsedDuration > 0 ? parsedDuration : 30
+
+    if (!userId || !planId) {
+      // We cannot work out what was bought, so we cannot grant access — but the
+      // money is real. Refund it automatically rather than leaving it for a
+      // human to spot in the Dashboard. A retry will not fix missing metadata,
+      // so the caller acknowledges afterwards.
+      console.error("Webhook: FATAL missing metadata, auto-refunding", {
+        eventId,
+        userId,
+        planId,
+        sessionId: session.id,
+        paymentIntentId,
+      })
+      const { revoked } = await refundAndRevoke(paymentIntentId, session.id, "missing_metadata")
+      if (!revoked) return { ok: false as const, status: 500 as const, body: { error: "Revoke failed" } }
+      return { ok: true as const, fatal: true as const }
     }
 
-    // The connected-account application fee lives on the PaymentIntent
-    // (it was set under payment_intent_data when the session was created).
-    let platformFeeEuro = 0
-    try {
-      if (typeof session.payment_intent === "string") {
-        const pi = await stripe.paymentIntents.retrieve(session.payment_intent)
-        platformFeeEuro = ((pi.application_fee_amount ?? 0)) / 100
-      }
-    } catch (feeErr) {
-      const fErr = feeErr as { message?: string }
-      console.error("Webhook: failed to read application fee", fErr.message ?? feeErr)
-    }
+    // Only accept a real UUID for the coupon; anything else would make the
+    // RPC fail with a cast error and retry forever.
+    const rawCoupon = session.metadata?.coupon_id
+    const couponId = rawCoupon && UUID_RE.test(rawCoupon) ? rawCoupon : null
 
-    // Atomically activate the subscription (idempotent). Attempt reset is
-    // automatic: get_exam_attempt_status counts attempts from the student's
-    // most recent subscription start_date.
-    const { data: activation, error: actErr } = await sb.rpc(
-      "activate_subscription_from_payment",
+    // One atomic call settles everything: event tombstone, coupon redemption,
+    // subscription insert and the checkout_sessions status flip. It either
+    // commits in full or not at all, so a crash can no longer leave a paid
+    // student without access or with an unconsumed coupon.
+    //
+    // No connected account: the full payment amount lands in the platform's
+    // own Stripe balance, so there is no platform-fee split to compute.
+    const { data: settlement, error: settleErr } = await sb.rpc(
+      "settle_paid_checkout_session",
       {
-        p_event_id: event.id,
+        p_event_id: eventId,
         p_checkout_session_id: session.id,
         p_plan_id: planId,
         p_user_id: userId,
         p_duration_days: durationDays,
-        p_end_date: endDate,
+        p_amount_cents: session.amount_total ?? null,
+        p_coupon_id: couponId,
+        p_payment_intent_id: paymentIntentId,
       },
     )
 
-    if (actErr) {
-      console.error("Webhook: activate_subscription RPC failed", actErr.message)
-      return NextResponse.json({ error: "Failed to activate subscription" }, { status: 500 })
+    if (settleErr) {
+      // A transport/DB failure, not a data problem: nothing was written, so
+      // returning 500 makes Stripe retry the whole settlement.
+      console.error("Webhook: settle_paid_checkout_session RPC failed", settleErr.message)
+      return { ok: false as const, status: 500 as const, body: { error: "Failed to settle checkout session" } }
     }
 
-    const result = activation as { processed?: boolean; duplicate_event?: boolean; duplicate_session?: boolean; error?: string } | null
+    const result = settlement as {
+      processed?: boolean
+      duplicate_event?: boolean
+      duplicate_session?: boolean
+      error?: string
+      expected_cents?: number
+      received_cents?: number
+      refund?: boolean
+    } | null
 
     if (result?.error) {
-      console.error("Webhook: activate_subscription returned error", result.error)
-      return NextResponse.json({ error: result.error }, { status: 400 })
+      console.error("Webhook: settlement rejected, refunding", {
+        error: result.error,
+        sessionId: session.id,
+        expected_cents: result.expected_cents,
+        received_cents: result.received_cents,
+      })
+      // Every code this RPC returns is a PERMANENT data problem: the amount
+      // collected does not match the plan, the plan vanished or was retired, the
+      // coupon record is gone/filled/disabled, or the duration is nonsense.
+      // Retrying cannot fix any of them, so refund, acknowledge, and stop
+      // Stripe's 3-day retry storm.
+      const { revoked } = await refundAndRevoke(paymentIntentId, session.id, result.error)
+      if (!revoked) return { ok: false as const, status: 500 as const, body: { error: "Revoke failed" } }
+      return { ok: true as const, fatal: true as const }
     }
 
     if (!result?.processed) {
-      // Duplicate event/session — already handled. Return success for Stripe.
-      return NextResponse.json({ received: true, duplicate: true })
+      // Duplicate event/session — already settled. Return success for Stripe.
+      return { ok: true as const, duplicate: true as const }
     }
 
-    // ---- Coupon redemption (idempotent via unique(coupon_id, user_id)) ----
-    const couponId = session.metadata?.coupon_id
-    if (couponId) {
-      const { data: inserted, error: redeemErr } = await sb
-        .from("coupon_redemptions")
-        .insert({ coupon_id: couponId, user_id: userId })
-        .select("id")
-      if (!redeemErr && inserted && inserted.length > 0) {
-        await sb.rpc("increment_coupon_used_count", { p_coupon_id: couponId })
-      }
-    }
-
-    // ---- Payout for the platform fee (dedup by checkout session) ----
-    const { data: existingPayout } = await sb
-      .from("payouts")
-      .select("id")
-      .eq("checkout_session_id", session.id)
-      .maybeSingle()
-    if (!existingPayout) {
-      await sb.from("payouts").insert({
-        amount: platformFeeEuro,
-        description: `Platform fee - ${session.id}`,
-        status: "pending",
-        checkout_session_id: session.id,
-      })
-    }
-
-    return NextResponse.json({ received: true, processed: true })
+    return { ok: true as const, processed: true as const }
   }
 
-  if (event.type === "charge.refunded") {
-    // A refund was issued. Record it; entitlement reconciliation can be
-    // handled by an admin or a scheduled job.
-    const charge = event.data.object as Stripe.Charge
-    const sessionId = typeof charge.payment_intent === "string" ? charge.payment_intent : undefined
-    console.log("Webhook: charge.refunded", { charge: charge.id, sessionId })
+  if (event.type === "checkout.session.completed") {
+    const session = event.data.object as Stripe.Checkout.Session
+    // For synchronous payment methods (cards) the payment is already paid
+    // here. For async methods (iDEAL) Stripe fires checkout.session.completed
+    // BEFORE the bank confirms — so we only activate when payment_status is
+    // paid, and let checkout.session.async_payment_succeeded handle iDEAL.
+    if (session.payment_status === "paid") {
+      const result = await activateSession(session, event.id)
+      if (!result.ok) return NextResponse.json(result.body, { status: result.status })
+      if (result.duplicate) return NextResponse.json({ received: true, duplicate: true })
+      return NextResponse.json({ received: true, processed: true, fatal: result.fatal === true })
+    }
+    return NextResponse.json({ received: true })
+  }
+
+  if (event.type === "checkout.session.async_payment_succeeded") {
+    // iDEAL (or another async method) was confirmed by the bank.
+    const session = event.data.object as Stripe.Checkout.Session
+    const result = await activateSession(session, event.id)
+    if (!result.ok) return NextResponse.json(result.body, { status: result.status })
+    if (result.duplicate) return NextResponse.json({ received: true, duplicate: true })
+    return NextResponse.json({ received: true, processed: true, fatal: result.fatal === true })
+  }
+
+  if (event.type === "checkout.session.async_payment_failed") {
+    // iDEAL/async bank payment was rejected or failed. Mark the session so
+    // the student sees a clear "payment failed" result.
+    const session = event.data.object as Stripe.Checkout.Session
+    console.error("Webhook: async payment FAILED", { sessionId: session.id, userId: session.client_reference_id })
+    if (session.id) {
+      const { error } = await sb
+        .from("checkout_sessions")
+        .update({ status: "failed", updated_at: new Date().toISOString() })
+        .eq("id", session.id)
+      if (error) console.error("Webhook: could not mark checkout session failed", error.message)
+    }
   }
 
   if (event.type === "checkout.session.expired") {
-    console.log("Webhook: checkout.session.expired (no charge)")
+    // Session expired without being paid (customer abandoned checkout).
+    const session = event.data.object as Stripe.Checkout.Session
+    console.log("Webhook: checkout.session.expired", { sessionId: session.id })
+    if (session.id) {
+      const { error } = await sb
+        .from("checkout_sessions")
+        .update({ status: "expired", updated_at: new Date().toISOString() })
+        .eq("id", session.id)
+      if (error) console.error("Webhook: could not mark checkout session expired", error.message)
+    }
+  }
+
+  if (event.type === "charge.refunded") {
+    const charge = event.data.object as Stripe.Charge
+    // Partial refunds are not a revocation event — only a full refund is.
+    const fullyRefunded = charge.amount_refunded >= charge.amount
+    console.error("Webhook: charge.refunded", {
+      chargeId: charge.id,
+      amount: charge.amount,
+      amountRefunded: charge.amount_refunded,
+      fullyRefunded,
+    })
+    if (fullyRefunded) {
+      const paymentIntentId = expandId(charge.payment_intent)
+      const { data, error } = await sb.rpc("revoke_subscription_from_refund", {
+        p_payment_intent_id: paymentIntentId,
+        p_checkout_session_id: null,
+      })
+      if (error) {
+        // Returning 500 makes Stripe retry. The RPC is a pair of UPDATEs, so a
+        // retry is safe and it is the only thing standing between a refunded
+        // student and continued access.
+        console.error("Webhook: revoke-after-refund failed, will retry", {
+          chargeId: charge.id,
+          error: error.message,
+        })
+        return NextResponse.json({ error: "Revoke after refund failed" }, { status: 500 })
+      }
+      console.error("Webhook: access revoked after full refund", { paymentIntentId, result: data })
+    }
+  }
+
+  if (event.type === "charge.dispute.created") {
+    // A dispute means the funds are being clawed back; cut access immediately.
+    const dispute = event.data.object as Stripe.Dispute
+    let paymentIntentId = expandId(dispute.payment_intent as string | { id: string } | null | undefined)
+
+    // Older API versions only give us the charge id.
+    if (!paymentIntentId && dispute.charge) {
+      try {
+        const charge = await stripe.charges.retrieve(
+          typeof dispute.charge === "string" ? dispute.charge : dispute.charge.id,
+        )
+        paymentIntentId = expandId(charge.payment_intent)
+      } catch (chargeErr) {
+        console.error("Webhook: could not resolve dispute payment_intent", chargeErr)
+      }
+    }
+
+    console.error("Webhook: DISPUTE created — revoking access", { disputeId: dispute.id, paymentIntentId })
+    const { error } = await sb.rpc("revoke_subscription_from_refund", {
+      p_payment_intent_id: paymentIntentId,
+      p_checkout_session_id: null,
+    })
+    if (error) {
+      // A dispute is funds being clawed back, so access must actually be cut.
+      // 500 => Stripe retries until the revocation lands.
+      console.error("Webhook: revoke-after-dispute failed, will retry", {
+        disputeId: dispute.id,
+        error: error.message,
+      })
+      return NextResponse.json({ error: "Revoke after dispute failed" }, { status: 500 })
+    }
   }
 
   return NextResponse.json({ received: true })

@@ -52,6 +52,7 @@ export default function ExamsPage() {
   // Coupon state
   const [paymentExpanded, setPaymentExpanded] = useState(false)
   const [pendingActivation, setPendingActivation] = useState(false)
+  const [trackedSessionId, setTrackedSessionId] = useState("")
   const [couponInput, setCouponInput] = useState("")
   const [coupon, setCoupon] = useState<{ code: string; discount_percent: number; plan_ids: string[] } | null>(null)
   const [couponError, setCouponError] = useState("")
@@ -150,19 +151,36 @@ export default function ExamsPage() {
     if (params.get("subscription") === "success") {
       const code = params.get("code") ?? ""
       const sessionId = params.get("session_id") ?? ""
+      if (sessionId) setTrackedSessionId(sessionId)
       setStatusMessage({ type: "success", text: "Betaling gelukt! Abonnement wordt geactiveerd..." })
       window.history.replaceState({}, "", "/exams")
 
       // For card payments the webhook fires almost instantly. For iDEAL the
       // bank confirmation is asynchronous (can take a couple of minutes), so
-      // we poll longer and never tell the user their payment failed — we show
-      // a friendly "pending activation" state and offer a manual refresh.
+      // we poll longer and never tell the user their payment failed before we
+      // actually know: a final "failed/expired" state is only reported when
+      // the webhook marks the session as such in checkout_sessions.
       let attempts = 0
       const maxAttempts = 120 // ~4 minutes
       const interval = setInterval(async () => {
         attempts++
         const { data: { user } } = await supabase.auth.getUser()
         if (!user) { clearInterval(interval); return }
+
+        // Poll the tracked checkout session (if any) for a definitive result.
+        if (sessionId) {
+          const { data: csData } = await supabase
+            .from("checkout_sessions")
+            .select("status")
+            .eq("id", sessionId)
+            .maybeSingle()
+          if (csData?.status === "failed" || csData?.status === "expired") {
+            setStatusMessage({ type: "error", text: csData.status === "failed" ? "Betaling mislukt. Probeer het opnieuw of gebruik een andere betaalmethode." : "De betaling is verlopen. Start een nieuwe betaling." })
+            setPendingActivation(false)
+            clearInterval(interval)
+            return
+          }
+        }
 
         const { data } = await supabase.from("user_subscriptions")
           .select("*")
@@ -321,6 +339,18 @@ export default function ExamsPage() {
     setPendingActivation(false)
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) return
+    const sessionId = trackedSessionId || (new URLSearchParams(window.location.search).get("session_id") ?? "")
+    if (sessionId) {
+      const { data: csData } = await supabase
+        .from("checkout_sessions")
+        .select("status")
+        .eq("id", sessionId)
+        .maybeSingle()
+      if (csData?.status === "failed" || csData?.status === "expired") {
+        setStatusMessage({ type: "error", text: csData.status === "failed" ? "Betaling mislukt. Probeer het opnieuw of gebruik een andere betaalmethode." : "De betaling is verlopen. Start een nieuwe betaling." })
+        return
+      }
+    }
     const { data } = await supabase.from("user_subscriptions")
       .select("*")
       .eq("user_id", user.id).eq("is_active", true).gte("end_date", new Date().toISOString())

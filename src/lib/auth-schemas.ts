@@ -35,6 +35,7 @@ const translationEntrySchema = z.object({
 const audioTranslationsSchema = z.record(z.string(), z.string()).optional()
 
 export const questionSchema = z.object({
+  type: z.enum(["normal", "right-of-way", "choose-images", "input-text"]).optional(),
   category: z.string().min(1, "Category is required"),
   questionText: z.string().min(1, "Question text is required"),
   media: z.string().optional(),

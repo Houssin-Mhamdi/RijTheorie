@@ -1,9 +1,9 @@
-"use client"
+"use client";
 
-import { createContext, useContext, useEffect, useState } from "react"
-import { supabase } from "@/lib/supabase"
+import { createContext, useContext, useEffect, useState } from "react";
+import { supabase } from "@/lib/supabase";
 
-export type LangCode = "nl" | "en" | "ar"
+export type LangCode = "nl" | "en" | "ar";
 
 const translations: Record<LangCode, Record<string, string>> = {
   nl: {
@@ -52,16 +52,19 @@ const translations: Record<LangCode, Record<string, string>> = {
     "landing.contact": "Contact",
     "landing.freeStart": "Gratis starten",
     "landing.pricingTitle": "Transparante Prijzen",
-    "landing.pricingSubtitle": "Kies het plan dat past bij de omvang van jouw rijschool. Altijd inclusief updates.",
+    "landing.pricingSubtitle":
+      "Kies het plan dat past bij de omvang van jouw rijschool. Altijd inclusief updates.",
     "landing.noPlans": "Nog geen abonnementen beschikbaar.",
     "landing.mostChosen": "Meest Gekozen",
     "landing.perYear": "/per jaar",
     "landing.perMonth": "/per maand",
     "landing.perDays": "/{days} dagen",
-    "landing.footerTagline": "Het meest geavanceerde theorieplatform van Nederland.",
+    "landing.footerTagline":
+      "Het meest geavanceerde theorieplatform van Nederland.",
     "landing.blog": "Blog",
     "blog.title": "RijTheorie Blog",
-    "blog.subtitle": "Tips, nieuws en oefenmateriaal om je theorie-examen met vertrouwen te halen.",
+    "blog.subtitle":
+      "Tips, nieuws en oefenmateriaal om je theorie-examen met vertrouwen te halen.",
     "blog.search": "Zoek artikelen...",
     "blog.all": "Alles",
     "blog.featured": "Uitgelicht",
@@ -81,7 +84,8 @@ const translations: Record<LangCode, Record<string, string>> = {
     "hero.title": "Slaag voor je ",
     "hero.titleAccent": "theorie-examen.",
     "hero.titleSuffix": " Gegarandeerd.",
-    "hero.subtitle": "De meest complete en moderne theorie-ervaring voor rijscholen en studenten. Gebaseerd op de nieuwste CBR-richtlijnen van 2024.",
+    "hero.subtitle":
+      "De meest complete en moderne theorie-ervaring voor rijscholen en studenten. Gebaseerd op de nieuwste CBR-richtlijnen van 2024.",
     "hero.demo": "Bekijk demo",
     "hero.feature1": "CBR-examenstof",
     "hero.feature2": "Foto- en videovragen",
@@ -93,56 +97,76 @@ const translations: Record<LangCode, Record<string, string>> = {
     "hero.mockA": "De auto van rechts",
     "hero.mockB": "Jijzelf, omdat je op een voorrangsweg rijdt",
     "hero.mockC": "Iedereen die van links komt",
-    "hero.mockExplanation": "Kijk naar verkeersbord B1. Dit geeft aan dat bestuurders op deze weg voorrang hebben bij het naderende kruispunt.",
+    "hero.mockExplanation":
+      "Kijk naar verkeersbord B1. Dit geeft aan dat bestuurders op deze weg voorrang hebben bij het naderende kruispunt.",
     "hero.slide1.question": "Je nadert dit kruispunt. Wie heeft hier voorrang?",
     "hero.slide1.o1": "De rode auto",
     "hero.slide1.o2": "De blauwe auto",
     "hero.slide1.o3": "Jij",
-    "hero.slide1.explanation": "Je verleent voorrang aan verkeer van rechts op gelijkwaardige kruispunten.",
+    "hero.slide1.explanation":
+      "Je verleent voorrang aan verkeer van rechts op gelijkwaardige kruispunten.",
     "hero.slide2.question": "Mag je hier inhalen?",
     "hero.slide2.o1": "Ja",
     "hero.slide2.o2": "Nee",
     "hero.slide2.o3": "Alleen als het rustig is",
-    "hero.slide2.explanation": "Bij een doorgetrokken streep mag je niet inhalen.",
+    "hero.slide2.explanation":
+      "Bij een doorgetrokken streep mag je niet inhalen.",
     "hero.slide3.question": "Wat is de maximumsnelheid binnen de bebouwde kom?",
     "hero.slide3.o1": "30 km/u",
     "hero.slide3.o2": "50 km/u",
     "hero.slide3.o3": "70 km/u",
-    "hero.slide3.explanation": "Binnen de bebouwde kom geldt tenzij anders aangegeven 50 km/u.",
+    "hero.slide3.explanation":
+      "Binnen de bebouwde kom geldt tenzij anders aangegeven 50 km/u.",
 
     // Landing sections
     "features.title": "Alles wat je nodig hebt",
-    "features.subtitle": "Een complete suite aan tools om theorie-onderwijs naar de 21e eeuw te brengen.",
+    "features.subtitle":
+      "Een complete suite aan tools om theorie-onderwijs naar de 21e eeuw te brengen.",
     "features.viewAll": "Bekijk alle functies",
     "features.photo.title": "Vragen met foto's",
-    "features.photo.description": "Haarscherpe afbeeldingen en realistische verkeerssituaties die 1-op-1 aansluiten bij de CBR-examens.",
+    "features.photo.description":
+      "Haarscherpe afbeeldingen en realistische verkeerssituaties die 1-op-1 aansluiten bij de CBR-examens.",
     "features.multi.title": "Meerdere antwoorden",
-    "features.multi.description": "Ondersteuning voor complexe vraagtypes zoals slepen, hotspots en meerkeuze antwoorden.",
+    "features.multi.description":
+      "Ondersteuning voor complexe vraagtypes zoals slepen, hotspots en meerkeuze antwoorden.",
     "features.explanation.title": "Uitleg bij elk antwoord",
-    "features.explanation.description": "Direct inzicht in waarom een antwoord goed of fout is, inclusief verwijzingen naar de verkeersregels.",
+    "features.explanation.description":
+      "Direct inzicht in waarom een antwoord goed of fout is, inclusief verwijzingen naar de verkeersregels.",
     "features.dashboard.title": "Dashboard rijschool",
-    "features.dashboard.description": "Beheer studenten, bekijk statistieken en verstuur berichten vanuit één centraal controlepaneel.",
+    "features.dashboard.description":
+      "Beheer studenten, bekijk statistieken en verstuur berichten vanuit één centraal controlepaneel.",
     "features.progress.title": "Voortgang bijhouden",
-    "features.progress.description": "Gedetailleerde overzichten per onderwerp. Zie in één oogopslag waar een student nog extra hulp nodig heeft.",
+    "features.progress.description":
+      "Gedetailleerde overzichten per onderwerp. Zie in één oogopslag waar een student nog extra hulp nodig heeft.",
     "features.devices.title": "Werkt op alles",
-    "features.devices.description": "Naadloze ervaring op desktop, tablet en mobiel. Oefen overal: in de trein, thuis of in de rijschool.",
+    "features.devices.description":
+      "Naadloze ervaring op desktop, tablet en mobiel. Oefen overal: in de trein, thuis of in de rijschool.",
     "howItWorks.title": "Hoe werkt het?",
-    "howItWorks.subtitle": "In drie simpele stappen naar een hoger slagingspercentage voor jouw rijschool.",
+    "howItWorks.subtitle":
+      "In drie simpele stappen naar een hoger slagingspercentage voor jouw rijschool.",
     "howItWorks.step1.title": "1. Rijschool maakt account",
-    "howItWorks.step1.description": "Binnen 2 minuten is je platform ingericht. Voeg je logo toe en nodig studenten uit via e-mail of link.",
+    "howItWorks.step1.description":
+      "Binnen 2 minuten is je platform ingericht. Voeg je logo toe en nodig studenten uit via e-mail of link.",
     "howItWorks.step2.title": "2. Studenten oefenen",
-    "howItWorks.step2.description": "Studenten krijgen toegang tot duizenden vragen, inclusief video-situaties en gevaarherkenning op elk device.",
+    "howItWorks.step2.description":
+      "Studenten krijgen toegang tot duizenden vragen, inclusief video-situaties en gevaarherkenning op elk device.",
     "howItWorks.step3.title": "3. Slaagpercentage stijgt",
-    "howItWorks.step3.description": "Houd de voortgang nauwkeurig bij via het dashboard. Je ziet direct wie klaar is voor het echte CBR-examen.",
+    "howItWorks.step3.description":
+      "Houd de voortgang nauwkeurig bij via het dashboard. Je ziet direct wie klaar is voor het echte CBR-examen.",
     "testimonials.title": "Wat rijscholen zeggen",
-    "testimonials.quote1": "Sinds we overgestapt zijn op RijTheorie Pro is het slagingspercentage van onze leerlingen met 15% gestegen. Het dashboard geeft ons perfect inzicht.",
-    "testimonials.quote2": "Eindelijk een modern platform dat ook echt goed werkt op de telefoons van onze leerlingen. Geen gedoe meer met verouderde boeken of CD-roms.",
-    "testimonials.quote3": "De klantenservice is top en de interface is zo intuïtief dat ik nooit uitleg hoef te geven aan nieuwe studenten. Een absolute aanrader voor elke rijschool.",
+    "testimonials.quote1":
+      "Sinds we overgestapt zijn op RijTheorie Pro is het slagingspercentage van onze leerlingen met 15% gestegen. Het dashboard geeft ons perfect inzicht.",
+    "testimonials.quote2":
+      "Eindelijk een modern platform dat ook echt goed werkt op de telefoons van onze leerlingen. Geen gedoe meer met verouderde boeken of CD-roms.",
+    "testimonials.quote3":
+      "De klantenservice is top en de interface is zo intuïtief dat ik nooit uitleg hoef te geven aan nieuwe studenten. Een absolute aanrader voor elke rijschool.",
     "landing.sectionPricingTitle": "Transparante Prijzen",
-    "landing.sectionPricingSubtitle": "Kies het plan dat past bij de omvang van jouw rijschool. Altijd inclusief updates.",
+    "landing.sectionPricingSubtitle":
+      "Kies het plan dat past bij de omvang van jouw rijschool. Altijd inclusief updates.",
     "pricing.start": "Start",
     "hero2.title": "Slaag voor je theorie-examen",
-    "hero2.subtitle": "Oefen met realistische verkeerssituaties, hotspots en honderden examenvragen. Klaar voor het echte CBR-examen?",
+    "hero2.subtitle":
+      "Oefen met realistische verkeerssituaties, hotspots en honderden examenvragen. Klaar voor het echte CBR-examen?",
     "hero2.cta": "Gratis examen",
     "hero2.ratingCount": "2.500+ REVIEWS",
     "hero2.terms": "Begin direct met oefenen — geen creditcard nodig.",
@@ -154,7 +178,8 @@ const translations: Record<LangCode, Record<string, string>> = {
     "hero2.modalSubtitle": "Geen account nodig — niets wordt opgeslagen.",
     "hero2.modalClose": "Sluiten",
     "hero2.modalLoading": "Examen laden…",
-    "hero2.modalErrorEmpty": "Er zijn momenteel geen gratis examens beschikbaar.",
+    "hero2.modalErrorEmpty":
+      "Er zijn momenteel geen gratis examens beschikbaar.",
     "hero2.modalErrorLoad": "Kon de gratis examens niet laden.",
     "hero2.freeBadge": "Gratis",
     "hero2.card1.name": "Voorrang",
@@ -175,7 +200,8 @@ const translations: Record<LangCode, Record<string, string>> = {
 
     // CTA section
     "cta.title": "Klaar om je rijschool te moderniseren?",
-    "cta.subtitle": "Sluit je aan bij meer dan 250 Nederlandse rijscholen die al gebruik maken van ons platform. Geen opstartkosten, direct live.",
+    "cta.subtitle":
+      "Sluit je aan bij meer dan 250 Nederlandse rijscholen die al gebruik maken van ons platform. Geen opstartkosten, direct live.",
     "cta.freeStart": "Gratis beginnen",
     "cta.sales": "Praat met sales",
 
@@ -184,8 +210,10 @@ const translations: Record<LangCode, Record<string, string>> = {
     "exams.all": "Alle examens",
     "exams.premium": "Premium examens",
     "exams.unlockTitle": "Ontgrendel premium examens",
-    "exams.unlockDesc": "Neem een abonnement om toegang te krijgen tot alle premium oefenexamens en je optimaal voor te bereiden.",
-    "exams.freeAvailable": "Je kunt nog steeds de gratis examens hierboven maken.",
+    "exams.unlockDesc":
+      "Neem een abonnement om toegang te krijgen tot alle premium oefenexamens en je optimaal voor te bereiden.",
+    "exams.freeAvailable":
+      "Je kunt nog steeds de gratis examens hierboven maken.",
     "exams.subscribe": "Abonneer",
     "exams.mostChosen": "Meest Gekozen",
     "exams.onetime": "Eenmalige betaling",
@@ -204,7 +232,8 @@ const translations: Record<LangCode, Record<string, string>> = {
     "exams.attemptsLeft": "Nog {n} pogingen",
     "exams.unlimited": "Onbeperkt",
     "exams.attemptsUsedTitle": "Pogingen opgebruikt",
-    "exams.attemptsUsedDesc": "Je hebt alle pogingen voor een examen gebruikt. Koop een nieuw abonnement om de pogingen te resetten en verder te oefenen — ook als je huidige abonnement nog loopt.",
+    "exams.attemptsUsedDesc":
+      "Je hebt alle pogingen voor een examen gebruikt. Koop een nieuw abonnement om de pogingen te resetten en verder te oefenen — ook als je huidige abonnement nog loopt.",
     "exams.questions": "{n} vragen",
     "exams.settings": "Instellingen",
     "exams.logout": "Uitloggen",
@@ -213,7 +242,8 @@ const translations: Record<LangCode, Record<string, string>> = {
     "exams.noExams": "No exams available",
     "exams.noExamsDesc": "Check back later for new practice exams.",
     "exams.reviewTitle": "Wrongly answered questions?",
-    "exams.reviewDesc": "Review the questions you previously answered incorrectly to strengthen your knowledge.",
+    "exams.reviewDesc":
+      "Review the questions you previously answered incorrectly to strengthen your knowledge.",
     "exams.reviewButton": "Review Mistakes",
     "exams.minutes": "{n} min",
     "exams.loadingShort": "Bezig...",
@@ -226,8 +256,10 @@ const translations: Record<LangCode, Record<string, string>> = {
     "exam.notPassed": "Niet Geslaagd",
     "exam.passedMessage": "Gefeliciteerd, je bent Geslaagd!",
     "exam.failedMessage": "Helaas, je bent niet geslaagd",
-    "exam.passedDesc": "Je hebt laten zien dat je de Nederlandse verkeersregels uitstekend beheerst.",
-    "exam.failedDesc": "Je hebt het net niet gehaald. Bekijk je fouten en probeer het opnieuw.",
+    "exam.passedDesc":
+      "Je hebt laten zien dat je de Nederlandse verkeersregels uitstekend beheerst.",
+    "exam.failedDesc":
+      "Je hebt het net niet gehaald. Bekijk je fouten en probeer het opnieuw.",
     "exam.totalScore": "Totaal Score",
     "exam.passedBadge": "Geslaagd!",
     "exam.needs80": "Nog 80% nodig",
@@ -238,7 +270,8 @@ const translations: Record<LangCode, Record<string, string>> = {
     "exam.review": "Vragen nakijken",
     "exam.retryExam": "Opnieuw proberen",
     "exam.reviewModalTitle": "Vragenoverzicht",
-    "exam.reviewModalHint": "Klik op een vraag om hem te bekijken. Antwoorden kunnen niet meer gewijzigd worden.",
+    "exam.reviewModalHint":
+      "Klik op een vraag om hem te bekijken. Antwoorden kunnen niet meer gewijzigd worden.",
     "exam.reviewCorrect": "Goed",
     "exam.reviewWrong": "Fout",
     "exam.backToResults": "Terug naar resultaten",
@@ -252,12 +285,16 @@ const translations: Record<LangCode, Record<string, string>> = {
     "exam.distance": "Afstand: {d}%",
     "exam.correctCount": "{c}/{t} correct",
     "exam.attemptLimitTitle": "Pogingen voor dit examen opgebruikt",
-    "exam.attemptLimitDesc": "Je hebt dit examen {attempts} van de {max} keer gemaakt. Sluit een abonnement af om onbeperkt te blijven oefenen.",
+    "exam.attemptLimitDesc":
+      "Je hebt dit examen {attempts} van de {max} keer gemaakt. Sluit een abonnement af om onbeperkt te blijven oefenen.",
     "exam.buySubscription": "Abonnement afsluiten",
     "exam.hotspotResult": "Hotspot vraag — bekijk de resultaten hierboven",
     "exam.backToOverview": "Terug naar overzicht",
     "exam.selectFirst": "Selecteer eerst een antwoord voordat je verder gaat.",
     "exam.multipleAnswers": "Meerdere antwoorden juist",
+    "exam.typeYourAnswer": "Typ je antwoord...",
+    "exam.checkAnswer": "Controleer antwoord",
+    "exam.correctAnswerWas": "Het juiste antwoord was",
     "exam.selectAllCorrect": "Selecteer alle juiste antwoorden",
     "exam.notAllCorrect": "Fout — niet alle juiste antwoorden gekozen",
     "exam.explanation": "Uitleg",
@@ -270,12 +307,15 @@ const translations: Record<LangCode, Record<string, string>> = {
     "exam.timeUp": "Tijd is om!",
     "exam.violationsWarning": "Overtreding gedetecteerd",
     "exam.tabSwitchTitle": "Tabblad gewisseld",
-    "exam.tabSwitchMessage": "Je hebt het examen-verlaten. Dit wordt geregistreerd als een overtreding. Herhaal dit niet.",
+    "exam.tabSwitchMessage":
+      "Je hebt het examen-verlaten. Dit wordt geregistreerd als een overtreding. Herhaal dit niet.",
     "exam.violationsCount": "Aantal overtredingen:",
     "exam.returnToExam": "Terug naar examen",
     "exam.questionAudio": "Beluister de vraag",
-    "exam.explanationAudio": "Beluister de uitleg",    "exam.expiredTitle": "Tijd op!",
-    "exam.expiredMessage": "De examentijd is verlopen. Je resultaten worden automatisch opgeslagen.",
+    "exam.explanationAudio": "Beluister de uitleg",
+    "exam.expiredTitle": "Tijd op!",
+    "exam.expiredMessage":
+      "De examentijd is verlopen. Je resultaten worden automatisch opgeslagen.",
 
     // Dashboard
     "dash.welcome": "Welkom",
@@ -323,7 +363,8 @@ const translations: Record<LangCode, Record<string, string>> = {
 
     // Lessons (admin)
     "courses.overview": "Cursussen Overzicht",
-    "courses.description": "Beheer en bekijk de voortgang van alle beschikbare theoriecursussen.",
+    "courses.description":
+      "Beheer en bekijk de voortgang van alle beschikbare theoriecursussen.",
     "courses.filter": "Filter",
     "courses.report": "Rapport",
     "courses.addNew": "Nieuwe Cursus Toevoegen",
@@ -331,14 +372,16 @@ const translations: Record<LangCode, Record<string, string>> = {
     "courses.popularDesc": "Auto Theorie B groeit met 12% deze maand.",
     "courses.viewStats": "Bekijk Statistieken",
     "courses.requests": "Studenten Verzoeken",
-    "courses.requestsDesc": "Er zijn 4 openstaande vragen over de 'Motor Theorie' cursus.",
+    "courses.requestsDesc":
+      "Er zijn 4 openstaande vragen over de 'Motor Theorie' cursus.",
     "courses.replyNow": "Beantwoord nu",
     "courses.editTitle": "Cursus Bewerken",
     "courses.newTitle": "Nieuwe Cursus",
     "courses.editDesc": "Pas de cursusgegevens aan",
     "courses.newDesc": "Maak een nieuwe theoriecursus aan",
     "courses.deleteTitle": "Cursus Verwijderen",
-    "courses.deleteConfirm": "Weet je zeker dat je {name} wilt verwijderen? Dit kan niet ongedaan worden gemaakt.",
+    "courses.deleteConfirm":
+      "Weet je zeker dat je {name} wilt verwijderen? Dit kan niet ongedaan worden gemaakt.",
     "courses.delete": "Verwijderen",
     "courses.deleting": "Verwijderen...",
 
@@ -388,7 +431,8 @@ const translations: Record<LangCode, Record<string, string>> = {
     "settings.tryCreate": "Probeer aan te maken",
     "settings.saveLangs": "Talen opslaan",
     "settings.examAccess": "Examentoegang",
-    "settings.examAccessDesc": "Bepaal of je als admin de studentenexamens kunt bekijken en testen.",
+    "settings.examAccessDesc":
+      "Bepaal of je als admin de studentenexamens kunt bekijken en testen.",
     "settings.canAccessExams": "Examens bekijken als admin",
     "settings.save": "Opslaan",
 
@@ -545,16 +589,19 @@ const translations: Record<LangCode, Record<string, string>> = {
     "landing.contact": "Contact",
     "landing.freeStart": "Start free",
     "landing.pricingTitle": "Transparent Pricing",
-    "landing.pricingSubtitle": "Choose the plan that fits your driving school. Always includes updates.",
+    "landing.pricingSubtitle":
+      "Choose the plan that fits your driving school. Always includes updates.",
     "landing.noPlans": "No subscriptions available yet.",
     "landing.mostChosen": "Most Chosen",
     "landing.perYear": "/per year",
     "landing.perMonth": "/per month",
     "landing.perDays": "/{days} days",
-    "landing.footerTagline": "The most advanced theory platform in the Netherlands.",
+    "landing.footerTagline":
+      "The most advanced theory platform in the Netherlands.",
     "landing.blog": "Blog",
     "blog.title": "RijTheorie Blog",
-    "blog.subtitle": "Tips, news and practice material to pass your theory exam with confidence.",
+    "blog.subtitle":
+      "Tips, news and practice material to pass your theory exam with confidence.",
     "blog.search": "Search articles...",
     "blog.all": "All",
     "blog.featured": "Featured",
@@ -574,7 +621,8 @@ const translations: Record<LangCode, Record<string, string>> = {
     "hero.title": "Pass your ",
     "hero.titleAccent": "theory exam.",
     "hero.titleSuffix": " Guaranteed.",
-    "hero.subtitle": "The most complete and modern theory experience for driving schools and students. Based on the latest CBR guidelines.",
+    "hero.subtitle":
+      "The most complete and modern theory experience for driving schools and students. Based on the latest CBR guidelines.",
     "hero.demo": "Watch demo",
     "hero.feature1": "CBR exam material",
     "hero.feature2": "Photo & video questions",
@@ -582,16 +630,20 @@ const translations: Record<LangCode, Record<string, string>> = {
     "hero.questionCount": "Question 12 of 65",
     "hero.imageAlt": "Intersection Situation",
     "hero.imageLabel": "Intersection Situation",
-    "hero.mockQuestion": "You are approaching this intersection. Who has the right of way?",
+    "hero.mockQuestion":
+      "You are approaching this intersection. Who has the right of way?",
     "hero.mockA": "The car from the right",
     "hero.mockB": "You, because you are on a priority road",
     "hero.mockC": "Everyone coming from the left",
-    "hero.mockExplanation": "Look at traffic sign B1. This indicates that drivers on this road have right of way at the approaching intersection.",
-    "hero.slide1.question": "You are approaching this junction. Who has the right of way?",
+    "hero.mockExplanation":
+      "Look at traffic sign B1. This indicates that drivers on this road have right of way at the approaching intersection.",
+    "hero.slide1.question":
+      "You are approaching this junction. Who has the right of way?",
     "hero.slide1.o1": "The red car",
     "hero.slide1.o2": "The blue car",
     "hero.slide1.o3": "You",
-    "hero.slide1.explanation": "You give way to traffic from the right at level junctions.",
+    "hero.slide1.explanation":
+      "You give way to traffic from the right at level junctions.",
     "hero.slide2.question": "Are you allowed to overtake here?",
     "hero.slide2.o1": "Yes",
     "hero.slide2.o2": "No",
@@ -601,41 +653,58 @@ const translations: Record<LangCode, Record<string, string>> = {
     "hero.slide3.o1": "30 km/h",
     "hero.slide3.o2": "50 km/h",
     "hero.slide3.o3": "70 km/h",
-    "hero.slide3.explanation": "In built-up areas the limit is 50 km/h unless indicated otherwise.",
+    "hero.slide3.explanation":
+      "In built-up areas the limit is 50 km/h unless indicated otherwise.",
 
     // Landing sections
     "features.title": "Everything you need",
-    "features.subtitle": "A complete suite of tools to bring theory education into the 21st century.",
+    "features.subtitle":
+      "A complete suite of tools to bring theory education into the 21st century.",
     "features.viewAll": "View all features",
     "features.photo.title": "Questions with photos",
-    "features.photo.description": "Crystal-clear images and realistic traffic situations that match the CBR exams 1-to-1.",
+    "features.photo.description":
+      "Crystal-clear images and realistic traffic situations that match the CBR exams 1-to-1.",
     "features.multi.title": "Multiple answers",
-    "features.multi.description": "Support for complex question types such as drag, hotspots and multiple-choice answers.",
+    "features.multi.description":
+      "Support for complex question types such as drag, hotspots and multiple-choice answers.",
     "features.explanation.title": "Explanation for every answer",
-    "features.explanation.description": "Direct insight into why an answer is right or wrong, including references to the traffic rules.",
+    "features.explanation.description":
+      "Direct insight into why an answer is right or wrong, including references to the traffic rules.",
     "features.dashboard.title": "Driving school dashboard",
-    "features.dashboard.description": "Manage students, view statistics and send messages from one central control panel.",
+    "features.dashboard.description":
+      "Manage students, view statistics and send messages from one central control panel.",
     "features.progress.title": "Track progress",
-    "features.progress.description": "Detailed overviews per topic. See at a glance where a student still needs extra help.",
+    "features.progress.description":
+      "Detailed overviews per topic. See at a glance where a student still needs extra help.",
     "features.devices.title": "Works everywhere",
-    "features.devices.description": "Seamless experience on desktop, tablet and mobile. Practice anywhere: on the train, at home or at the driving school.",
+    "features.devices.description":
+      "Seamless experience on desktop, tablet and mobile. Practice anywhere: on the train, at home or at the driving school.",
     "howItWorks.title": "How does it work?",
-    "howItWorks.subtitle": "Three simple steps to a higher pass rate for your driving school.",
+    "howItWorks.subtitle":
+      "Three simple steps to a higher pass rate for your driving school.",
     "howItWorks.step1.title": "1. Driving school creates an account",
-    "howItWorks.step1.description": "Your platform is set up within 2 minutes. Add your logo and invite students via email or link.",
+    "howItWorks.step1.description":
+      "Your platform is set up within 2 minutes. Add your logo and invite students via email or link.",
     "howItWorks.step2.title": "2. Students practise",
-    "howItWorks.step2.description": "Students get access to thousands of questions, including video situations and hazard perception on any device.",
+    "howItWorks.step2.description":
+      "Students get access to thousands of questions, including video situations and hazard perception on any device.",
     "howItWorks.step3.title": "3. Pass rate goes up",
-    "howItWorks.step3.description": "Track progress accurately via the dashboard. See directly who is ready for the real CBR exam.",
+    "howItWorks.step3.description":
+      "Track progress accurately via the dashboard. See directly who is ready for the real CBR exam.",
     "testimonials.title": "What driving schools say",
-    "testimonials.quote1": "Since switching to RijTheorie Pro our students' pass rate has gone up by 15%. The dashboard gives us perfect insight.",
-    "testimonials.quote2": "Finally a modern platform that works really well on our students' phones. No more hassle with outdated books or CD-ROMs.",
-    "testimonials.quote3": "The customer service is top notch and the interface is so intuitive that I never need to explain it to new students. An absolute must for every driving school.",
+    "testimonials.quote1":
+      "Since switching to RijTheorie Pro our students' pass rate has gone up by 15%. The dashboard gives us perfect insight.",
+    "testimonials.quote2":
+      "Finally a modern platform that works really well on our students' phones. No more hassle with outdated books or CD-ROMs.",
+    "testimonials.quote3":
+      "The customer service is top notch and the interface is so intuitive that I never need to explain it to new students. An absolute must for every driving school.",
     "landing.sectionPricingTitle": "Transparent Pricing",
-    "landing.sectionPricingSubtitle": "Choose the plan that fits the size of your driving school. Always includes updates.",
+    "landing.sectionPricingSubtitle":
+      "Choose the plan that fits the size of your driving school. Always includes updates.",
     "pricing.start": "Start",
     "hero2.title": "Pass your theory exam",
-    "hero2.subtitle": "Practice with realistic traffic situations, hotspots and hundreds of exam questions. Ready for the real CBR exam?",
+    "hero2.subtitle":
+      "Practice with realistic traffic situations, hotspots and hundreds of exam questions. Ready for the real CBR exam?",
     "hero2.cta": "Free exam",
     "hero2.ratingCount": "2,500+ REVIEWS",
     "hero2.terms": "Start practicing right away — no credit card needed.",
@@ -668,7 +737,8 @@ const translations: Record<LangCode, Record<string, string>> = {
 
     // CTA section
     "cta.title": "Ready to modernize your driving school?",
-    "cta.subtitle": "Join over 250 Dutch driving schools already using our platform. No setup costs, go live instantly.",
+    "cta.subtitle":
+      "Join over 250 Dutch driving schools already using our platform. No setup costs, go live instantly.",
     "cta.freeStart": "Start free",
     "cta.sales": "Talk to sales",
 
@@ -677,7 +747,8 @@ const translations: Record<LangCode, Record<string, string>> = {
     "exams.all": "All exams",
     "exams.premium": "Premium exams",
     "exams.unlockTitle": "Unlock premium exams",
-    "exams.unlockDesc": "Get a subscription to access all premium practice exams and prepare optimally.",
+    "exams.unlockDesc":
+      "Get a subscription to access all premium practice exams and prepare optimally.",
     "exams.freeAvailable": "You can still take the free exams above.",
     "exams.subscribe": "Subscribe",
     "exams.mostChosen": "Most Chosen",
@@ -697,7 +768,8 @@ const translations: Record<LangCode, Record<string, string>> = {
     "exams.attemptsLeft": "{n} attempts left",
     "exams.unlimited": "Unlimited",
     "exams.attemptsUsedTitle": "Attempts used up",
-    "exams.attemptsUsedDesc": "You've used all attempts for an exam. Buy a new subscription to reset the attempts and keep practicing — even if your current subscription is still active.",
+    "exams.attemptsUsedDesc":
+      "You've used all attempts for an exam. Buy a new subscription to reset the attempts and keep practicing — even if your current subscription is still active.",
     "exams.questions": "{n} questions",
     "exams.settings": "Settings",
     "exams.logout": "Log out",
@@ -706,7 +778,8 @@ const translations: Record<LangCode, Record<string, string>> = {
     "exams.noExams": "No exams available",
     "exams.noExamsDesc": "Check back later for new practice exams.",
     "exams.reviewTitle": "Wrongly answered questions?",
-    "exams.reviewDesc": "Review the questions you previously answered incorrectly to strengthen your knowledge.",
+    "exams.reviewDesc":
+      "Review the questions you previously answered incorrectly to strengthen your knowledge.",
     "exams.reviewButton": "Review Mistakes",
     "exams.minutes": "{n} min",
     "exams.loadingShort": "Loading...",
@@ -719,7 +792,8 @@ const translations: Record<LangCode, Record<string, string>> = {
     "exam.notPassed": "Not Passed",
     "exam.passedMessage": "Congratulations, you passed!",
     "exam.failedMessage": "Unfortunately, you did not pass",
-    "exam.passedDesc": "You have shown excellent knowledge of Dutch traffic rules.",
+    "exam.passedDesc":
+      "You have shown excellent knowledge of Dutch traffic rules.",
     "exam.failedDesc": "You came up short. Review your mistakes and try again.",
     "exam.totalScore": "Total Score",
     "exam.passedBadge": "Passed!",
@@ -731,7 +805,8 @@ const translations: Record<LangCode, Record<string, string>> = {
     "exam.review": "Review questions",
     "exam.retryExam": "Try again",
     "exam.reviewModalTitle": "Question overview",
-    "exam.reviewModalHint": "Click a question to view it. Answers can no longer be changed.",
+    "exam.reviewModalHint":
+      "Click a question to view it. Answers can no longer be changed.",
     "exam.reviewCorrect": "Correct",
     "exam.reviewWrong": "Wrong",
     "exam.backToResults": "Back to results",
@@ -745,12 +820,16 @@ const translations: Record<LangCode, Record<string, string>> = {
     "exam.distance": "Distance: {d}%",
     "exam.correctCount": "{c}/{t} correct",
     "exam.attemptLimitTitle": "Attempts for this exam used up",
-    "exam.attemptLimitDesc": "You took this exam {attempts} out of {max} times. Buy a subscription to keep practicing unlimited.",
+    "exam.attemptLimitDesc":
+      "You took this exam {attempts} out of {max} times. Buy a subscription to keep practicing unlimited.",
     "exam.buySubscription": "Buy subscription",
     "exam.hotspotResult": "Hotspot question — see results above",
     "exam.backToOverview": "Back to overview",
     "exam.selectFirst": "Select an answer before continuing.",
     "exam.multipleAnswers": "Multiple answers correct",
+    "exam.typeYourAnswer": "Type your answer...",
+    "exam.checkAnswer": "Check answer",
+    "exam.correctAnswerWas": "The correct answer was",
     "exam.selectAllCorrect": "Select all correct answers",
     "exam.notAllCorrect": "Wrong — not all correct answers selected",
     "exam.explanation": "Explanation",
@@ -763,13 +842,15 @@ const translations: Record<LangCode, Record<string, string>> = {
     "exam.timeUp": "Time's up!",
     "exam.violationsWarning": "Violation detected",
     "exam.tabSwitchTitle": "Tab switched",
-    "exam.tabSwitchMessage": "You left the exam page. This is recorded as a violation. Do not repeat this.",
+    "exam.tabSwitchMessage":
+      "You left the exam page. This is recorded as a violation. Do not repeat this.",
     "exam.violationsCount": "Number of violations:",
     "exam.returnToExam": "Return to exam",
     "exam.questionAudio": "Listen to the question",
     "exam.explanationAudio": "Listen to the explanation",
     "exam.expiredTitle": "Time's up!",
-    "exam.expiredMessage": "The exam time has expired. Your results are being saved automatically.",
+    "exam.expiredMessage":
+      "The exam time has expired. Your results are being saved automatically.",
 
     // Dashboard
     "dash.welcome": "Welcome",
@@ -817,7 +898,8 @@ const translations: Record<LangCode, Record<string, string>> = {
 
     // Courses (admin)
     "courses.overview": "Course Overview",
-    "courses.description": "Manage and view progress of all available theory courses.",
+    "courses.description":
+      "Manage and view progress of all available theory courses.",
     "courses.filter": "Filter",
     "courses.report": "Report",
     "courses.addNew": "Add New Course",
@@ -825,14 +907,16 @@ const translations: Record<LangCode, Record<string, string>> = {
     "courses.popularDesc": "Auto Theorie B is growing 12% this month.",
     "courses.viewStats": "View Statistics",
     "courses.requests": "Student Requests",
-    "courses.requestsDesc": "There are 4 open questions about the 'Motor Theory' course.",
+    "courses.requestsDesc":
+      "There are 4 open questions about the 'Motor Theory' course.",
     "courses.replyNow": "Reply now",
     "courses.editTitle": "Edit Course",
     "courses.newTitle": "New Course",
     "courses.editDesc": "Update the course details",
     "courses.newDesc": "Create a new theory course",
     "courses.deleteTitle": "Delete Course",
-    "courses.deleteConfirm": "Are you sure you want to delete {name}? This cannot be undone.",
+    "courses.deleteConfirm":
+      "Are you sure you want to delete {name}? This cannot be undone.",
     "courses.delete": "Delete",
     "courses.deleting": "Deleting...",
 
@@ -882,7 +966,8 @@ const translations: Record<LangCode, Record<string, string>> = {
     "settings.tryCreate": "Try to create",
     "settings.saveLangs": "Save languages",
     "settings.examAccess": "Exam Access",
-    "settings.examAccessDesc": "Choose whether admins can view and test student exams.",
+    "settings.examAccessDesc":
+      "Choose whether admins can view and test student exams.",
     "settings.canAccessExams": "Allow admin to access exams",
     "settings.save": "Save",
 
@@ -1039,7 +1124,8 @@ const translations: Record<LangCode, Record<string, string>> = {
     "landing.contact": "اتصل بنا",
     "landing.freeStart": "ابدأ مجانًا",
     "landing.pricingTitle": "أسعار شفافة",
-    "landing.pricingSubtitle": "اختر الخطة التي تناسب مدرسة تعليم القيادة الخاصة بك. تتضمن دائمًا التحديثات.",
+    "landing.pricingSubtitle":
+      "اختر الخطة التي تناسب مدرسة تعليم القيادة الخاصة بك. تتضمن دائمًا التحديثات.",
     "landing.noPlans": "لا توجد اشتراكات متاحة بعد.",
     "landing.mostChosen": "الأكثر اختيارًا",
     "landing.perYear": "/سنويًا",
@@ -1068,7 +1154,8 @@ const translations: Record<LangCode, Record<string, string>> = {
     "hero.title": "اجتاز ",
     "hero.titleAccent": "امتحان النظريات.",
     "hero.titleSuffix": " مضمون.",
-    "hero.subtitle": "أكثر تجربة نظرية شاملة وحديثة لمدارس تعليم القيادة والطلاب. استنادًا إلى أحدث إرشادات CBR.",
+    "hero.subtitle":
+      "أكثر تجربة نظرية شاملة وحديثة لمدارس تعليم القيادة والطلاب. استنادًا إلى أحدث إرشادات CBR.",
     "hero.demo": "شاهد العرض",
     "hero.feature1": "مواد امتحان CBR",
     "hero.feature2": "أسئلة بالصور والفيديو",
@@ -1080,12 +1167,14 @@ const translations: Record<LangCode, Record<string, string>> = {
     "hero.mockA": "السيارة القادمة من اليمين",
     "hero.mockB": "أنت، لأنك على طريق ذي أولوية",
     "hero.mockC": "كل من يأتي من اليسار",
-    "hero.mockExplanation": "انظر إلى لافتة المرور B1. هذا يشير إلى أن السائقين على هذا الطريق لديهم حق الأولوية عند التقاطع القادم.",
+    "hero.mockExplanation":
+      "انظر إلى لافتة المرور B1. هذا يشير إلى أن السائقين على هذا الطريق لديهم حق الأولوية عند التقاطع القادم.",
     "hero.slide1.question": "أنت تقترب من هذا التقاطع. من له حق الأولوية؟",
     "hero.slide1.o1": "السيارة الحمراء",
     "hero.slide1.o2": "السيارة الزرقاء",
     "hero.slide1.o3": "أنت",
-    "hero.slide1.explanation": "تعطي الأولوية لحركة المرور القادمة من اليمين في التقاطعات المتكافئة.",
+    "hero.slide1.explanation":
+      "تعطي الأولوية لحركة المرور القادمة من اليمين في التقاطعات المتكافئة.",
     "hero.slide2.question": "هل يُسمح لك بالتجاوز هنا؟",
     "hero.slide2.o1": "نعم",
     "hero.slide2.o2": "لا",
@@ -1095,41 +1184,57 @@ const translations: Record<LangCode, Record<string, string>> = {
     "hero.slide3.o1": "30 كم/ساعة",
     "hero.slide3.o2": "50 كم/ساعة",
     "hero.slide3.o3": "70 كم/ساعة",
-    "hero.slide3.explanation": "داخل المناطق المبنية يكون الحد الأقصى 50 كم/ساعة ما لم يُنص على خلاف ذلك.",
+    "hero.slide3.explanation":
+      "داخل المناطق المبنية يكون الحد الأقصى 50 كم/ساعة ما لم يُنص على خلاف ذلك.",
 
     // Landing sections
     "features.title": "كل ما تحتاجه",
-    "features.subtitle": "مجموعة أدوات متكاملة لنقل تعليم النظرية إلى القرن الحادي والعشرين.",
+    "features.subtitle":
+      "مجموعة أدوات متكاملة لنقل تعليم النظرية إلى القرن الحادي والعشرين.",
     "features.viewAll": "عرض كل الميزات",
     "features.photo.title": "أسئلة بالصور",
-    "features.photo.description": "صور عالية الدقة ومواقف مرورية واقعية تطابق امتحانات CBR تمامًا.",
+    "features.photo.description":
+      "صور عالية الدقة ومواقف مرورية واقعية تطابق امتحانات CBR تمامًا.",
     "features.multi.title": "إجابات متعددة",
-    "features.multi.description": "دعم لأنواع الأسئلة المعقدة مثل السحب والنقاط الساخنة وإجابات الاختيار من متعدد.",
+    "features.multi.description":
+      "دعم لأنواع الأسئلة المعقدة مثل السحب والنقاط الساخنة وإجابات الاختيار من متعدد.",
     "features.explanation.title": "شرح لكل إجابة",
-    "features.explanation.description": "فهم مباشر لسبب صحة أو خطأ الإجابة، مع إشارات إلى قواعد المرور.",
+    "features.explanation.description":
+      "فهم مباشر لسبب صحة أو خطأ الإجابة، مع إشارات إلى قواعد المرور.",
     "features.dashboard.title": "لوحة تحكم مدرسة القيادة",
-    "features.dashboard.description": "إدارة الطلاب ومشاهدة الإحصائيات وإرسال الرسائل من لوحة تحكم مركزية واحدة.",
+    "features.dashboard.description":
+      "إدارة الطلاب ومشاهدة الإحصائيات وإرسال الرسائل من لوحة تحكم مركزية واحدة.",
     "features.progress.title": "متابعة التقدم",
-    "features.progress.description": "نظرات تفصيلية حسب الموضوع. تعرف بنظرة واحدة أين يحتاج الطالب مساعدة إضافية.",
+    "features.progress.description":
+      "نظرات تفصيلية حسب الموضوع. تعرف بنظرة واحدة أين يحتاج الطالب مساعدة إضافية.",
     "features.devices.title": "يعمل على كل شيء",
-    "features.devices.description": "تجربة سلسة على الحاسوب واللوحي والجوال. درّب في أي مكان: في القطار أو المنزل أو في مدرسة القيادة.",
+    "features.devices.description":
+      "تجربة سلسة على الحاسوب واللوحي والجوال. درّب في أي مكان: في القطار أو المنزل أو في مدرسة القيادة.",
     "howItWorks.title": "كيف يعمل؟",
     "howItWorks.subtitle": "ثلاث خطوات بسيطة نحو نسبة نجاح أعلى لمدرسة قيادتك.",
     "howItWorks.step1.title": "1. مدرسة القيادة تنشئ الحساب",
-    "howItWorks.step1.description": "خلال دقيقتين تكون منصتك جاهزة. أضف شعارك وادعُ الطلاب عبر البريد الإلكتروني أو الرابط.",
+    "howItWorks.step1.description":
+      "خلال دقيقتين تكون منصتك جاهزة. أضف شعارك وادعُ الطلاب عبر البريد الإلكتروني أو الرابط.",
     "howItWorks.step2.title": "2. الطلاب يتدربون",
-    "howItWorks.step2.description": "يحصل الطلاب على آلاف الأسئلة، بما فيها مواقف الفيديو واكتشاف الخطر على أي جهاز.",
+    "howItWorks.step2.description":
+      "يحصل الطلاب على آلاف الأسئلة، بما فيها مواقف الفيديو واكتشاف الخطر على أي جهاز.",
     "howItWorks.step3.title": "3. نسبة النجاح ترتفع",
-    "howItWorks.step3.description": "تابع التقدم بدقة عبر لوحة التحكم. سترى فورًا من هو جاهز لامتحان CBR الحقيقي.",
+    "howItWorks.step3.description":
+      "تابع التقدم بدقة عبر لوحة التحكم. سترى فورًا من هو جاهز لامتحان CBR الحقيقي.",
     "testimonials.title": "ماذا تقول مدارس القيادة",
-    "testimonials.quote1": "منذ انتقالنا إلى RijTheorie Pro ارتفعت نسبة نجاح طلابنا بنسبة 15%. لوحة التحكم تمنحنا رؤية مثالية.",
-    "testimonials.quote2": "أخيرًا منصة عصرية تعمل جيدًا على هواتف طلابنا. لا مزيد من المتاعب مع الكتب القديمة أو الأقراص.",
-    "testimonials.quote3": "خدمة العملاء ممتازة والواجهة بديهية لدرجة أنني لا أحتاج لشرح أي شيء للطلاب الجدد. أنصح بها بشدة لكل مدرسة قيادة.",
+    "testimonials.quote1":
+      "منذ انتقالنا إلى RijTheorie Pro ارتفعت نسبة نجاح طلابنا بنسبة 15%. لوحة التحكم تمنحنا رؤية مثالية.",
+    "testimonials.quote2":
+      "أخيرًا منصة عصرية تعمل جيدًا على هواتف طلابنا. لا مزيد من المتاعب مع الكتب القديمة أو الأقراص.",
+    "testimonials.quote3":
+      "خدمة العملاء ممتازة والواجهة بديهية لدرجة أنني لا أحتاج لشرح أي شيء للطلاب الجدد. أنصح بها بشدة لكل مدرسة قيادة.",
     "landing.sectionPricingTitle": "أسعار شفافة",
-    "landing.sectionPricingSubtitle": "اختر الخطة التي تناسب حجم مدرسة القيادة الخاصة بك. التحديثات متضمنة دائمًا.",
+    "landing.sectionPricingSubtitle":
+      "اختر الخطة التي تناسب حجم مدرسة القيادة الخاصة بك. التحديثات متضمنة دائمًا.",
     "pricing.start": "ابدأ",
     "hero2.title": "اجتز امتحان النظري",
-    "hero2.subtitle": "تدرب على مواقف مرورية واقعية ونقاط ساخنة ومئات الأسئلة الامتحانية. هل أنت مستعد لامتحان CBR الحقيقي؟",
+    "hero2.subtitle":
+      "تدرب على مواقف مرورية واقعية ونقاط ساخنة ومئات الأسئلة الامتحانية. هل أنت مستعد لامتحان CBR الحقيقي؟",
     "hero2.cta": "امتحان مجاني",
     "hero2.ratingCount": "أكثر من 2500 مراجعة",
     "hero2.terms": "ابدأ التدريب فورًا — لا حاجة لبطاقة ائتمان.",
@@ -1162,7 +1267,8 @@ const translations: Record<LangCode, Record<string, string>> = {
 
     // CTA section
     "cta.title": "هل أنت مستعد لتحديث مدرسة تعليم القيادة الخاصة بك؟",
-    "cta.subtitle": "انضم إلى أكثر من 250 مدرسة قيادة هولندية تستخدم منصتنا بالفعل. لا توجد تكاليف بدء، ابدأ فورًا.",
+    "cta.subtitle":
+      "انضم إلى أكثر من 250 مدرسة قيادة هولندية تستخدم منصتنا بالفعل. لا توجد تكاليف بدء، ابدأ فورًا.",
     "cta.freeStart": "ابدأ مجانًا",
     "cta.sales": "تحدث إلى المبيعات",
 
@@ -1171,7 +1277,8 @@ const translations: Record<LangCode, Record<string, string>> = {
     "exams.all": "جميع الامتحانات",
     "exams.premium": "الامتحانات المميزة",
     "exams.unlockTitle": "افتح الامتحانات المميزة",
-    "exams.unlockDesc": "احصل على اشتراك للوصول إلى جميع الامتحانات المميزة واستعد بشكل مثالي.",
+    "exams.unlockDesc":
+      "احصل على اشتراك للوصول إلى جميع الامتحانات المميزة واستعد بشكل مثالي.",
     "exams.freeAvailable": "لا يزال بإمكانك إجراء الامتحانات المجانية أعلاه.",
     "exams.subscribe": "اشترك",
     "exams.mostChosen": "الأكثر اختيارًا",
@@ -1191,7 +1298,8 @@ const translations: Record<LangCode, Record<string, string>> = {
     "exams.attemptsLeft": "بقي {n} محاولات",
     "exams.unlimited": "غير محدود",
     "exams.attemptsUsedTitle": "استنفدت المحاولات",
-    "exams.attemptsUsedDesc": "لقد استنفدت جميع محاولات امتحان. اشترِ اشتراكًا جديدًا لإعادة تعيين المحاولات ومواصلة التدرب — حتى لو كان اشتراكك الحالي ما زال ساريًا.",
+    "exams.attemptsUsedDesc":
+      "لقد استنفدت جميع محاولات امتحان. اشترِ اشتراكًا جديدًا لإعادة تعيين المحاولات ومواصلة التدرب — حتى لو كان اشتراكك الحالي ما زال ساريًا.",
     "exams.questions": "{n} سؤال",
     "exams.settings": "الإعدادات",
     "exams.logout": "تسجيل الخروج",
@@ -1200,7 +1308,8 @@ const translations: Record<LangCode, Record<string, string>> = {
     "exams.noExams": "لا توجد امتحانات متاحة",
     "exams.noExamsDesc": "تحقق لاحقًا لمعرفة الامتحانات الجديدة.",
     "exams.reviewTitle": "أسئلة خاطئة؟",
-    "exams.reviewDesc": "راجع الأسئلة التي أجبت عليها بشكل خاطئ سابقًا لتعزيز معرفتك.",
+    "exams.reviewDesc":
+      "راجع الأسئلة التي أجبت عليها بشكل خاطئ سابقًا لتعزيز معرفتك.",
     "exams.reviewButton": "مراجعة الأخطاء",
     "exams.minutes": "{n} دقيقة",
     "exams.loadingShort": "جارٍ التحميل...",
@@ -1214,7 +1323,8 @@ const translations: Record<LangCode, Record<string, string>> = {
     "exam.passedMessage": "تهانينا، لقد نجحت!",
     "exam.failedMessage": "للأسف، لم تنجح",
     "exam.passedDesc": "لقد أظهرت معرفة ممتازة بقواعد المرور الهولندية.",
-    "exam.failedDesc": "لم تصل إلى الدرجة المطلوبة. راجع أخطائك وحاول مرة أخرى.",
+    "exam.failedDesc":
+      "لم تصل إلى الدرجة المطلوبة. راجع أخطائك وحاول مرة أخرى.",
     "exam.totalScore": "الدرجة الإجمالية",
     "exam.passedBadge": "ناجح!",
     "exam.needs80": "80% مطلوبة",
@@ -1225,7 +1335,8 @@ const translations: Record<LangCode, Record<string, string>> = {
     "exam.review": "مراجعة الأسئلة",
     "exam.retryExam": "أعد المحاولة",
     "exam.reviewModalTitle": "نظرة عامة على الأسئلة",
-    "exam.reviewModalHint": "اضغط على سؤال لعرضه. لا يمكن تغيير الإجابات بعد الآن.",
+    "exam.reviewModalHint":
+      "اضغط على سؤال لعرضه. لا يمكن تغيير الإجابات بعد الآن.",
     "exam.reviewCorrect": "صحيح",
     "exam.reviewWrong": "خطأ",
     "exam.backToResults": "العودة إلى النتائج",
@@ -1239,7 +1350,8 @@ const translations: Record<LangCode, Record<string, string>> = {
     "exam.distance": "المسافة: {d}%",
     "exam.correctCount": "{c}/{t} صحيح",
     "exam.attemptLimitTitle": "استنفدت محاولات هذا الامتحان",
-    "exam.attemptLimitDesc": "لقد قمت بهذا الامتحان {attempts} من أصل {max} مرات. اشترك في باقة لمواصلة التدرب بدون حدود.",
+    "exam.attemptLimitDesc":
+      "لقد قمت بهذا الامتحان {attempts} من أصل {max} مرات. اشترك في باقة لمواصلة التدرب بدون حدود.",
     "exam.buySubscription": "اشترك الآن",
     "exam.hotspotResult": "سؤال النقطة الساخنة — انظر النتائج أعلاه",
     "exam.backToOverview": "العودة إلى النظرة العامة",
@@ -1257,7 +1369,8 @@ const translations: Record<LangCode, Record<string, string>> = {
     "exam.timeUp": "انتهى الوقت!",
     "exam.violationsWarning": "تم رصد مخالفة",
     "exam.tabSwitchTitle": "تم تبديل التبويب",
-    "exam.tabSwitchMessage": "لقد غادرت صفحة الامتحان. يتم تسجيل هذا كمخالفة. لا تكرر هذا.",
+    "exam.tabSwitchMessage":
+      "لقد غادرت صفحة الامتحان. يتم تسجيل هذا كمخالفة. لا تكرر هذا.",
     "exam.violationsCount": "عدد المخالفات:",
     "exam.returnToExam": "العودة إلى الامتحان",
     "exam.questionAudio": "استمع إلى السؤال",
@@ -1326,7 +1439,8 @@ const translations: Record<LangCode, Record<string, string>> = {
     "courses.editDesc": "تحديث تفاصيل الدورة",
     "courses.newDesc": "إنشاء دورة نظرية جديدة",
     "courses.deleteTitle": "حذف الدورة",
-    "courses.deleteConfirm": "هل أنت متأكد أنك تريد حذف {name}؟ لا يمكن التراجع عن هذا.",
+    "courses.deleteConfirm":
+      "هل أنت متأكد أنك تريد حذف {name}؟ لا يمكن التراجع عن هذا.",
     "courses.delete": "حذف",
     "courses.deleting": "جارٍ الحذف...",
 
@@ -1376,7 +1490,8 @@ const translations: Record<LangCode, Record<string, string>> = {
     "settings.tryCreate": "حاول إنشاء",
     "settings.saveLangs": "حفظ اللغات",
     "settings.examAccess": "الوصول للامتحانات",
-    "settings.examAccessDesc": "حدد ما إذا كان المشرف يمكنه مشاهدة واختبار امتحانات الطلاب.",
+    "settings.examAccessDesc":
+      "حدد ما إذا كان المشرف يمكنه مشاهدة واختبار امتحانات الطلاب.",
     "settings.canAccessExams": "السماح للمشرف بالوصول للامتحانات",
     "settings.save": "حفظ",
 
@@ -1487,88 +1602,134 @@ const translations: Record<LangCode, Record<string, string>> = {
     "progress.noData": "لم تجرِ أي امتحانات بعد",
     "progress.takeFirst": "أجرِ امتحانًا أولًا لرؤية تقدمك.",
   },
-}
+};
 
 export function useTranslation() {
-  const ctx = useContext(LanguageContext)
-  if (!ctx) return { t: (key: string, params?: Record<string, string | number>) => key, lang: "nl" as LangCode, setLang: (_: LangCode) => {}, availableLangs: ["nl"], langLabels: {} as Record<string, string> }
-  const { lang, availableLangs, langLabels } = ctx
+  const ctx = useContext(LanguageContext);
+  if (!ctx)
+    return {
+      t: (key: string, params?: Record<string, string | number>) => key,
+      lang: "nl" as LangCode,
+      setLang: (_: LangCode) => {},
+      availableLangs: ["nl"],
+      langLabels: {} as Record<string, string>,
+    };
+  const { lang, availableLangs, langLabels } = ctx;
 
   function t(key: string, params?: Record<string, string | number>): string {
-    let text = translations[lang]?.[key] || translations.nl[key] || key
+    let text = translations[lang]?.[key] || translations.nl[key] || key;
     if (params) {
       Object.entries(params).forEach(([k, v]) => {
-        text = text.replace(`{${k}}`, String(v))
-      })
+        text = text.replace(`{${k}}`, String(v));
+      });
     }
-    return text
+    return text;
   }
 
-  return { t, lang: ctx.lang, setLang: ctx.setLang, availableLangs: ctx.availableLangs, langLabels: ctx.langLabels }
+  return {
+    t,
+    lang: ctx.lang,
+    setLang: ctx.setLang,
+    availableLangs: ctx.availableLangs,
+    langLabels: ctx.langLabels,
+  };
 }
 
 const langLabels: Record<string, string> = {
-  nl: "Nederlands", en: "English", ar: "العربية", fr: "Français",
-  de: "Deutsch", tr: "Türkçe", pl: "Polski", es: "Español", it: "Italiano",
-}
+  nl: "Nederlands",
+  en: "English",
+  ar: "العربية",
+  fr: "Français",
+  de: "Deutsch",
+  tr: "Türkçe",
+  pl: "Polski",
+  es: "Español",
+  it: "Italiano",
+};
 
 interface LanguageContextType {
-  lang: LangCode
-  setLang: (code: LangCode) => void
-  availableLangs: string[]
-  langLabels: Record<string, string>
+  lang: LangCode;
+  setLang: (code: LangCode) => void;
+  availableLangs: string[];
+  langLabels: Record<string, string>;
 }
 
-const LanguageContext = createContext<LanguageContextType | null>(null)
+const LanguageContext = createContext<LanguageContextType | null>(null);
 
 export function LanguageProvider({ children }: { children: React.ReactNode }) {
-  const [lang, setLangState] = useState<LangCode>("nl")
-  const [ready, setReady] = useState(false)
-  const [availableLangs, setAvailableLangs] = useState<string[]>(["nl"])
+  const [lang, setLangState] = useState<LangCode>("nl");
+  const [ready, setReady] = useState(false);
+  const [availableLangs, setAvailableLangs] = useState<string[]>(["nl"]);
 
   useEffect(() => {
-    let cancelled = false
-    let loaded = 0
-    const checkReady = () => { if (++loaded >= 2 && !cancelled) setReady(true) }
+    let cancelled = false;
+    let loaded = 0;
+    const checkReady = () => {
+      if (++loaded >= 2 && !cancelled) setReady(true);
+    };
 
     supabase.auth.getUser().then(({ data: { user } }) => {
-      if (cancelled) return
+      if (cancelled) return;
       if (user) {
-        supabase.from("profiles").select("language").eq("id", user.id).single().then(({ data }) => {
-          if (!cancelled && data?.language && ["nl", "en", "ar"].includes(data.language)) {
-            setLangState(data.language as LangCode)
-          }
-          checkReady()
-        })
+        supabase
+          .from("profiles")
+          .select("language")
+          .eq("id", user.id)
+          .single()
+          .then(({ data }) => {
+            if (
+              !cancelled &&
+              data?.language &&
+              ["nl", "en", "ar"].includes(data.language)
+            ) {
+              setLangState(data.language as LangCode);
+            }
+            checkReady();
+          });
       } else {
-        checkReady()
+        checkReady();
       }
-    })
+    });
 
-    supabase.from("site_settings").select("languages").eq("id", 1).single().then(({ data }) => {
-      if (!cancelled && data?.languages) setAvailableLangs(data.languages as string[])
-      checkReady()
-    })
+    supabase
+      .from("site_settings")
+      .select("languages")
+      .eq("id", 1)
+      .single()
+      .then(({ data }) => {
+        if (!cancelled && data?.languages)
+          setAvailableLangs(data.languages as string[]);
+        checkReady();
+      });
 
-    return () => { cancelled = true }
-  }, [])
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   useEffect(() => {
-    document.documentElement.dir = lang === "ar" ? "rtl" : "ltr"
-    document.documentElement.lang = lang
-  }, [lang])
+    document.documentElement.dir = lang === "ar" ? "rtl" : "ltr";
+    document.documentElement.lang = lang;
+  }, [lang]);
 
   const setLang = async (code: LangCode) => {
-    setLangState(code)
-    const { data: { user } } = await supabase.auth.getUser()
+    setLangState(code);
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
     if (user) {
-      await supabase.from("profiles").update({ language: code }).eq("id", user.id)
+      await supabase
+        .from("profiles")
+        .update({ language: code })
+        .eq("id", user.id);
     }
-  }
+  };
 
   return (
-    <LanguageContext.Provider value={{ lang, setLang, availableLangs, langLabels }}>
+    <LanguageContext.Provider
+      value={{ lang, setLang, availableLangs, langLabels }}
+    >
       {ready ? children : null}
     </LanguageContext.Provider>
-  )
+  );
 }

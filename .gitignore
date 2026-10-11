@@ -34,6 +34,9 @@ yarn-error.log*
 .env*
 !.env.example
 
+# local db/storage backups (contain data, keep out of git)
+/backups
+
 # vercel
 .vercel
 

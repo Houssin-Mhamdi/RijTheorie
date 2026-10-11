@@ -47,6 +47,7 @@ export default function QuestionsPage() {
   const [filterMedia, setFilterMedia] = useState<"all" | "with" | "without">("all")
   const [filterAnswers, setFilterAnswers] = useState<"all" | "min3" | "exact4">("all")
   const [showFilters, setShowFilters] = useState(false)
+  const [formNonce, setFormNonce] = useState(0)
 
   const { data: questionsData, isLoading } = useSupabaseQuery(
     ["questions"],
@@ -57,6 +58,7 @@ export default function QuestionsPage() {
     const { data, error } = await supabase
       .from("questions")
       .insert({
+        type: values.type ?? "normal",
         category: values.category,
         question_text: values.questionText,
         pause_at: values.pauseAt ?? 3,
@@ -87,6 +89,7 @@ export default function QuestionsPage() {
     const { data, error } = await supabase
       .from("questions")
       .update({
+        type: values.type ?? "normal",
         category: values.category,
         question_text: values.questionText,
         pause_at: values.pauseAt ?? 3,
@@ -161,6 +164,7 @@ export default function QuestionsPage() {
     const options = (q.answer_options as Array<{ text: string; isCorrect: boolean; x?: number; y?: number }>) || []
     setEditId(q.id as string)
     setSlideOverOpen(true)
+    setFormNonce((n) => n + 1)
   }
 
   const editQuestion = editId
@@ -171,6 +175,7 @@ export default function QuestionsPage() {
     () =>
       editQuestion
         ? {
+            type: (editQuestion.type as "normal" | "right-of-way" | "choose-images" | "input-text") || "normal",
             category: editQuestion.category as string,
             questionText: editQuestion.question_text as string,
             media: (editQuestion.media as string) || undefined,
@@ -234,7 +239,7 @@ export default function QuestionsPage() {
             <span className="hidden sm:inline">Import</span>
           </button>
           <button
-            onClick={() => { setEditId(null); setSlideOverOpen(true) }}
+            onClick={() => { setEditId(null); setSlideOverOpen(true); setFormNonce((n) => n + 1) }}
             className="flex items-center gap-2 bg-secondary-container text-on-secondary-container px-6 py-3 rounded-xl font-label-md hover:opacity-90 active:scale-95 transition-all shadow-md"
           >
             <Plus size={20} />
@@ -392,7 +397,7 @@ export default function QuestionsPage() {
           </div>
         }
       >
-        <QuestionForm key={editId ?? "new-question"} onSubmit={handleSubmit} initialData={initialData ?? null} userId={session?.user?.id} onUploadingChange={setIsUploading} />
+        <QuestionForm key={`${editId ?? "new-question"}-${formNonce}`} onSubmit={handleSubmit} initialData={initialData ?? null} userId={session?.user?.id} onUploadingChange={setIsUploading} />
       </SlideOver>
 
       <Dialog open={!!deleteTarget} onOpenChange={(open) => { if (!open) setDeleteTarget(null) }}>

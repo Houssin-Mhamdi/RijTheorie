@@ -3,17 +3,12 @@
 import { useEffect, useState } from "react"
 import { useSupabaseQuery } from "@/lib/supabase-queries"
 import { supabase } from "@/lib/supabase"
-import { Link2, Unlink, DollarSign, TrendingUp, Users, Banknote, CreditCard, Loader2, CheckCircle, ExternalLink } from "lucide-react"
+import { DollarSign, TrendingUp, Users, Banknote, CreditCard, CheckCircle } from "lucide-react"
 import type { SiteSettings, Payout } from "@/types/database"
 
 export default function BillingPage() {
   const [saving, setSaving] = useState(false)
   const [saved, setSaved] = useState(false)
-  const [connecting, setConnecting] = useState(false)
-
-  const [stripeConnected, setStripeConnected] = useState(false)
-  const [stripeAccountId, setStripeAccountId] = useState("")
-  const [stripeLoading, setStripeLoading] = useState(true)
 
   const [bankHolder, setBankHolder] = useState("")
   const [bankNumber, setBankNumber] = useState("")
@@ -68,41 +63,6 @@ export default function BillingPage() {
     setBankName(ps.bank_name ?? "")
   }, [settingsData])
 
-  const checkStripeStatus = async () => {
-    setStripeLoading(true)
-    try {
-      const res = await fetch("/api/stripe/connect/status")
-      const data = await res.json()
-      setStripeConnected(data.connected)
-      setStripeAccountId(data.account_id ?? "")
-    } catch {
-      setStripeConnected(false)
-    }
-    setStripeLoading(false)
-  }
-
-  useEffect(() => {
-    checkStripeStatus()
-    const params = new URLSearchParams(window.location.search)
-    if (params.get("stripe") === "connected") {
-      setTimeout(checkStripeStatus, 2000)
-    }
-  }, [])
-
-  const handleConnectStripe = async () => {
-    setConnecting(true)
-    try {
-      const res = await fetch("/api/stripe/connect", { method: "POST" })
-      const data = await res.json()
-      if (data.url) {
-        window.location.href = data.url
-      }
-    } catch (e) {
-      console.error("Connect error:", e)
-    }
-    setConnecting(false)
-  }
-
   const handleSaveBank = async () => {
     setSaving(true)
     const trimmed = (s: string) => s.trim()
@@ -119,22 +79,12 @@ export default function BillingPage() {
     setTimeout(() => setSaved(false), 3000)
   }
 
-  const handleDisconnect = async () => {
-    await supabase.from("site_settings").update({
-      payment_settings: {},
-    }).eq("id", 1)
-    setStripeConnected(false)
-    setStripeAccountId("")
-  }
-
-  const platformFeePercent = 50
-
   return (
     <div className="flex-grow space-y-6 px-4 md:px-6 py-8">
       <header className="mb-8">
         <h1 className="text-headline-lg text-primary">Billing &amp; Payouts</h1>
         <p className="text-body-md text-on-surface-variant">
-          Connect your Stripe account to collect subscription payments. You receive 50% of each payment.
+          Payments are collected directly on your own Stripe account. You receive 100% of every payment.
         </p>
       </header>
 
@@ -174,78 +124,42 @@ export default function BillingPage() {
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        {/* Stripe Connect Status */}
+        {/* Stripe Payments */}
         <section className="bg-white p-8 rounded-2xl border border-surface-container-highest shadow-sm flex flex-col justify-between">
           <div>
             <div className="flex items-center justify-between mb-4">
-              <span className={`text-label-sm px-3 py-1 rounded-full font-bold ${stripeConnected ? "bg-green-100 text-green-700" : "bg-surface-container-low text-on-surface-variant"}`}>
-                {stripeLoading ? "Checking..." : stripeConnected ? "CONNECTED" : "NOT CONNECTED"}
+              <span className="text-label-sm px-3 py-1 rounded-full bg-green-100 text-green-700 font-bold">
+                ACTIVE
               </span>
-              {stripeConnected ? (
-                <Link2 size={20} className="text-green-600" />
-              ) : (
-                <Unlink size={20} className="text-on-surface-variant" />
-              )}
+              <CheckCircle size={20} className="text-green-600" />
             </div>
-            <h2 className="text-headline-md text-primary mb-2">Stripe Connect</h2>
+            <h2 className="text-headline-md text-primary mb-2">Stripe Payments</h2>
             <p className="text-body-md text-on-surface-variant mb-6">
-              Connect your Stripe account to receive payments. {platformFeePercent}% platform fee applies.
+              All subscription payments go 100% directly to your own Stripe account. No connected accounts, no revenue split, no extra onboarding.
             </p>
 
             <div className="bg-surface-container-low p-4 rounded-xl border border-outline-variant space-y-2">
               <div className="flex items-center gap-3">
-                <CreditCard size={18} className={stripeConnected ? "text-green-600" : "text-on-surface-variant"} />
+                <CreditCard size={18} className="text-green-600" />
                 <span className="text-body-md font-medium text-on-surface">
-                  {stripeConnected ? "Stripe account connected" : "No Stripe account connected"}
+                  Payments enabled
                 </span>
               </div>
               <p className="text-label-sm text-on-surface-variant ml-7">
-                {stripeConnected
-                  ? `Account: ${stripeAccountId.slice(0, 12)}...`
-                  : "Click the button below to connect your Stripe account"}
+                Money lands in the Stripe balance of the key configured in <code>STRIPE_SECRET_KEY</code>.
               </p>
             </div>
 
-            {stripeConnected && (
-              <div className="mt-4 bg-green-50 p-4 rounded-xl border border-green-200">
-                <div className="flex items-center gap-2 mb-2">
-                  <CheckCircle size={16} className="text-green-600" />
-                  <span className="text-label-md font-bold text-green-700">Revenue Split</span>
-                </div>
-                <div className="flex justify-between text-body-md">
-                  <span className="text-on-surface-variant">Platform fee ({platformFeePercent}%)</span>
-                  <span className="font-bold text-on-surface">Goes to platform owner</span>
-                </div>
-                <div className="flex justify-between text-body-md mt-1">
-                  <span className="text-on-surface-variant">Your share ({100 - platformFeePercent}%)</span>
-                  <span className="font-bold text-green-700">Deposited to your Stripe</span>
-                </div>
+            <div className="mt-4 bg-green-50 p-4 rounded-xl border border-green-200">
+              <div className="flex items-center gap-2 mb-2">
+                <CheckCircle size={16} className="text-green-600" />
+                <span className="text-label-md font-bold text-green-700">Revenue</span>
               </div>
-            )}
-          </div>
-
-          <div className="mt-6 space-y-3">
-            {stripeConnected ? (
-              <button
-                onClick={handleDisconnect}
-                className="text-error font-bold text-label-md hover:underline flex items-center gap-2"
-              >
-                <Unlink size={16} />
-                Disconnect Stripe
-              </button>
-            ) : (
-              <button
-                onClick={handleConnectStripe}
-                disabled={connecting}
-                className="w-full bg-primary text-white px-8 py-3 rounded-lg font-bold text-label-md hover:bg-primary-container transition-all shadow-md active:scale-95 disabled:opacity-50 flex items-center justify-center gap-2"
-              >
-                {connecting ? (
-                  <><Loader2 size={16} className="animate-spin" /> Connecting...</>
-                ) : (
-                  <><ExternalLink size={16} /> Connect with Stripe</>
-                )}
-              </button>
-            )}
+              <div className="flex justify-between text-body-md">
+                <span className="text-on-surface-variant">Platform share</span>
+                <span className="font-bold text-green-700">100% to you</span>
+              </div>
+            </div>
           </div>
         </section>
 
